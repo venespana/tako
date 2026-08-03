@@ -1,6 +1,12 @@
-# Tako 🐙
+<p align="center">
+  <img src="docs/assets/tako-logo.jpg" alt="Tako" width="200" />
+</p>
 
-TUI for managing docker-compose-based homelabs over SSH.
+<h1 align="center">Tako 🐙</h1>
+
+<p align="center">TUI for managing docker-compose-based homelabs over SSH.</p>
+
+---
 
 Tako runs on your PC and connects to your servers via SSH (VSCode Remote style). Servers expose nothing new: management goes through SSH. It supports bootstrap of base stacks (Caddy + AdGuard + Uptime Kuma + cloudflared), deploy via tags, service status, live logs, rollback, and cleanup.
 
