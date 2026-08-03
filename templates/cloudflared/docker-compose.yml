@@ -1,0 +1,16 @@
+# Cloudflare Tunnel - expone servicios a Internet sin abrir puertos.
+# Stack opcional. Ver docs de Cloudflare para configuración.
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file:
+      - .env
+    networks:
+      - caddy
+
+networks:
+  caddy:
+    external: true

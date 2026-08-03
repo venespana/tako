@@ -1,0 +1,22 @@
+# Uptime Kuma - status page + alertas push (Telegram/email).
+# Daemon indispensable para monitoreo pasivo del homelab.
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - uptime-kuma_data:/app/data
+    networks:
+      - caddy
+    labels:
+      caddy: status.homelab.internal
+      caddy.tls: internal
+      caddy.reverse_proxy: "{{upstreams 3001}}"
+
+volumes:
+  uptime-kuma_data:
+
+networks:
+  caddy:
+    external: true

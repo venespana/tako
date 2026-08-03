@@ -1,0 +1,72 @@
+# Config inicial de AdGuard Home.
+# Edita la IP en la sección `dns.rewrite` con la IP real del host docker.
+# Esta config permite que AdGuard arranque directamente (sin wizard completo);
+# la primera visita a https://adguard.homelab.internal pedirá crear el admin.
+
+http:
+  address: 0.0.0.0:3000
+  session_ttl: 720h
+users: []
+auth_attempts: 5
+block_auth_min: 15
+language: es
+theme: auto
+
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+  protection_enabled: true
+  protection_mode: default
+  filtering_enabled: true
+  blocked_response_ttl: 10
+
+  # Upstreams DoH (cifrado frente a tu ISP).
+  upstream_dns:
+    - https://dns.cloudflare.com/dns-query
+    - https://dns.google/dns-query
+  upstream_mode: load_balance
+  bootstrap_dns:
+    - 1.1.1.1
+    - 8.8.8.8
+  fallback_dns:
+    - 1.1.1.1
+    - 9.9.9.9
+
+  # ====== CAMBIA ESTA IP por la de tu host docker ======
+  rewrite:
+    - domain: '*.homelab.internal'
+      answer: 192.168.1.10
+
+  blocked_services:
+    enabled: []
+
+querylog:
+  enabled: true
+  size_memory: 1000
+  interval: 168h
+
+statistics:
+  enabled: true
+  interval: 1
+  ignored: []
+
+# Listas de bloqueo de publicidad y trackers.
+filters:
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt
+    name: AdGuard DNS filter
+    id: 1
+  - enabled: true
+    url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt
+    name: AdAway Default Blocklist
+    id: 2
+
+whitelist_filters: []
+user_rules: []
+
+dhcp:
+  enabled: false
+
+rlw:
+  enabled: false
