@@ -1,95 +1,95 @@
-# Spec CLI — Comandos
+# CLI Spec — Commands
 
-Tako tiene 9 comandos. El contrato público está cerrado.
+Tako has 9 commands. The public contract is closed.
 
-## Set de comandos
+## Command set
 
 ```
-tako                              # TUI interactivo (default)
+tako                              # interactive TUI (default)
 tako doctor                       # pre-flight check
-tako install                      # bootstrap host remoto
-tako update [--host X]            # self-update o update de host
+tako install                      # bootstrap remote host
+tako update [--host X]            # self-update or host update
 tako remotes <add|list|rm|use|test>
-tako status [--host X]            # tabla no-interactiva
+tako status [--host X]            # non-interactive table
 tako logs <stack> [--host X] [-f]
-tako cleanup [--host X]           # prune segura
+tako cleanup [--host X]           # safe prune
 tako rollback <stack> [--to <tag>]
 ```
 
-## Detalle por comando
+## Detail per command
 
 ### `tako` (default)
 
-Lanza el TUI interactivo sobre el remote activo. Si no hay remote configurado, ofrece wizard.
+Launches the interactive TUI over the active remote. If no remote is configured, it offers a wizard.
 
 ### `tako doctor`
 
-Pre-flight: revisa que el host tenga docker daemon accesible, compose v2, red `caddy`, servicios base disponibles. **Solo reporta**, no sugiere fix.
+Pre-flight: checks that the host has an accessible docker daemon, compose v2, the `caddy` network, and base services available. **Only reports**, does not suggest fixes.
 
 ### `tako install`
 
-Bootstrap del host remoto:
-- Crea `~/.local/share/homelab/` (XDG, sin sudo).
-- Escribe los `docker-compose.yml` de los stacks base desde las plantillas embebidas en el binario.
-- Crea red `caddy` si no existe.
-- Copia `.env.example` → `.env`.
-- Instala cron del CLI (corre `tako cleanup` diariamente).
-- Levanta stacks: `docker compose up -d`.
+Bootstrap of the remote host:
+- Creates `~/.local/share/homelab/` (XDG, without sudo).
+- Writes the `docker-compose.yml` of base stacks from the templates embedded in the binary.
+- Creates the `caddy` network if it does not exist.
+- Copies `.env.example` → `.env`.
+- Installs the CLI cron (runs `tako cleanup` daily).
+- Brings up stacks: `docker compose up -d`.
 
-**Restricción**: no instala paquetes del SO ni escala permisos. Si docker no está disponible, aborta con mensaje claro.
+**Restriction**: does not install OS packages or escalate permissions. If docker is not available, it aborts with a clear message.
 
 ### `tako update`
 
-- **Sin `--host`**: self-update del binario. Descarga la última versión de GitHub Releases según plataforma.
-- **Con `--host X`**: diff de docker-composes entre lo que corre en X vs las plantillas del binario local. Redeploy de los stacks cambiados.
+- **Without `--host`**: self-update of the binary. Downloads the latest version from GitHub Releases according to platform.
+- **With `--host X`**: diff of docker-composes between what runs on X vs the templates in the local binary. Redeploy of changed stacks.
 
-### `tako remotes <subcomando>`
+### `tako remotes <subcommand>`
 
-Gestión de conexiones:
-- `add <name>`: añade un remote (wizard interactivo).
-- `list`: lista remotes configurados.
-- `rm <name>`: elimina un remote.
-- `use <name>`: establece el remote activo.
-- `test <name>`: prueba la conexión.
+Connection management:
+- `add <name>`: adds a remote (interactive wizard).
+- `list`: lists configured remotes.
+- `rm <name>`: removes a remote.
+- `use <name>`: sets the active remote.
+- `test <name>`: tests the connection.
 
-Tipos soportados:
-- `local`: no hace conexión, opera sobre el host actual.
+Supported types:
+- `local`: makes no connection, operates on the current host.
 - `ssh user@host + password`.
-- `ssh user@host + path a clave privada`.
+- `ssh user@host + path to private key`.
 
-Ambos auth al mismo nivel. Storage de credenciales con formato seguro.
+Both auth methods at the same level. Credential storage with a secure format.
 
 ### `tako status [--host X]`
 
-Tabla no-interactiva con estado de stacks. Para scripts/cron.
+Non-interactive table with stack status. For scripts/cron.
 
 ### `tako logs <stack> [--host X] [-f]`
 
-`docker compose logs` via SSH, sin abrir el TUI. `-f` para follow.
+`docker compose logs` via SSH, without opening the TUI. `-f` to follow.
 
 ### `tako cleanup [--host X]`
 
-Prune segura:
-- `docker container prune -f` (contenedores parados).
-- `docker image prune -f` (solo **dangling**).
+Safe prune:
+- `docker container prune -f` (stopped containers).
+- `docker image prune -f` (**dangling** only).
 - `docker builder prune -f` (build cache).
-- **NUNCA** `image prune -a` (rompe rollback).
-- **NUNCA** `volume prune` (borra datos persistentes).
+- **NEVER** `image prune -a` (breaks rollback).
+- **NEVER** `volume prune` (deletes persistent data).
 
 ### `tako rollback <stack> [--to <tag>]`
 
-Redeploy de tag anterior. Si no se especifica `--to`, ofrece lista de tags disponibles.
+Redeploy of a previous tag. If `--to` is not specified, it offers a list of available tags.
 
-## Modelo de uso
+## Usage model
 
-- **Mismo binario** en PC y en server. En PC: TUI para gestionar remotos. En server: TUI local + cron no-interactivo.
-- **Plantillas embebidas** en el binario. Stacks base: Caddy, AdGuard, Kuma, cloudflared.
-- **Dir del homelab** en server: `~/.local/share/homelab/` (XDG). Sin sudo nunca.
-- **Plantillas canónicas via binario**: actualizar plantillas = actualizar binario.
+- **Same binary** on PC and server. On PC: TUI to manage remotes. On server: local TUI + non-interactive cron.
+- **Templates embedded** in the binary. Base stacks: Caddy, AdGuard, Kuma, cloudflared.
+- **Homelab dir** on server: `~/.local/share/homelab/` (XDG). Never sudo.
+- **Canonical templates via binary**: updating templates = updating binary.
 
-## Diferible (no bloquea MVP)
+## Deferrable (does not block MVP)
 
-- Wizard UX de `remotes add`.
-- Formato de storage seguro para passwords (master passphrase vs OS keyring).
-- Frecuencia default del cron.
-- Naming scheme de tags para rollback.
+- Wizard UX of `remotes add`.
+- Secure storage format for passwords (master passphrase vs OS keyring).
+- Default cron frequency.
+- Tag naming scheme for rollback.

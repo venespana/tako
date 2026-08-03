@@ -1,25 +1,25 @@
-# Plantillas de stacks base
+# Base stack templates
 
-Estas son las plantillas canónicas que el binario Tako embebe y escribe al ejecutar `tako install` en un host remoto. También sirven como referencia para montar el homelab manualmente sin Tako.
+These are the canonical templates that the Tako binary embeds and writes when running `tako install` on a remote host. They also serve as a reference for setting up the homelab manually without Tako.
 
-## Stacks incluidos
+## Included stacks
 
-| Stack | Propósito |
+| Stack | Purpose |
 |---|---|
-| `caddy/` | Reverse proxy (caddy-docker-proxy) + fallback nginx. Único punto de entrada. |
-| `adguard/` | DNS local + bloqueo de publicidad. |
-| `uptime-kuma/` | Status page + alertas push. Daemon de monitoreo. |
-| `cloudflared/` | Tunnel a Cloudflare (opcional). |
+| `caddy/` | Reverse proxy (caddy-docker-proxy) + nginx fallback. Single entry point. |
+| `adguard/` | Local DNS + ad blocking. |
+| `uptime-kuma/` | Status page + push alerts. Monitoring daemon. |
+| `cloudflared/` | Tunnel to Cloudflare (optional). |
 
-## Convenciones
+## Conventions
 
-- Todos los stacks usan la red docker externa `caddy`.
-- Cada servicio declara sus labels Caddy (`caddy: <host>`, `caddy.tls: internal`, `caddy.reverse_proxy: ...`).
-- Los dominios son literales (`status.homelab.internal`), no via variables `.env`.
+- All stacks use the external docker network `caddy`.
+- Each service declares its Caddy labels (`caddy: <host>`, `caddy.tls: internal`, `caddy.reverse_proxy: ...`).
+- Domains are literals (`status.homelab.internal`), not via `.env` variables.
 
-## Uso sin Tako
+## Usage without Tako
 
-Si quieres montar el homelab sin Tako:
+If you want to set up the homelab without Tako:
 
 ```bash
 docker network create caddy
@@ -29,4 +29,4 @@ cd ~/.local/share/homelab/adguard && docker compose up -d
 # etc.
 ```
 
-Edita los hosts en los docker-compose.yml si quieres otro dominio base distinto de `homelab.internal`.
+Edit the hosts in the docker-compose.yml if you want a base domain other than `homelab.internal`.

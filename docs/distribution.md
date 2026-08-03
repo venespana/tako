@@ -1,12 +1,12 @@
-# Distribución
+# Distribution
 
-## Canales (3)
+## Channels (3)
 
-1. **GitHub Releases** → binarios compilados, descarga directa.
-2. **install.sh** → `curl -fsSL tako.sh/install | bash` (detecta OS/arch, baja binario de GitHub Releases).
-3. **npm** → `npm install -g tako` (JS compilado desde TS, requiere Node 20+ o Bun).
+1. **GitHub Releases** → compiled binaries, direct download.
+2. **install.sh** → `curl -fsSL tako.sh/install | bash` (detects OS/arch, downloads binary from GitHub Releases).
+3. **npm** → `npm install -g tako` (JS compiled from TS, requires Node 20+ or Bun).
 
-## Build binario
+## Binary build
 
 ```bash
 # Bun compile (cross-platform)
@@ -16,21 +16,21 @@ bun build src/cli/index.ts --compile --target=bun-darwin-arm64 --outfile dist/ta
 bun build src/cli/index.ts --compile --target=bun-windows-x64 --outfile dist/tako-windows-x64.exe
 ```
 
-Targets soportados (inicial):
+Supported targets (initial):
 - Linux x64
 - macOS x64
 - macOS arm64 (Apple Silicon)
 - Windows x64
 
-## Restricción: Node 20+ compat
+## Restriction: Node 20+ compat
 
-Como distribuye via npm, el código **DEBE funcionar en Node 20+ además de Bun**. Ver [stack.md](stack.md) para detalles.
+Since it distributes via npm, the code **MUST work on Node 20+ in addition to Bun**. See [stack.md](stack.md) for details.
 
 ## Release flow
 
-1. Tag `vX.Y.Z` en main.
-2. GitHub Actions workflow `release.yml` se dispara.
-3. Build binarios para todos los targets.
-4. Publica GitHub Release con binarios adjuntos.
-5. Publica en npm.
-6. Actualiza install.sh si hace falta.
+1. Tag `vX.Y.Z` on main.
+2. GitHub Actions workflow `release.yml` triggers.
+3. Build binaries for all targets.
+4. Publishes GitHub Release with binaries attached.
+5. Publishes on npm.
+6. Updates install.sh if needed.

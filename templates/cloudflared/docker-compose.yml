@@ -1,5 +1,5 @@
-# Cloudflare Tunnel - expone servicios a Internet sin abrir puertos.
-# Stack opcional. Ver docs de Cloudflare para configuración.
+# Cloudflare Tunnel - exposes services to the Internet without opening ports.
+# Optional stack. See Cloudflare docs for configuration.
 services:
   cloudflared:
     image: cloudflare/cloudflared:latest

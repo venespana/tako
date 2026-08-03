@@ -1,5 +1,5 @@
-# Uptime Kuma - status page + alertas push (Telegram/email).
-# Daemon indispensable para monitoreo pasivo del homelab.
+# Uptime Kuma - status page + push alerts (Telegram/email).
+# Essential daemon for passive monitoring of the homelab.
 services:
   uptime-kuma:
     image: louislam/uptime-kuma:1

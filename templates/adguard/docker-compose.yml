@@ -1,6 +1,6 @@
-# AdGuard Home - bloqueo de publicidad + DNS local para el homelab.
-# Resuelve *.homelab.internal hacia la IP del host docker (configurada en AdGuardHome.yaml).
-# La admin UI NO se publica al host; se accede via Caddy como adguard.homelab.internal.
+# AdGuard Home - ad blocking + local DNS for the homelab.
+# Resolves *.homelab.internal to the docker host IP (configured in AdGuardHome.yaml).
+# The admin UI is NOT published to the host; it is accessed via Caddy as adguard.homelab.internal.
 services:
   adguard:
     image: adguard/adguardhome:latest
@@ -9,10 +9,10 @@ services:
     ports:
       - "53:53/tcp"
       - "53:53/udp"
-      # Descomenta para acceso admin directo sin pasar por Caddy (solo emergencias):
+      # Uncomment for direct admin access without going through Caddy (emergencies only):
       # - "3000:3000"
     volumes:
-      # Bind-mount del yaml: permite editarlo desde la UI y persistir cambios.
+      # Bind-mount of the yaml: allows editing it from the UI and persisting changes.
       - ./AdGuardHome.yaml:/opt/adguardhome/conf/AdGuardHome.yaml
       - adguard_work:/opt/adguardhome/work
     networks:

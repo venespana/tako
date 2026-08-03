@@ -1,29 +1,29 @@
 # Tako 🐙
 
-TUI para gestionar homelabs basados en docker-compose via SSH.
+TUI for managing docker-compose-based homelabs over SSH.
 
-Tako corre en tu PC y se conecta a tus servidores por SSH (estilo VSCode Remote). Los servidores no exponen nada nuevo: la gestión pasa por SSH. Permite bootstrap de stacks base (Caddy + AdGuard + Uptime Kuma + cloudflared), deploy via tags, status de servicios, logs en vivo, rollback y cleanup.
+Tako runs on your PC and connects to your servers via SSH (VSCode Remote style). Servers expose nothing new: management goes through SSH. It supports bootstrap of base stacks (Caddy + AdGuard + Uptime Kuma + cloudflared), deploy via tags, service status, live logs, rollback, and cleanup.
 
 ## Status
 
-🚧 En diseño. No hay release usable todavía. Ver [roadmap](docs/index.md#roadmap).
+🚧 In design. No usable release yet. See [roadmap](docs/index.md#roadmap).
 
-## Filosofía
+## Philosophy
 
-- **Host limpio**: el servidor solo lleva Docker + las piezas mínimas. Cero orquestador encima (Coolify/Komodo/Portainer descartados).
-- **Piezas pequeñas especializadas**: cada función (status, logs, deploy) cubierta por una herramienta ligera.
-- **SSH como transporte único**: nada nuevo expuesto en el server.
-- **Plantillas embebidas en el binario**: el binario es fuente canónica de los stacks base.
+- **Clean host**: the server only carries Docker + the minimal pieces. Zero orchestrator on top (Coolify/Komodo/Portainer discarded).
+- **Small specialized pieces**: each function (status, logs, deploy) covered by a lightweight tool.
+- **SSH as the only transport**: nothing new exposed on the server.
+- **Templates embedded in the binary**: the binary is the canonical source of base stacks.
 
-## Documentación
+## Documentation
 
-- [Arquitectura](docs/architecture.md)
-- [Stack técnico](docs/stack.md)
-- [Spec CLI](docs/commands.md)
-- [Estrategia tests](docs/testing.md)
-- [Distribución](docs/distribution.md)
-- [Decisiones (ADRs)](docs/decisions/)
+- [Architecture](docs/architecture.md)
+- [Technical stack](docs/stack.md)
+- [CLI spec](docs/commands.md)
+- [Testing strategy](docs/testing.md)
+- [Distribution](docs/distribution.md)
+- [Decisions (ADRs)](docs/decisions/)
 
-## Licencia
+## License
 
-MIT. Ver [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

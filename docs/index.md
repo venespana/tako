@@ -1,39 +1,39 @@
-# Documentación
+# Documentation
 
-Índice de la documentación de Tako.
+Index of Tako's documentation.
 
-## Secciones
+## Sections
 
-- [Arquitectura](architecture.md) — filosofía arquitectónica, FSD + Clean Arch + shared kernel.
-- [Stack técnico](stack.md) — Bun + TypeScript + Ink + React + dockerode + ssh2.
-- [Spec CLI](commands.md) — los 9 comandos y su contrato público.
-- [Estrategia tests](testing.md) — unitarios co-localizados, integración y e2e separados.
-- [Distribución](distribution.md) — GitHub Releases + install.sh + npm.
+- [Architecture](architecture.md) — architectural philosophy, FSD + Clean Arch + shared kernel.
+- [Technical stack](stack.md) — Bun + TypeScript + Ink + React + dockerode + ssh2.
+- [CLI spec](commands.md) — the 9 commands and their public contract.
+- [Testing strategy](testing.md) — co-located unit tests, integration and e2e separated.
+- [Distribution](distribution.md) — GitHub Releases + install.sh + npm.
 
-## Decisiones (ADRs)
+## Decisions (ADRs)
 
-Las decisiones de diseño están documentadas como Architecture Decision Records en [decisions/](decisions/). Cada ADR explica contexto, decisión y consecuencias.
+Design decisions are documented as Architecture Decision Records in [decisions/](decisions/). Each ADR explains context, decision, and consequences.
 
 ## Roadmap
 
 ### v0.1 (MVP)
-- Comando `tako doctor` funcional.
-- Comando `tako status <host>` con dominio docker.
-- Comando `tako logs <stack>` básico.
+- `tako doctor` command working.
+- `tako status <host>` command with docker domain.
+- `tako logs <stack>` basic command.
 
 ### v0.2
 - `tako remotes add/list/use`.
-- TUI interactivo básico.
+- Basic interactive TUI.
 
 ### v0.3
-- `tako install` (bootstrap de host remoto).
-- Plantillas embebidas en binario operativas.
+- `tako install` (bootstrap of remote host).
+- Templates embedded in binary operational.
 
 ### v0.4
 - `tako update --host X` (diff + redeploy).
-- Multi-host fluido en el TUI.
+- Fluid multi-host in the TUI.
 
 ### v0.5+
-- Integración Uptime Kuma API.
-- `tako rollback` con tags versionados.
-- MCP server (opcional).
+- Uptime Kuma API integration.
+- `tako rollback` with versioned tags.
+- MCP server (optional).

@@ -1,29 +1,29 @@
-# Estrategia de tests
+# Testing strategy
 
-## Convención
+## Convention
 
-| Tipo | Naming | Dónde | Cuándo corre |
+| Type | Naming | Where | When it runs |
 |---|---|---|---|
-| **Unitario** | `*.test.ts` / `*.test.tsx` | Junto al código | Siempre (`vitest run unit`) |
-| **Integración** | `*.integ.test.ts` | `tests/integration/` | Solo con flag / en CI |
+| **Unit** | `*.test.ts` / `*.test.tsx` | Next to code | Always (`vitest run unit`) |
+| **Integration** | `*.integ.test.ts` | `tests/integration/` | Only with flag / in CI |
 | **E2E** | `*.e2e.ts` | `tests/e2e/` | Release pipeline |
 
-## Co-localización de unitarios
+## Co-location of unit tests
 
-Los tests unitarios viven junto al código que prueban:
+Unit tests live next to the code they test:
 
 ```
 src/
 ├── shared/lib/logger.ts
-├── shared/lib/logger.test.ts          ← al lado
+├── shared/lib/logger.test.ts          ← next to it
 ├── domains/docker/domain/Stack.ts
-├── domains/docker/domain/Stack.test.ts ← al lado
+├── domains/docker/domain/Stack.test.ts ← next to it
 └── ...
 ```
 
-## Velocidades esperadas
+## Expected speeds
 
-| Tipo | Velocidad |
+| Type | Speed |
 |---|---|
 | Unit (domain/) | <50ms |
 | Unit (application/infrastructure/cli/tui) | <100ms |
@@ -65,7 +65,7 @@ export default defineConfig({
 });
 ```
 
-## Scripts en package.json
+## Scripts in package.json
 
 ```json
 {
@@ -82,18 +82,18 @@ export default defineConfig({
 
 ## CI
 
-- **PR**: solo unitarios.
-- **Main merge**: unitarios + integración.
+- **PR**: unit only.
+- **Main merge**: unit + integration.
 - **Release pipeline**: e2e.
 
-## Qué testea cada nivel
+## What each level tests
 
-| Nivel | Qué cubre | Setup |
+| Level | What it covers | Setup |
 |---|---|---|
-| **Unit (domain/)** | Lógica pura, reglas, validaciones | Ninguno |
-| **Unit (application/)** | Use cases con mocks | `vi.mock()` |
-| **Unit (infrastructure/)** | Wrappers con librerías externas mockeadas | `vi.mock('dockerode')` |
-| **Unit (cli/)** | Parser args + output format | Mock use cases |
-| **Unit (tui/)** | Render componentes Ink | ink-testing-library |
-| **Integration** | DockerClient real contra contenedor efímero | Testcontainers |
-| **E2E** | Binario compilado ejecutando `tako` contra host real | Host docker disponible |
+| **Unit (domain/)** | Pure logic, rules, validations | None |
+| **Unit (application/)** | Use cases with mocks | `vi.mock()` |
+| **Unit (infrastructure/)** | Wrappers with mocked external libraries | `vi.mock('dockerode')` |
+| **Unit (cli/)** | Args parser + output format | Mock use cases |
+| **Unit (tui/)** | Ink component rendering | ink-testing-library |
+| **Integration** | Real DockerClient against ephemeral container | Testcontainers |
+| **E2E** | Compiled binary running `tako` against real host | Docker host available |

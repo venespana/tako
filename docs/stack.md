@@ -1,37 +1,37 @@
-# Stack técnico
+# Technical Stack
 
 ## Core
 
-- **Runtime**: Bun (con `bun build --compile` para distribución binaria).
-- **Compatibilidad**: Node 20+ también soportado (necesario para distribución npm).
-- **Lenguaje**: TypeScript estricto.
-- **TUI**: Ink 5+ (React para terminal).
+- **Runtime**: Bun (with `bun build --compile` for binary distribution).
+- **Compatibility**: Node 20+ also supported (needed for npm distribution).
+- **Language**: strict TypeScript.
+- **TUI**: Ink 5+ (React for the terminal).
 - **React**: 18+.
 
-## Librerías
+## Libraries
 
-| Propósito | Lib | Notas |
+| Purpose | Lib | Notes |
 |---|---|---|
-| Docker API | `dockerode` | Estándar Node, soporta SSH via docker-modem |
-| SSH client | `ssh2` | Madura (mscdex), base de casi todas las libs SSH |
-| CLI args | `citty` o `commander` | A decidir al iniciar implementación |
-| UI components | `ink-table`, `ink-spinner`, `ink-text-input`, `ink-select-input`, `ink-tab` | Set estándar Ink |
-| Config storage | `conf` o `configstore` | Manejo `~/.config/tako/` |
-| Secretos | `crypto` (Node nativo) + master passphrase | Para passwords SSH |
-| Colores | `picocolors` | Output no-Ink |
+| Docker API | `dockerode` | Node standard, supports SSH via docker-modem |
+| SSH client | `ssh2` | Mature (mscdex), base of almost all SSH libs |
+| CLI args | `citty` or `commander` | To decide when starting implementation |
+| UI components | `ink-table`, `ink-spinner`, `ink-text-input`, `ink-select-input`, `ink-tab` | Standard Ink set |
+| Config storage | `conf` or `configstore` | Handles `~/.config/tako/` |
+| Secrets | `crypto` (native Node) + master passphrase | For SSH passwords |
+| Colors | `picocolors` | Non-Ink output |
 
 ## Dev tooling
 
-| Propósito | Tool |
+| Purpose | Tool |
 |---|---|
 | Lint + format | ESLint + Prettier |
 | Tests | Vitest + ink-testing-library + Testcontainers |
 | Build | Bun compile (cross-platform) |
 
-## Restricción crítica: Node 20+ compat
+## Critical restriction: Node 20+ compat
 
-Como Tako distribuye via npm además de binario compilado, el código **DEBE funcionar en Node 20+ además de Bun**.
+Since Tako distributes via npm in addition to the compiled binary, the code **MUST work on Node 20+ in addition to Bun**.
 
-- **Prohibido**: APIs Bun-only (`Bun.serve`, `Bun.password`, `Bun.file`, etc.).
-- **Permitido**: APIs estándar Node (`fs/promises`, `crypto`, `child_process`, etc.).
-- Bun se usa solo para desarrollo (velocidad) y para generar el binario compilado.
+- **Forbidden**: Bun-only APIs (`Bun.serve`, `Bun.password`, `Bun.file`, etc.).
+- **Allowed**: standard Node APIs (`fs/promises`, `crypto`, `child_process`, etc.).
+- Bun is used only for development (speed) and to generate the compiled binary.

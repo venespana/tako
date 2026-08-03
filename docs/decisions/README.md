@@ -1,43 +1,43 @@
 # Architecture Decision Records (ADRs)
 
-Cada ADR documenta una decisión arquitectónica importante: contexto, decisión tomada, y consecuencias.
+Each ADR documents an important architectural decision: context, decision made, and consequences.
 
-## Formato
+## Format
 
 ```
-# ADR NNNN: Título corto
+# ADR NNNN: Short title
 
 ## Status
-Accepted (o Proposed, Deprecated, Superseded by ADR-YYYY)
+Accepted (or Proposed, Deprecated, Superseded by ADR-YYYY)
 
 ## Context
-[Contexto y problema que motivó la decisión]
+[Context and problem that motivated the decision]
 
 ## Decision
-[La decisión tomada, clara y concisa]
+[The decision made, clear and concise]
 
 ## Consequences
-[Consecuencias: positivas (+), negativas (-), neutrales (~)]
+[Consequences: positive (+), negative (-), neutral (~)]
 ```
 
-## Convenciones
+## Conventions
 
-- Numeración secuencial: `0001`, `0002`, ...
-- Una vez aceptado, no se edita. Si cambia la decisión, se crea ADR nuevo que lo supersedes.
-- Nombres en kebab-case: `0001-name-tako.md`.
+- Sequential numbering: `0001`, `0002`, ...
+- Once accepted, it is not edited. If the decision changes, a new ADR is created that supersedes it.
+- Names in kebab-case: `0001-name-tako.md`.
 
-## Lista de ADRs
+## ADR list
 
-- [0001 - Nombre del proyecto: Tako](0001-name-tako.md)
+- [0001 - Project name: Tako](0001-name-tako.md)
 - [0002 - Stack: Bun + TypeScript + Ink](0002-stack-bun-typescript-ink.md)
-- [0003 - Sin orquestador encima](0003-no-orchestrator-on-top.md)
-- [0004 - TLS internal de Caddy](0004-tls-internal-caddy.md)
-- [0005 - AdGuard Home como DNS](0005-adguard-home-dns.md)
+- [0003 - No orchestrator on top](0003-no-orchestrator-on-top.md)
+- [0004 - Caddy internal TLS](0004-tls-internal-caddy.md)
+- [0005 - AdGuard Home as DNS](0005-adguard-home-dns.md)
 - [0006 - GitOps via tags](0006-gitops-via-tags.md)
-- [0007 - Agentes AI solo en PC](0007-agents-ai-pc-only.md)
-- [0008 - Cleanup policy segura](0008-cleanup-policy-safe.md)
+- [0007 - AI agents on PC only](0007-agents-ai-pc-only.md)
+- [0008 - Safe cleanup policy](0008-cleanup-policy-safe.md)
 - [0009 - Multi-host ready](0009-multi-host-ready.md)
-- [0010 - Arquitectura FSD + Clean Arch + shared kernel](0010-architecture-fsd-clean-shared.md)
-- [0011 - Canales de distribución](0011-distribution-channels.md)
-- [0012 - Tests unitarios co-localizados](0012-tests-colocated.md)
-- [0013 - Plantillas embebidas en binario](0013-templates-embedded-binary.md)
+- [0010 - FSD + Clean Arch + shared kernel architecture](0010-architecture-fsd-clean-shared.md)
+- [0011 - Distribution channels](0011-distribution-channels.md)
+- [0012 - Co-located unit tests](0012-tests-colocated.md)
+- [0013 - Templates embedded in binary](0013-templates-embedded-binary.md)

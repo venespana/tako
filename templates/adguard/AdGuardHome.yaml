@@ -1,7 +1,7 @@
-# Config inicial de AdGuard Home.
-# Edita la IP en la sección `dns.rewrite` con la IP real del host docker.
-# Esta config permite que AdGuard arranque directamente (sin wizard completo);
-# la primera visita a https://adguard.homelab.internal pedirá crear el admin.
+# Initial AdGuard Home config.
+# Edit the IP in the `dns.rewrite` section with the real docker host IP.
+# This config allows AdGuard to start directly (without the full wizard);
+# the first visit to https://adguard.homelab.internal will ask to create the admin.
 
 http:
   address: 0.0.0.0:3000
@@ -9,7 +9,7 @@ http:
 users: []
 auth_attempts: 5
 block_auth_min: 15
-language: es
+language: en
 theme: auto
 
 dns:
@@ -21,7 +21,7 @@ dns:
   filtering_enabled: true
   blocked_response_ttl: 10
 
-  # Upstreams DoH (cifrado frente a tu ISP).
+  # DoH upstreams (encryption against your ISP).
   upstream_dns:
     - https://dns.cloudflare.com/dns-query
     - https://dns.google/dns-query
@@ -33,7 +33,7 @@ dns:
     - 1.1.1.1
     - 9.9.9.9
 
-  # ====== CAMBIA ESTA IP por la de tu host docker ======
+  # ====== CHANGE THIS IP to your docker host IP ======
   rewrite:
     - domain: '*.homelab.internal'
       answer: 192.168.1.10
@@ -51,7 +51,7 @@ statistics:
   interval: 1
   ignored: []
 
-# Listas de bloqueo de publicidad y trackers.
+# Ad and tracker blocklists.
 filters:
   - enabled: true
     url: https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt

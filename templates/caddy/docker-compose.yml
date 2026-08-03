@@ -1,6 +1,6 @@
-# Reverse proxy edge: Caddy con caddy-docker-proxy.
-# Descubre backends por labels en la red docker "caddy".
-# TLS internal: usa CA propia persistida en ./data/caddy/pki/.
+# Reverse proxy edge: Caddy with caddy-docker-proxy.
+# Discovers backends by labels on the "caddy" docker network.
+# TLS internal: uses its own CA persisted in ./data/caddy/pki/.
 services:
   caddy:
     image: lucaslorentz/caddy-docker-proxy:ci-alpine
@@ -19,8 +19,8 @@ services:
     environment:
       - CADDY_INGRESS_NETWORKS=caddy
 
-  # Backend por defecto: sirve página custom para peticiones
-  # que no matchean ningún virtual host configurado.
+  # Default backend: serves a custom page for requests
+  # that do not match any configured virtual host.
   fallback:
     image: nginx:alpine
     container_name: caddy-fallback

@@ -1,23 +1,23 @@
-# Arquitectura
+# Architecture
 
-Tako combina dos estilos arquitectónicos:
+Tako combines two architectural styles:
 
 - **Frontend (TUI)**: Feature Sliced Design (FSD).
-- **Backend (CLI)**: Clean Architecture por dominios.
-- **Shared kernel**: capa común consumida por ambos.
+- **Backend (CLI)**: Clean Architecture by domain.
+- **Shared kernel**: common layer consumed by both.
 
-## Estructura
+## Structure
 
 ```
 src/
-├── shared/                     # KERNEL común CLI + TUI
-│   ├── ui/                     # ink kit base (Button, Badge, Text)
+├── shared/                     # COMMON KERNEL CLI + TUI
+│   ├── ui/                     # ink base kit (Button, Badge, Text)
 │   ├── lib/                    # fs utils, logger, picocolors wrappers
 │   ├── types/                  # Result, Maybe
 │   └── errors/                 # TakoError classes
-├── domains/                    # CLEAN ARCH POR DOMINIO
-│   └── docker/                 # dominio referente (MVP)
-│       ├── domain/             # tipos: Container, Stack, Image
+├── domains/                    # CLEAN ARCH BY DOMAIN
+│   └── docker/                 # reference domain (MVP)
+│       ├── domain/             # types: Container, Stack, Image
 │       ├── application/        # use cases: ListStacks, DeployStack, GetLogs
 │       └── infrastructure/     # DockerodeClient (local), SshDockerClient (via SSH)
 ├── cli/                        # CLI presentation
@@ -32,40 +32,40 @@ src/
     └── shared/                 # TUI-specific shared (theme tokens, nav)
 ```
 
-## Reglas de dependencia (strict)
+## Dependency rules (strict)
 
 ```
-shared      → (nadie)
+shared      → (nobody)
 domains/*   → shared
 cli/*       → domains/* + shared
 tui/*       → domains/* + shared
 ```
 
-PROHIBIDO:
-- `tui/*` importando de `cli/*` (frontend no conoce backend presentation).
-- `cli/*` importando de `tui/*` (al revés).
-- `domains/*` importando de `cli/*` o `tui/*` (dominio no conoce presentaciones).
+FORBIDDEN:
+- `tui/*` importing from `cli/*` (frontend does not know backend presentation).
+- `cli/*` importing from `tui/*` (the reverse).
+- `domains/*` importing from `cli/*` or `tui/*` (domain does not know presentations).
 
-## Tensión gestionada: entities duplicadas
+## Managed tension: duplicated entities
 
-FSD quiere `tui/entities/`. Clean Arch quiere `domains/X/domain/`. NO se duplican:
+FSD wants `tui/entities/`. Clean Arch wants `domains/X/domain/`. They are NOT duplicated:
 
-- El **tipo** (interface TS) de una entidad vive en `domains/X/domain/`.
-- El **componente React** que lo renderiza vive en `tui/entities/`. Importa el tipo del dominio.
+- The **type** (TS interface) of an entity lives in `domains/X/domain/`.
+- The **React component** that renders it lives in `tui/entities/`. It imports the type from the domain.
 
-Igual con features: el **use case** vive en `domains/X/application/`, la **UI flow** que lo invoca vive en `tui/features/`.
+Same with features: the **use case** lives in `domains/X/application/`, the **UI flow** that invokes it lives in `tui/features/`.
 
-## Dominio docker como referente
+## The docker domain as reference
 
-Para el MVP, solo se implementa el dominio docker. Es el más complejo y mejor template para replicar después. Cuando añadas un dominio nuevo (ssh, remotes, stacks, secrets, config), replica la estructura de docker.
+For the MVP, only the docker domain is implemented. It is the most complex and the best template to replicate later. When you add a new domain (ssh, remotes, stacks, secrets, config), replicate the structure of docker.
 
-Cada dominio tiene:
-- `domain/`: tipos y reglas puras. Cero dependencias externas.
-- `application/`: use cases que orquestan domain + infrastructure.
-- `infrastructure/`: adaptadores externos. Implementan interfaces del domain.
+Each domain has:
+- `domain/`: pure types and rules. Zero external dependencies.
+- `application/`: use cases that orchestrate domain + infrastructure.
+- `infrastructure/`: external adapters. They implement domain interfaces.
 
-**Regla clave**: `application/` declara interfaces (ports), `infrastructure/` las implementa (adapters). `application/` nunca importa dockerode directo.
+**Key rule**: `application/` declares interfaces (ports), `infrastructure/` implements them (adapters). `application/` never imports dockerode directly.
 
-## Stack relacionado
+## Related stack
 
-Ver [stack.md](stack.md) para detalle técnico de librerías.
+See [stack.md](stack.md) for technical detail of libraries.

@@ -1,9 +1,9 @@
-# Ejemplo de config para Cloudflare Tunnel en modo config-file.
+# Example config for Cloudflare Tunnel in config-file mode.
 tunnel: <TUNNEL_ID>
 credentials-file: /etc/cloudflared/credentials.json
 
 ingress:
-  - hostname: status.tudominio.com
+  - hostname: status.yourdomain.com
     service: http://caddy-proxy:80
     originRequest:
       httpHostHeader: status.homelab.internal
