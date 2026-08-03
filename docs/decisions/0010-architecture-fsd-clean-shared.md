@@ -1,27 +1,27 @@
-# ADR 0010: Arquitectura FSD + Clean Arch + shared kernel
+# ADR 0010: FSD + Clean Arch + shared kernel architecture
 
 ## Status
 Accepted
 
 ## Context
-Tako tiene dos "presentations": un CLI (command handler no-interactivo) y un TUI (interactivo con Ink + React). Ambos comparten lógica de negocio (talk to docker, SSH, config).
+Tako has two "presentations": a CLI (non-interactive command handler) and a TUI (interactive with Ink + React). Both share business logic (talk to docker, SSH, config).
 
-Si ponemos todo en src/tui/ el CLI depende del frontend. Si todo en src/cli/ el TUI depende del backend presentation. Ambos patrones son anti-patterns.
+If we put everything in src/tui/ the CLI depends on the frontend. If everything in src/cli/ the TUI depends on the backend presentation. Both patterns are anti-patterns.
 
 ## Decision
-**Tres bloques**:
-- `src/shared/`: kernel común (UI kit base, librerías cross-cutting, tipos).
-- `src/domains/`: Clean Architecture por dominio (docker, ssh, remotes, stacks, secrets, config). Cada dominio con sub-carpetas `domain/`, `application/`, `infrastructure/`.
-- `src/cli/` y `src/tui/`: dos presentations que consumen shared + domains.
+**Three blocks**:
+- `src/shared/`: common kernel (base UI kit, cross-cutting libraries, types).
+- `src/domains/`: Clean Architecture per domain (docker, ssh, remotes, stacks, secrets, config). Each domain with `domain/`, `application/`, `infrastructure/` subfolders.
+- `src/cli/` and `src/tui/`: two presentations that consume shared + domains.
 
-El TUI sigue FSD internamente (app/pages/widgets/features/entities/shared dentro de src/tui/).
+The TUI follows FSD internally (app/pages/widgets/features/entities/shared inside src/tui/).
 
-Reglas de dependencia strict: shared ← domains ← cli/tui. Prohibido cruzar entre cli y tui.
+Strict dependency rules: shared ← domains ← cli/tui. Crossing between cli and tui is forbidden.
 
 ## Consequences
-- (+) Límites claros, testable.
-- (+) Entities no se duplican (tipo en domain, componente React en tui/entities).
-- (+) Cambiar presentation (añadir web app, API REST, MCP) no toca domain.
-- (-) Algo de boilerplate inicial.
-- (-) Curva de aprendizaje para contribuidores nuevos (FSD + Clean Arch).
-- (~) Docker como dominio referente: replica su estructura para nuevos dominios.
+- (+) Clear boundaries, testable.
+- (+) Entities are not duplicated (type in domain, React component in tui/entities).
+- (+) Changing presentation (adding web app, REST API, MCP) does not touch domain.
+- (-) Some initial boilerplate.
+- (-) Learning curve for new contributors (FSD + Clean Arch).
+- (~) Docker as a reference domain: replicate its structure for new domains.

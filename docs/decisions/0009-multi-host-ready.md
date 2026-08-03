@@ -4,17 +4,17 @@
 Accepted
 
 ## Context
-Hoy el homelab tiene 1 host docker. Pero el maintainer no descarta añadir un segundo host (NAS, VPS, mini PC) en 6-12 meses. El diseño no debe romper al escalar.
+Today the homelab has 1 docker host. But the maintainer does not rule out adding a second host (NAS, VPS, mini PC) in 6-12 months. The design must not break when scaling.
 
 ## Decision
-**El stack del homelab y el TUI deben ser multi-host ready por diseño**, aunque hoy solo se use 1 host:
-- Uptime Kuma monitorea N hosts desde 1 instancia central (HTTP checks externos).
-- Dozzle-equivalent en el TUI ve N hosts via Docker remote contexts / SSH.
-- GitHub Actions con `matrix` deploya a N hosts.
-- `lazydocker` corre en cada host (inspección local ad-hoc).
+**The homelab stack and the TUI must be multi-host ready by design**, even if only 1 host is used today:
+- Uptime Kuma monitors N hosts from 1 central instance (external HTTP checks).
+- Dozzle-equivalent in the TUI sees N hosts via Docker remote contexts / SSH.
+- GitHub Actions with `matrix` deploys to N hosts.
+- `lazydocker` runs on each host (ad-hoc local inspection).
 
 ## Consequences
-- (+) Añadir un segundo host es trivial: duplicar el stack base, registrarlo como remote en Tako.
-- (+) Sin rediseño arquitectural al crecer.
-- (-) Algo de complejidad inicial (registro de remotos, naming de hosts).
-- (-) Mantenimiento de N instancias lazydocker (una por host).
+- (+) Adding a second host is trivial: duplicate the base stack, register it as remote in Tako.
+- (+) No architectural redesign when growing.
+- (-) Some initial complexity (remote registration, host naming).
+- (-) Maintenance of N lazydocker instances (one per host).

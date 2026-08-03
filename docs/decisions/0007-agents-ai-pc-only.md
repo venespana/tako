@@ -1,22 +1,22 @@
-# ADR 0007: Agentes AI solo en PC
+# ADR 0007: AI agents on PC only
 
 ## Status
 Accepted
 
 ## Context
-Se consideró instalar OpenChamber + OpenCode en el server para tener agentes AI que ayudasen a resolver problemas cuando algo fallara. Análisis de riesgos:
-- Docker socket = root efectivo (cualquiera que pueda correr `docker` puede tomar el host).
-- Prompt injection desde logs/issues/comentarios puede inducir comandos maliciosos.
-- Exfiltración de `.env` con secretos.
-- Persistencia: agente puede crear cron/systemd malicioso.
-- API key del LLM también comprometida si rompen el server.
+Installing OpenChamber + OpenCode on the server was considered, to have AI agents help resolve problems when something failed. Risk analysis:
+- Docker socket = effective root (anyone who can run `docker` can take over the host).
+- Prompt injection from logs/issues/comments can induce malicious commands.
+- Exfiltration of `.env` with secrets.
+- Persistence: agent can create malicious cron/systemd.
+- LLM API key also compromised if the server is breached.
 
 ## Decision
-**Agentes AI corren SOLO en la PC del usuario. Cero agentes en el server.** Patrón de uso: Kuma avisa caída → Dozzle/logs via SSH → OpenCode en PC con contexto del problema → fix → tag → deploy.
+**AI agents run ONLY on the user's PC. Zero agents on the server.** Usage pattern: Kuma alerts an outage → Dozzle/logs via SSH → OpenCode on PC with problem context → fix → tag → deploy.
 
 ## Consequences
-- (+) Elimina la mayor superficie de compromiso del server.
-- (+) Agentes en contexto fresco por sesión.
-- (+) API keys del LLM no viven en el server.
-- (-) El usuario debe empujar contexto manualmente al agente cuando hay problemas en el server (vs auto-fix 24/7).
-- (-) Sin auto-remediación nocturna sin intervención humana.
+- (+) Eliminates the largest attack surface on the server.
+- (+) Agents in fresh context per session.
+- (+) LLM API keys do not live on the server.
+- (-) The user must manually push context to the agent when server issues occur (vs 24/7 auto-fix).
+- (-) No overnight auto-remediation without human intervention.

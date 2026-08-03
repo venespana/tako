@@ -1,20 +1,20 @@
-# ADR 0004: TLS internal de Caddy
+# ADR 0004: Caddy internal TLS
 
 ## Status
 Accepted
 
 ## Context
-Necesitábamos certificados TLS para servicios en LAN. Requisito explícito del maintainer: "no instalar nada en los equipos locales" (sin CA root en cada cliente).
+We needed TLS certificates for LAN services. Explicit requirement from the maintainer: "do not install anything on local machines" (no root CA on each client).
 
-Opciones evaluadas: mkcert (requiere instalar CA root en clientes), step-ca (CA server propia, pesada), Caddy `internal` (CA propia generada on-demand, sin instalar nada en clientes).
+Options evaluated: mkcert (requires installing root CA on clients), step-ca (own CA server, heavy), Caddy `internal` (own CA generated on-demand, without installing anything on clients).
 
 ## Decision
-**Caddy con `tls internal`**. Cada servicio con label `caddy.tls: internal` recibe un cert firmado por la CA interna de Caddy. La CA raíz se persiste en `proxy/data/caddy/pki/authorities/local/`.
+**Caddy with `tls internal`**. Each service with label `caddy.tls: internal` receives a cert signed by Caddy's internal CA. The root CA is persisted in `proxy/data/caddy/pki/authorities/local/`.
 
 ## Consequences
-- (+) Cero instalación en clientes.
-- (+) Cero dependencia de Internet (no ACME).
-- (+) Renovación automática por Caddy, sin cron ni certbot.
-- (-) Navegador advierte "no confiable" la primera vez por host. Accept exception manual.
-- (-) Si se borra `proxy/data/caddy/pki/`, todos los certs se regeneran y los clientes deben aceptar excepción de nuevo.
-- (~) Si en el futuro se quiere eliminar el warning, se puede exportar la CA root e instalar en trust store de cada cliente (opcional, no requerido).
+- (+) Zero installation on clients.
+- (+) Zero Internet dependency (no ACME).
+- (+) Automatic renewal by Caddy, no cron or certbot.
+- (-) Browser warns "not trusted" the first time per host. Manual accept exception.
+- (-) If `proxy/data/caddy/pki/` is deleted, all certs regenerate and clients must accept the exception again.
+- (~) If in the future you want to remove the warning, you can export the root CA and install it in each client's trust store (optional, not required).

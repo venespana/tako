@@ -4,21 +4,21 @@
 Accepted
 
 ## Context
-El maintainer tiene experiencia sólida en JavaScript y React. No conoce Go ni Rust. Python lo ha usado pero no le interesa para un proyecto de CLI/TUI.
+The maintainer has solid experience in JavaScript and React. Does not know Go or Rust. Has used Python but is not interested in it for a CLI/TUI project.
 
-Se evaluaron opciones: Go + Bubble Tea (curva de meses aprendiendo Go + Elm architecture), Rust + Ratatui (curva mayor), Blessed/neo-blessed (abandonware).
+Options were evaluated: Go + Bubble Tea (months-long curve learning Go + Elm architecture), Rust + Ratatui (steeper curve), Blessed/neo-blessed (abandonware).
 
 ## Decision
 **TypeScript + Ink + Bun**.
-- TypeScript para type safety.
-- Ink (React para terminal, mantenido por Vercel) reutiliza el mental model React.
-- Bun como runtime + bundler + compile a binario único self-contained.
+- TypeScript for type safety.
+- Ink (React for terminal, maintained by Vercel) reuses the React mental model.
+- Bun as runtime + bundler + compile to a single self-contained binary.
 
 ## Consequences
-- (+) Reutiliza skills existentes (React + JS/TS).
-- (+) Curva de aprendizaje mínima (horas/días vs meses).
-- (+) `bun build --compile` produce binario único distribuíble sin Node.
-- (+) Distribución via npm también posible.
-- (-) Bun es más nuevo que Node ecosystem, menos battle-tested.
-- (-) Requiere Node 20+ compat estricta (prohibido APIs Bun-only) para soportar distribución npm.
-- (-) Binarios compilados más grandes que Go estáticos (~50MB vs ~15MB).
+- (+) Reuses existing skills (React + JS/TS).
+- (+) Minimal learning curve (hours/days vs months).
+- (+) `bun build --compile` produces a single distributable binary without Node.
+- (+) Distribution via npm also possible.
+- (-) Bun is newer than the Node ecosystem, less battle-tested.
+- (-) Requires strict Node 20+ compat (Bun-only APIs forbidden) to support npm distribution.
+- (-) Compiled binaries larger than static Go binaries (~50MB vs ~15MB).

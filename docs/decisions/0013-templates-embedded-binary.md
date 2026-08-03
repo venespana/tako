@@ -1,21 +1,21 @@
-# ADR 0013: Plantillas embebidas en binario
+# ADR 0013: Templates embedded in the binary
 
 ## Status
 Accepted
 
 ## Context
-El comando `tako install` necesita escribir docker-compose.yml de stacks base (Caddy, AdGuard, Kuma, cloudflared) en el host remoto. Opciones:
-- (a) Clonar un repo git externo con las plantillas.
-- (b) Bundlear las plantillas dentro del binario.
-- (c) Descargarlas on-demand desde un server.
+The `tako install` command needs to write docker-compose.yml for base stacks (Caddy, AdGuard, Kuma, cloudflared) on the remote host. Options:
+- (a) Clone an external git repo with the templates.
+- (b) Bundle the templates inside the binary.
+- (c) Download them on-demand from a server.
 
 ## Decision
-**Plantillas embebidas en el binario** (vía Bun file imports / Go embed equivalent). El binario es la fuente canónica de los stacks base.
+**Templates embedded in the binary** (via Bun file imports / Go embed equivalent). The binary is the canonical source of base stacks.
 
 ## Consequences
-- (+) Binario self-contained, sin dependencias externas para hacer install.
-- (+) Versionado consistente: cada versión del binario tiene sus plantillas exactas.
-- (+) Funciona offline (salvo descarga de imágenes docker).
-- (-) Actualizar plantillas requiere actualizar binario.
-- (-) Binario ligeramente más grande (~50KB extra por plantilla).
-- (~) El maintainer puede tener su propio repo `homelab` personal con sus stacks customizados; las plantillas embebidas son las canónicas base.
+- (+) Self-contained binary, no external dependencies to install.
+- (+) Consistent versioning: each binary version has its exact templates.
+- (+) Works offline (except for docker image pulls).
+- (-) Updating templates requires updating the binary.
+- (-) Slightly larger binary (~50KB extra per template).
+- (~) The maintainer can have their own personal `homelab` repo with their customized stacks; the embedded templates are the canonical base.

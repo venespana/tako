@@ -4,14 +4,14 @@
 Accepted
 
 ## Context
-Deploy on push al branch main es ruidoso: cada commit en progreso se deploya, incluso si no está listo. Queríamos deploy deliberado.
+Deploy on push to the main branch is noisy: every in-progress commit gets deployed, even if it is not ready. We wanted deliberate deploys.
 
 ## Decision
-**Deploy en push de tags** (patrón `v*`), no en push a main. Tag = release = deploy. Workflow GitHub Actions se dispara en `on: push: tags: ['v*']`.
+**Deploy on tag push** (`v*` pattern), not on push to main. Tag = release = deploy. GitHub Actions workflow triggers on `on: push: tags: ['v*']`.
 
 ## Consequences
-- (+) Deploy deliberado: nada llega al server por accidente.
-- (+) Rollback trivial: crear tag anterior.
-- (+) Versionado semántico obligatorio (`v1.2.3`), trazabilidad clara.
-- (-) Requiere disciplina de tagging.
-- (-) Para experimentos rápidos, hay que hacer commit directo en el server o usar branch temporal.
+- (+) Deliberate deploy: nothing reaches the server by accident.
+- (+) Trivial rollback: create a previous tag.
+- (+) Mandatory semantic versioning (`v1.2.3`), clear traceability.
+- (-) Requires tagging discipline.
+- (-) For quick experiments, you must commit directly on the server or use a temporary branch.

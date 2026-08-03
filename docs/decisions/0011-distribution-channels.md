@@ -1,20 +1,20 @@
-# ADR 0011: Canales de distribución
+# ADR 0011: Distribution channels
 
 ## Status
 Accepted
 
 ## Context
-Se evaluaron múltiples canales: GitHub Releases (binarios), Homebrew tap, AUR, npm, install.sh, snap, flatpak, scoop (Windows).
+Multiple channels were evaluated: GitHub Releases (binaries), Homebrew tap, AUR, npm, install.sh, snap, flatpak, scoop (Windows).
 
 ## Decision
-**3 canales iniciales**:
-1. **GitHub Releases**: binarios compilados con `bun build --compile` para Linux/macOS/Windows x64/arm64. Descarga directa.
-2. **install.sh**: script `curl -fsSL tako.sh/install | bash` que detecta OS/arch y descarga binario de GitHub Releases.
-3. **npm**: package `tako` con JS compilado desde TS. Requiere Node 20+ o Bun en destino.
+**3 initial channels**:
+1. **GitHub Releases**: binaries compiled with `bun build --compile` for Linux/macOS/Windows x64/arm64. Direct download.
+2. **install.sh**: `curl -fsSL tako.sh/install | bash` script that detects OS/arch and downloads the binary from GitHub Releases.
+3. **npm**: `tako` package with JS compiled from TS. Requires Node 20+ or Bun on the target.
 
 ## Consequences
-- (+) Cubre ~80% de usuarios con mínimo mantenimiento.
-- (+) npm channel captura JS users sin binario.
-- (-) Mac power users pueden querer `brew install tako` (Homebrew tap se puede añadir después).
-- (-) Arch users pueden querer AUR package (también post-MVP).
-- (-) Requiere Node 20+ compat estricta en el código (prohibido APIs Bun-only).
+- (+) Covers ~80% of users with minimal maintenance.
+- (+) npm channel captures JS users without a binary.
+- (-) Mac power users may want `brew install tako` (Homebrew tap can be added later).
+- (-) Arch users may want an AUR package (also post-MVP).
+- (-) Requires strict Node 20+ compat in the code (Bun-only APIs forbidden).

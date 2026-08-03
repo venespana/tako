@@ -1,17 +1,17 @@
-# ADR 0005: AdGuard Home como DNS
+# ADR 0005: AdGuard Home as DNS
 
 ## Status
 Accepted
 
 ## Context
-Necesitábamos DNS local para resolver `*.homelab.internal` en la LAN. El maintainer ya usa AdGuard Home para bloqueo de publicidad, así que añadir otro DNS (dnsmasq) era redundante.
+We needed local DNS to resolve `*.homelab.internal` on the LAN. The maintainer already uses AdGuard Home for ad blocking, so adding another DNS (dnsmasq) was redundant.
 
 ## Decision
-**AdGuard Home** como único DNS local + bloqueo de ads. Una sola herramienta cubre ambas necesidades.
+**AdGuard Home** as the single local DNS + ad blocker. One tool covers both needs.
 
 ## Consequences
-- (+) Consolida DNS + bloqueo ads en una herramienta.
-- (+) Familiar para el maintainer.
-- (+) Admin UI accesible via Caddy como `adguard.homelab.internal`.
-- (-) Puerto 53 del host ocupado por AdGuard (conflicto potencial con systemd-resolved en Ubuntu/Debian).
-- (-) dnsmasq descartado (era más ligero pero no hace bloqueo de ads).
+- (+) Consolidates DNS + ad blocking in one tool.
+- (+) Familiar to the maintainer.
+- (+) Admin UI accessible via Caddy as `adguard.homelab.internal`.
+- (-) Host port 53 occupied by AdGuard (potential conflict with systemd-resolved on Ubuntu/Debian).
+- (-) dnsmasq discarded (lighter but does not do ad blocking).

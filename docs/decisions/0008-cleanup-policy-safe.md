@@ -1,22 +1,22 @@
-# ADR 0008: Cleanup policy segura
+# ADR 0008: Safe cleanup policy
 
 ## Status
 Accepted
 
 ## Context
-El cleanup periódico de docker es necesario para no llenar disco. Pero `docker image prune -af` borra TODAS las imágenes no usadas actualmente, lo que rompe la capacidad de rollback a versiones anteriores.
+Periodic docker cleanup is necessary to avoid filling the disk. But `docker image prune -af` deletes ALL currently unused images, which breaks the ability to rollback to previous versions.
 
 ## Decision
-**Política de prune segura**:
-- ✅ `docker container prune -f` (contenedores parados).
-- ✅ `docker image prune -f` (solo **dangling** images `<none>:<none>`).
-- ✅ `docker builder prune -f` (build cache no usado).
-- ❌ **NUNCA** `docker image prune -af` (rompe rollback).
-- ❌ **NUNCA** `docker volume prune` (borra datos persistentes).
+**Safe prune policy**:
+- ✅ `docker container prune -f` (stopped containers).
+- ✅ `docker image prune -f` (only **dangling** images `<none>:<none>`).
+- ✅ `docker builder prune -f` (unused build cache).
+- ❌ **NEVER** `docker image prune -af` (breaks rollback).
+- ❌ **NEVER** `docker volume prune` (deletes persistent data).
 
 ## Consequences
-- (+) Imágenes tagged retenidas, rollback posible.
-- (+) Datos persistentes seguros.
-- (+) Operación segura para cron desatendido.
-- (-) Mayor uso de disco a largo plazo (mitigado con `-af` manual puntual cuando hace falta).
-- (-) Build cache puede crecer si hay mucho desarrollo activo.
+- (+) Tagged images retained, rollback possible.
+- (+) Persistent data safe.
+- (+) Safe operation for unattended cron.
+- (-) Higher disk usage in the long run (mitigated with one-off manual `-af` when needed).
+- (-) Build cache can grow if there is heavy active development.
