@@ -17,23 +17,28 @@ Design decisions are documented as Architecture Decision Records in [decisions/]
 ## Roadmap
 
 ### v0.1 (MVP)
+
 - `tako doctor` command working.
 - `tako status <host>` command with docker domain.
 - `tako logs <stack>` basic command.
 
 ### v0.2
+
 - `tako remotes add/list/use`.
 - Basic interactive TUI.
 
 ### v0.3
+
 - `tako install` (bootstrap of remote host).
 - Templates embedded in binary operational.
 
 ### v0.4
+
 - `tako update --host X` (diff + redeploy).
 - Fluid multi-host in the TUI.
 
 ### v0.5+
+
 - Uptime Kuma API integration.
 - `tako rollback` with versioned tags.
 - MCP server (optional).

@@ -29,6 +29,7 @@ Pre-flight: checks that the host has an accessible docker daemon, compose v2, th
 ### `tako install`
 
 Bootstrap of the remote host:
+
 - Creates `~/.local/share/homelab/` (XDG, without sudo).
 - Writes the `docker-compose.yml` of base stacks from the templates embedded in the binary.
 - Creates the `caddy` network if it does not exist.
@@ -46,6 +47,7 @@ Bootstrap of the remote host:
 ### `tako remotes <subcommand>`
 
 Connection management:
+
 - `add <name>`: adds a remote (interactive wizard).
 - `list`: lists configured remotes.
 - `rm <name>`: removes a remote.
@@ -53,6 +55,7 @@ Connection management:
 - `test <name>`: tests the connection.
 
 Supported types:
+
 - `local`: makes no connection, operates on the current host.
 - `ssh user@host + password`.
 - `ssh user@host + path to private key`.
@@ -70,6 +73,7 @@ Non-interactive table with stack status. For scripts/cron.
 ### `tako cleanup [--host X]`
 
 Safe prune:
+
 - `docker container prune -f` (stopped containers).
 - `docker image prune -f` (**dangling** only).
 - `docker builder prune -f` (build cache).

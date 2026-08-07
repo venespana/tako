@@ -42,6 +42,7 @@ tui/*       → domains/* + shared
 ```
 
 FORBIDDEN:
+
 - `tui/*` importing from `cli/*` (frontend does not know backend presentation).
 - `cli/*` importing from `tui/*` (the reverse).
 - `domains/*` importing from `cli/*` or `tui/*` (domain does not know presentations).
@@ -60,6 +61,7 @@ Same with features: the **use case** lives in `domains/X/application/`, the **UI
 For the MVP, only the docker domain is implemented. It is the most complex and the best template to replicate later. When you add a new domain (ssh, remotes, stacks, secrets, config), replicate the structure of docker.
 
 Each domain has:
+
 - `domain/`: pure types and rules. Zero external dependencies.
 - `application/`: use cases that orchestrate domain + infrastructure.
 - `infrastructure/`: external adapters. They implement domain interfaces.

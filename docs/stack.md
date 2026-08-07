@@ -10,23 +10,23 @@
 
 ## Libraries
 
-| Purpose | Lib | Notes |
-|---|---|---|
-| Docker API | `dockerode` | Node standard, supports SSH via docker-modem |
-| SSH client | `ssh2` | Mature (mscdex), base of almost all SSH libs |
-| CLI args | `citty` or `commander` | To decide when starting implementation |
-| UI components | `ink-table`, `ink-spinner`, `ink-text-input`, `ink-select-input`, `ink-tab` | Standard Ink set |
-| Config storage | `conf` or `configstore` | Handles `~/.config/tako/` |
-| Secrets | `crypto` (native Node) + master passphrase | For SSH passwords |
-| Colors | `picocolors` | Non-Ink output |
+| Purpose        | Lib                                                                         | Notes                                        |
+| -------------- | --------------------------------------------------------------------------- | -------------------------------------------- |
+| Docker API     | `dockerode`                                                                 | Node standard, supports SSH via docker-modem |
+| SSH client     | `ssh2`                                                                      | Mature (mscdex), base of almost all SSH libs |
+| CLI args       | `citty` or `commander`                                                      | To decide when starting implementation       |
+| UI components  | `ink-table`, `ink-spinner`, `ink-text-input`, `ink-select-input`, `ink-tab` | Standard Ink set                             |
+| Config storage | `conf` or `configstore`                                                     | Handles `~/.config/tako/`                    |
+| Secrets        | `crypto` (native Node) + master passphrase                                  | For SSH passwords                            |
+| Colors         | `picocolors`                                                                | Non-Ink output                               |
 
 ## Dev tooling
 
-| Purpose | Tool |
-|---|---|
-| Lint + format | ESLint + Prettier |
-| Tests | Vitest + ink-testing-library + Testcontainers |
-| Build | Bun compile (cross-platform) |
+| Purpose       | Tool                                          |
+| ------------- | --------------------------------------------- |
+| Lint + format | ESLint + Prettier                             |
+| Tests         | Vitest + ink-testing-library + Testcontainers |
+| Build         | Bun compile (cross-platform)                  |
 
 ## Critical restriction: Node 20+ compat
 

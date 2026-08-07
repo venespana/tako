@@ -1,13 +1,17 @@
 # ADR 0008: Safe cleanup policy
 
 ## Status
+
 Accepted
 
 ## Context
+
 Periodic docker cleanup is necessary to avoid filling the disk. But `docker image prune -af` deletes ALL currently unused images, which breaks the ability to rollback to previous versions.
 
 ## Decision
+
 **Safe prune policy**:
+
 - ✅ `docker container prune -f` (stopped containers).
 - ✅ `docker image prune -f` (only **dangling** images `<none>:<none>`).
 - ✅ `docker builder prune -f` (unused build cache).
@@ -15,6 +19,7 @@ Periodic docker cleanup is necessary to avoid filling the disk. But `docker imag
 - ❌ **NEVER** `docker volume prune` (deletes persistent data).
 
 ## Consequences
+
 - (+) Tagged images retained, rollback possible.
 - (+) Persistent data safe.
 - (+) Safe operation for unattended cron.

@@ -17,6 +17,7 @@ bun build src/cli/index.ts --compile --target=bun-windows-x64 --outfile dist/tak
 ```
 
 Supported targets (initial):
+
 - Linux x64
 - macOS x64
 - macOS arm64 (Apple Silicon)

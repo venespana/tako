@@ -4,12 +4,12 @@ These are the canonical templates that the Tako binary embeds and writes when ru
 
 ## Included stacks
 
-| Stack | Purpose |
-|---|---|
-| `caddy/` | Reverse proxy (caddy-docker-proxy) + nginx fallback. Single entry point. |
-| `adguard/` | Local DNS + ad blocking. |
-| `uptime-kuma/` | Status page + push alerts. Monitoring daemon. |
-| `cloudflared/` | Tunnel to Cloudflare (optional). |
+| Stack          | Purpose                                                                  |
+| -------------- | ------------------------------------------------------------------------ |
+| `caddy/`       | Reverse proxy (caddy-docker-proxy) + nginx fallback. Single entry point. |
+| `adguard/`     | Local DNS + ad blocking.                                                 |
+| `uptime-kuma/` | Status page + push alerts. Monitoring daemon.                            |
+| `cloudflared/` | Tunnel to Cloudflare (optional).                                         |
 
 ## Conventions
 
