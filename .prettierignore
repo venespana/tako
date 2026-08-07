@@ -1,0 +1,53 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Production
+build
+dist
+out
+
+# Testing
+coverage
+.nyc_output
+
+# Misc
+*.log
+.DS_Store
+*.tgz
+*.zip
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Lock files
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+*.lock
+
+# Cache
+.turbo
+.cache
+.parcel-cache
+.vite-cache
+.next
+.nuxt
+.vuepress/dist
+
+# Documentation
+CHANGELOG.md
+
+# Generated
+.generated
+.tsbuildinfo
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*.sublime-project
