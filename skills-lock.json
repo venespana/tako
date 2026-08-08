@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "skills": {
+    "nodejs-best-practices": {
+      "source": "venespana/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nodejs-best-practices/SKILL.md",
+      "computedHash": "cffcca3f1c97874eb95215d24f89f7e4483c74828bf47bf6721e7c9d72e70850"
+    },
+    "reactjs-best-practices": {
+      "source": "venespana/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/reactjs-best-practices/SKILL.md",
+      "computedHash": "a4ae22f9fde3f67d3a0dbc14cefa573d989e88a6a2a48a518e7724d3f5f77500"
+    }
+  }
+}
