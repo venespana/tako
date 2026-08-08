@@ -14,7 +14,7 @@
 | -------------- | --------------------------------------------------------------------------- | -------------------------------------------- |
 | Docker API     | `dockerode`                                                                 | Node standard, supports SSH via docker-modem |
 | SSH client     | `ssh2`                                                                      | Mature (mscdex), base of almost all SSH libs |
-| CLI args       | `citty` or `commander`                                                      | To decide when starting implementation       |
+| CLI args       | `commander`                                                               | Chosen for scalability and nested subcommands |
 | UI components  | `ink-table`, `ink-spinner`, `ink-text-input`, `ink-select-input`, `ink-tab` | Standard Ink set                             |
 | Config storage | `conf` or `configstore`                                                     | Handles `~/.config/tako/`                    |
 | Secrets        | `crypto` (native Node) + master passphrase                                  | For SSH passwords                            |
