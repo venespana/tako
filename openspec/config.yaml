@@ -1,0 +1,48 @@
+schema: spec-driven
+
+context: |
+  Project: tako — TUI for managing docker-compose-based homelabs over SSH.
+  Stack: TypeScript 6.0.3 (strict, ES2022, ESNext modules, Bundler resolution), Bun 1.3.x runtime + bun.lock.
+  Architecture: Hybrid — Feature-Sliced Design (TUI: Ink 7 + React 19) + Clean Architecture by domain (CLI/backend) + shared kernel. Strict dependency rules (shared→none, domains→shared, cli/tui→domains+shared).
+  Testing: Vitest 4.1.10 with 3 projects (unit co-located in src/, integration via testcontainers, e2e compiled binary); coverage via @vitest/coverage-v8.
+  Quality: ESLint 10 flat config (typescript-eslint + import-x + unused-imports + react-hooks + prettier), tsc --noEmit, Prettier 3.9.6.
+  Canonical language: English. Convention: bun run <script>.
+
+rules:
+  proposal:
+    - Scope each change to one command/feature (MVP starts with `tako doctor`).
+    - Include a rollback plan for changes touching host state, compose files, or the embedded templates.
+  specs:
+    - Use Given/When/Then for scenarios.
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+    - Respect the closed command contract in docs/commands.md (9 commands); do not invent new commands without a decision record.
+  design:
+    - Respect the dependency rules in docs/architecture.md (no tui↔cli imports, domains know no presentation).
+    - Domain types live in domains/X/domain/; application declares ports, infrastructure implements adapters (application MUST NOT import dockerode directly).
+  tasks:
+    - Group by phase, use hierarchical numbering.
+    - Keep each task completable in one focused session.
+  apply:
+    guidelines:
+      - Follow existing code patterns and the FSD/Clean-Arch layer split.
+      - Unit tests are co-located next to the code they test (*.test.ts(x)).
+    tdd: true                # strict_tdd resolved: test runner present, no opt-out marker.
+    test_command: "bun run test"
+    typecheck_command: "bun run typecheck"
+    lint_command: "bun run lint"
+    format_command: "bun run format:check"
+  verify:
+    test_command: "bun run test"
+    build_command: "bun run build"
+    typecheck_command: "bun run typecheck"
+    lint_command: "bun run lint"
+    coverage_threshold: 0    # no threshold enforced yet; set once the first command lands tests.
+  archive:
+    - Warn before merging destructive deltas (REMOVED/RENAMED).
+    - Preserve archived change folders as an audit trail; never delete or modify them.
+
+sdd:
+  pace: auto                 # automatic with pause at apply for summary.
+  artifact_store: hybrid     # engram + openspec.
+  delivery_strategy: ask-on-risk
+  review_budget_lines: 800

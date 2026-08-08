@@ -1,0 +1,337 @@
+{
+  "skill_name": "reactjs-best-practices",
+  "version": "1.1",
+  "benchmark_schema": {
+    "rubric": {
+      "principles_adherence": "0-3 — Applied relevant SOLID/YAGNI/KISS/DRY? 0=ignored, 1=mentioned, 2=applied, 3=applied with trade-off discussion",
+      "comment_quality": "0-3 — WHY-only comments? 0=narrative, 1=mixed, 2=mostly WHY, 3=WHY only or none needed",
+      "naming_descriptiveness": "0-3 — Intentional names? 0=single letters, 3=self-documenting",
+      "anti_patterns_avoided": "0-3 — Avoided all listed anti-patterns? 0=all present, 3=none"
+    },
+    "pass_threshold": "All rubric items >= 2. Total >= 8/12 to pass.",
+    "applies_principles": [
+      "SRP",
+      "OCP",
+      "LSP",
+      "ISP",
+      "DIP",
+      "YAGNI",
+      "KISS",
+      "DRY"
+    ]
+  },
+  "evals": [
+    {
+      "id": 1,
+      "category": "naming-and-comments",
+      "prompt": "Review this React component and improve it:\n```jsx\nconst C = ({ d }) => {\n  // map over data\n  const x = d.map(i => (\n    <li key={i.id}>{i.n}</li>\n  ));\n  // return the list\n  return <ul>{x}</ul>;\n};\n```",
+      "expected_output": "Component renamed to a descriptive noun. Props and variables renamed with intent. Comments removed. Items use descriptive destructuring.",
+      "files": [],
+      "expectations": [
+        "Component renamed (e.g., `ItemList`)",
+        "Props renamed (`d` → `items`)",
+        "Variables renamed (`x` → `listItems`)",
+        "Narrative comments removed",
+        "Item property `.n` renamed to something descriptive"
+      ],
+      "benchmarks": {
+        "principles_applied": [
+          "KISS"
+        ],
+        "comment_rule_target": "no WHAT/HOW comments",
+        "naming_rule_target": "PascalCase components, camelCase vars, descriptive props",
+        "anti_patterns_to_avoid": [
+          "single-letter names",
+          "narrative comments",
+          "opaque property names"
+        ],
+        "rubric": {
+          "principles_adherence": 3,
+          "comment_quality": 3,
+          "naming_descriptiveness": 3,
+          "anti_patterns_avoided": 3
+        }
+      }
+    },
+    {
+      "id": 2,
+      "category": "component-purity",
+      "prompt": "This component has a purity violation. Find and fix it:\n```jsx\nlet clickCount = 0;\n\nfunction Button({ label }) {\n  clickCount++;\n  return <button>{label} ({clickCount})</button>;\n}\n```",
+      "expected_output": "Mutating external state during render violates purity. Move `clickCount` into `useState` and update it in an `onClick` handler, not during render.",
+      "files": [],
+      "expectations": [
+        "Identifies purity violation (mutating non-local value in render)",
+        "Moves state into useState",
+        "State update moved to event handler, not render body",
+        "Component returns same output for same props"
+      ],
+      "benchmarks": {
+        "principles_applied": [],
+        "comment_rule_target": "WHY if explaining purity rule",
+        "naming_rule_target": "PascalCase component, camelCase state",
+        "anti_patterns_to_avoid": [
+          "mutating external state in render",
+          "side effect during render",
+          "module-level mutable state"
+        ],
+        "rubric": {
+          "principles_adherence": 3,
+          "comment_quality": 2,
+          "naming_descriptiveness": 2,
+          "anti_patterns_avoided": 3
+        }
+      }
+    },
+    {
+      "id": 3,
+      "category": "hooks-rules",
+      "prompt": "This component conditionally calls a hook. Fix it:\n```jsx\nfunction UserGreeting({ userId }) {\n  if (!userId) {\n    return <p>Please log in</p>;\n  }\n  const user = useUser(userId);\n  return <p>Hello, {user.name}</p>;\n}\n```",
+      "expected_output": "Hooks must be called unconditionally at the top level. Call `useUser` before the conditional return, then branch on the result.",
+      "files": [],
+      "expectations": [
+        "Hook moved above the conditional return",
+        "Hook called unconditionally",
+        "Conditional logic uses the hook result, not hook invocation",
+        "No hooks after early returns"
+      ],
+      "benchmarks": {
+        "principles_applied": [],
+        "comment_rule_target": "WHY if explaining hooks rules",
+        "naming_rule_target": "PascalCase component, camelCase vars",
+        "anti_patterns_to_avoid": [
+          "conditional hook call",
+          "hook after early return",
+          "hook inside if block"
+        ],
+        "rubric": {
+          "principles_adherence": 3,
+          "comment_quality": 2,
+          "naming_descriptiveness": 2,
+          "anti_patterns_avoided": 3
+        }
+      }
+    },
+    {
+      "id": 4,
+      "category": "effect-cleanup",
+      "prompt": "This effect subscribes to a WebSocket but has a bug. Fix it:\n```jsx\nfunction LiveTicker({ symbol }) {\n  const [price, setPrice] = useState(null);\n  useEffect(() => {\n    const ws = new WebSocket(`wss://api.example.com/${symbol}`);\n    ws.onmessage = (event) => setPrice(JSON.parse(event.data).price);\n  }, [symbol]);\n  return <p>{symbol}: {price}</p>;\n}\n```",
+      "expected_output": "The effect is missing a cleanup function. The WebSocket must be closed when the component unmounts or when `symbol` changes. Add `return () => ws.close()`.",
+      "files": [],
+      "expectations": [
+        "Cleanup function added to useEffect",
+        "WebSocket closed on unmount/re-run",
+        "No accumulating connections",
+        "Dependency array includes `symbol` (already correct)"
+      ],
+      "benchmarks": {
+        "principles_applied": [],
+        "comment_rule_target": "WHY if explaining cleanup necessity",
+        "naming_rule_target": "camelCase vars",
+        "anti_patterns_to_avoid": [
+          "missing cleanup",
+          "resource leak",
+          "stale subscription"
+        ],
+        "rubric": {
+          "principles_adherence": 3,
+          "comment_quality": 2,
+          "naming_descriptiveness": 2,
+          "anti_patterns_avoided": 3
+        }
+      }
+    },
+    {
+      "id": 5,
+      "category": "list-keys",
+      "prompt": "Is this list rendering correct?\n```jsx\nfunction TodoList({ todos }) {\n  return (\n    <ul>\n      {todos.map((todo, index) => (\n        <li key={index}>\n          <input type=\"checkbox\" checked={todo.done} />\n          {todo.text}\n        </li>\n      ))}\n    </ul>\n  );\n}\n```",
+      "expected_output": "Using array index as key is wrong for dynamic lists (items can reorder, insert, delete). Use a stable unique ID from the data (`todo.id`).",
+      "files": [],
+      "expectations": [
+        "Identifies index-as-key anti-pattern",
+        "Recommends stable unique ID",
+        "Explains why index keys break with reordering",
+        "Does not keep index key with a justification"
+      ],
+      "benchmarks": {
+        "principles_applied": [],
+        "comment_rule_target": "WHY if explaining key stability",
+        "naming_rule_target": "PascalCase component",
+        "anti_patterns_to_avoid": [
+          "index as key",
+          "unstable keys",
+          "key based on position"
+        ],
+        "rubric": {
+          "principles_adherence": 3,
+          "comment_quality": 2,
+          "naming_descriptiveness": 2,
+          "anti_patterns_avoided": 3
+        }
+      }
+    },
+    {
+      "id": 6,
+      "category": "SRP-and-refactoring",
+      "prompt": "This component does too much. Refactor it:\n```jsx\nfunction UserDashboard({ userId }) {\n  const [user, setUser] = useState(null);\n  const [posts, setPosts] = useState([]);\n  const [error, setError] = useState(null);\n\n  useEffect(() => {\n    fetch(`/api/users/${userId}`)\n      .then(r => r.json())\n      .then(u => { setUser(u); return fetch(`/api/users/${userId}/posts`); })\n      .then(r => r.json())\n      .then(setPosts)\n      .catch(setError);\n  }, [userId]);\n\n  if (error) return <p>Error: {error.message}</p>;\n  if (!user) return <p>Loading...</p>;\n\n  return (\n    <div style={{ padding: 20, background: '#f0f0f0' }}>\n      <h1 style={{ color: 'blue' }}>{user.name}</h1>\n      <p style={{ fontSize: 14 }}>{user.email}</p>\n      <ul>\n        {posts.map(p => <li key={p.id}>{p.title}</li>)}\n      </ul>\n    </div>\n  );\n}\n```",
+      "expected_output": "Split by responsibility: a custom hook for data fetching (`useUserData`), a presentational component for the user header, a presentational component for the post list, and a layout container. The dashboard orchestrates.",
+      "files": [],
+      "expectations": [
+        "Data fetching extracted to a custom hook",
+        "User header extracted to its own component",
+        "Post list extracted to its own component",
+        "Inline styles moved to CSS or styled-components",
+        "Dashboard becomes an orchestrator, not a monolith"
+      ],
+      "benchmarks": {
+        "principles_applied": [
+          "SRP",
+          "KISS"
+        ],
+        "comment_rule_target": "WHY only",
+        "naming_rule_target": "PascalCase components, `use` prefix for hooks",
+        "anti_patterns_to_avoid": [
+          "monolithic component",
+          "fetching + presentation + styling mixed",
+          "promise chain longer than 2 levels",
+          "inline styles for layout"
+        ],
+        "rubric": {
+          "principles_adherence": 3,
+          "comment_quality": 2,
+          "naming_descriptiveness": 3,
+          "anti_patterns_avoided": 3
+        }
+      }
+    },
+    {
+      "id": 7,
+      "category": "performance-async-waterfalls",
+      "prompt": "This component fetches data sequentially. Optimize it:\n```jsx\nfunction UserProfile({ userId }) {\n  const [user, setUser] = useState(null);\n  const [posts, setPosts] = useState([]);\n  const [friends, setFriends] = useState([]);\n\n  useEffect(() => {\n    fetchUser(userId).then(setUser);\n    fetchPosts(userId).then(setPosts);\n    fetchFriends(userId).then(setFriends);\n  }, [userId]);\n\n  if (!user) return <Loading />;\n  return <Profile user={user} posts={posts} friends={friends} />\n}\n```",
+      "expected_output": "The three fetches are independent but fire as separate promises. Use Promise.all to run them in parallel and eliminate the waterfall. Handle errors as a group.",
+      "files": [],
+      "expectations": [
+        "Identifies sequential fetch anti-pattern",
+        "Wraps independent operations in Promise.all",
+        "All three fetches run in parallel",
+        "Error handling covers the combined promise"
+      ],
+      "benchmarks": {
+        "principles_applied": [
+          "KISS"
+        ],
+        "comment_rule_target": "no comments needed",
+        "naming_rule_target": "camelCase, descriptive",
+        "anti_patterns_to_avoid": [
+          "sequential independent awaits",
+          "waterfall fetching",
+          "no error handling on combined promise"
+        ],
+        "rubric": {
+          "principles_adherence": 3,
+          "comment_quality": 3,
+          "naming_descriptiveness": 2,
+          "anti_patterns_avoided": 3
+        }
+      }
+    },
+    {
+      "id": 8,
+      "category": "performance-derived-state",
+      "prompt": "This component uses useEffect to sync derived state. Fix it:\n```jsx\nfunction SearchResults({ items, query }) {\n  const [filtered, setFiltered] = useState(items);\n\n  useEffect(() => {\n    // filter items by query\n    const results = items.filter(i => i.name.includes(query));\n    setFiltered(results);\n  }, [items, query]);\n\n  return <List items={filtered} />\n}\n```",
+      "expected_output": "Derived state should be calculated during render, not synced via useEffect. Replace with useMemo or direct inline computation. The effect causes an extra render cycle.",
+      "files": [],
+      "expectations": [
+        "Identifies useEffect-for-derived-state anti-pattern",
+        "Removes the useEffect entirely",
+        "Uses useMemo or inline computation for filtered results",
+        "No extra render cycle from state syncing",
+        "Narrative comment removed"
+      ],
+      "benchmarks": {
+        "principles_applied": [
+          "KISS"
+        ],
+        "comment_rule_target": "no narrative comments",
+        "naming_rule_target": "camelCase, descriptive",
+        "anti_patterns_to_avoid": [
+          "useEffect for derived state",
+          "extra render cycle",
+          "narrative comments",
+          "unnecessary state for computed values"
+        ],
+        "rubric": {
+          "principles_adherence": 3,
+          "comment_quality": 3,
+          "naming_descriptiveness": 2,
+          "anti_patterns_avoided": 3
+        }
+      }
+    },
+    {
+      "id": 9,
+      "category": "performance-bundle-inline-components",
+      "prompt": "This component has two performance issues. Find and fix them:\n```jsx\nimport { Editor } from 'heavy-monaco-editor';\n\nfunction CodePanel({ code, showLineNumbers }) {\n  const LineNumbers = () => {\n    return <div className=\"line-numbers\">{/* ... */}</div>;\n  };\n\n  return (\n    <div>\n      <Editor value={code} />\n      {showLineNumbers && <LineNumbers />}\n    </div>\n  );\n}\n```",
+      "expected_output": "Two issues: (1) Editor is a heavy dependency statically imported — use React.lazy + Suspense. (2) LineNumbers is defined inside CodePanel — it remounts on every render. Extract it to module scope.",
+      "files": [],
+      "expectations": [
+        "Identifies heavy static import (Editor)",
+        "Replaces with React.lazy + Suspense",
+        "Identifies inline component definition (LineNumbers)",
+        "Extracts LineNumbers to module scope",
+        "No component definitions inside other components"
+      ],
+      "benchmarks": {
+        "principles_applied": [
+          "KISS"
+        ],
+        "comment_rule_target": "WHY only if explaining remount behavior",
+        "naming_rule_target": "PascalCase components",
+        "anti_patterns_to_avoid": [
+          "static import of heavy dependency",
+          "component defined inside component",
+          "unnecessary remounts",
+          "no code splitting"
+        ],
+        "rubric": {
+          "principles_adherence": 3,
+          "comment_quality": 2,
+          "naming_descriptiveness": 2,
+          "anti_patterns_avoided": 3
+        }
+      }
+    },
+    {
+      "id": 10,
+      "prompt": "This component has nested conditionals in its render logic. Refactor using early returns:\n```jsx\nfunction ProductCard({ product, user, isLoading }) {\n  if (!isLoading) {\n    if (product) {\n      if (product.inStock) {\n        if (user) {\n          if (user.canBuy) {\n            return (\n              <div>\n                <h1>{product.name}</h1>\n                <button onClick={() => addToCart(product)}>Buy</button>\n              </div>\n            );\n          } else {\n            return <p>You cannot buy this item</p>;\n          }\n        } else {\n          return <p>Please log in</p>;\n        }\n      } else {\n        return <p>Out of stock</p>;\n      }\n    } else {\n      return <p>Product not found</p>;\n    }\n  } else {\n    return <Loading />;\n  }\n}\n```",
+      "expected_output": "Flatten with guard clauses. Check loading, then product existence, then stock, then user, then permission — each returning early. The buy button renders at base level.",
+      "expectations": [
+        "Each condition is a guard clause with early return",
+        "Happy path (product card with buy button) at base indentation",
+        "No more than 1 level of nesting",
+        "No else branches after returning ifs",
+        "Component remains pure (same input = same output)"
+      ],
+      "category": "early-return",
+      "files": [],
+      "benchmarks": {
+        "principles_applied": [
+          "KISS"
+        ],
+        "comment_rule_target": "no comments needed (code is self-explanatory)",
+        "naming_rule_target": "descriptive, language-appropriate casing",
+        "anti_patterns_to_avoid": [
+          "nested if/else chains",
+          "happy path buried in nesting",
+          "else after returning if",
+          "3+ levels of indentation"
+        ],
+        "rubric": {
+          "principles_adherence": 3,
+          "comment_quality": 3,
+          "naming_descriptiveness": 2,
+          "anti_patterns_avoided": 3
+        }
+      }
+    }
+  ]
+}
