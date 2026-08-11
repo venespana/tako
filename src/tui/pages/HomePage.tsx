@@ -17,17 +17,17 @@ export interface HomePageProps {
 export function HomePage({ groups, selectable, cursor, view }: HomePageProps): React.ReactElement {
   return (
     <Box flexDirection='column' alignItems='flex-start' height={process.stdout.rows ?? 40} paddingLeft={2}>
+      {/* 2-line spacer at top */}
+      <Box height={2} />
+
       {/* Logo */}
       <Logo />
 
-      {/* 2-line spacer */}
-      <Box height={2} />
-
-      {/* Menu - flush to logo */}
+      {/* Menu */}
       <ActionMenu groups={groups} selectable={selectable} cursor={cursor} view={view} />
 
-      {/* Spacer at bottom */}
-      <Box flexGrow={1} />
+      {/* 3-line spacer before footer */}
+      <Box height={3} />
 
       {/* Key hints + Version */}
       <KeyHints view={view} />
