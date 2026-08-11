@@ -26,12 +26,12 @@ function normalizeVersion(tool: HostTool, version: string): string {
     case 'ssh': {
       // "OpenSSH_10.4p1, OpenSSL 3.6.3 9 Jun 2026" → "10.4p1"
       const match = version.match(/OpenSSH_([^\s,]+)/);
-      return match ? match[1] ?? version : version;
+      return match ? (match[1] ?? version) : version;
     }
     case 'ssl': {
       // "OpenSSH_10.4p1, OpenSSL 3.6.3 9 Jun 2026" → "3.6.3"
       const match = version.match(/OpenSSL[_\s]([^\s,]+)/);
-      return match ? match[1] ?? version : version;
+      return match ? (match[1] ?? version) : version;
     }
     case 'git': {
       // "git version 2.55.0" → "2.55.0"
@@ -83,7 +83,7 @@ export class LocalHostToolChecker implements HostToolChecker {
 
       // exit !== 0: binary found but flag failed → found=true, output=null
       const found = true;
-      const output = exited === 0 ? (stdout.trim() || stderr.trim() || null) : null;
+      const output = exited === 0 ? stdout.trim() || stderr.trim() || null : null;
       return { output, found };
     } catch (error: unknown) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
@@ -101,7 +101,7 @@ export class LocalHostToolChecker implements HostToolChecker {
         return { tool: 'ssl', status: 'not-found', version: null };
       }
       const sslMatch = output.match(/OpenSSL[_\s]([^\s,]+)/);
-      return { tool: 'ssl', status: 'found', version: sslMatch ? sslMatch[1] ?? null : null };
+      return { tool: 'ssl', status: 'found', version: sslMatch ? (sslMatch[1] ?? null) : null };
     }
 
     const { output, found } = await this.spawnAndGetRaw(tool);
