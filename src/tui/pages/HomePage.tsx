@@ -16,21 +16,22 @@ export interface HomePageProps {
 
 export function HomePage({ groups, selectable, cursor, view }: HomePageProps): React.ReactElement {
   return (
-    <Box flexDirection='column' justifyContent='center' alignItems='center'>
-      {/* Top spacer */}
-      <Box />
-      {/* ASCII Logo */}
-      <Logo />
-      {/* Spacer */}
-      <Box />
-      {/* Action Menu */}
-      <ActionMenu groups={groups} selectable={selectable} cursor={cursor} view={view} />
-      {/* Spacer */}
-      <Box />
-      {/* Key hints */}
-      <KeyHints view={view} />
-      {/* Version footer */}
-      <VersionBar />
+    <Box flexDirection='column' justifyContent='space-between' alignItems='center' height={process.stdout.rows}>
+      {/* Top section with Logo */}
+      <Box flexDirection='column' alignItems='center'>
+        <Logo />
+      </Box>
+
+      {/* Middle section: Menu aligned to the RIGHT */}
+      <Box flexDirection='column' alignItems='flex-end' justifyContent='center'>
+        <ActionMenu groups={groups} selectable={selectable} cursor={cursor} view={view} />
+      </Box>
+
+      {/* Bottom section: Key hints + Version */}
+      <Box flexDirection='column' alignItems='center' gap={1}>
+        <KeyHints view={view} />
+        <VersionBar />
+      </Box>
     </Box>
   );
 }
