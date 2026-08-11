@@ -23,14 +23,17 @@
     "build": "bun build src/cli/index.ts --compile --target=bun-linux-x64-modern --outfile dist/tako-linux-x64"
   },
   "dependencies": {
+    "@inkjs/ui": "^2.0.0",
     "commander": "^15.0.0",
     "conf": "^15.1.0",
     "dockerode": "^5.0.1",
     "ink": "^7.1.1",
     "picocolors": "^1.1.1",
     "react": "^19.2.8",
+    "react-devtools-core": "^7.0.1",
     "react-dom": "^19.2.8",
-    "ssh2": "^1.17.0"
+    "ssh2": "^1.17.0",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

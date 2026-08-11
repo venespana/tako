@@ -9,7 +9,8 @@ tako                              # interactive TUI (default)
 tako doctor                       # pre-flight check
 tako install                      # bootstrap remote host
 tako update [--host X]            # self-update or host update
-tako remotes <add|list|rm|use|test>
+tako remote add                   # add remote (interactive wizard)
+tako remotes <list|rm|use|test>
 tako status [--host X]            # non-interactive table
 tako logs <stack> [--host X] [-f]
 tako cleanup [--host X]           # safe prune
@@ -44,23 +45,28 @@ Bootstrap of the remote host:
 - **Without `--host`**: self-update of the binary. Downloads the latest version from GitHub Releases according to platform.
 - **With `--host X`**: diff of docker-composes between what runs on X vs the templates in the local binary. Redeploy of changed stacks.
 
+### `tako remote add`
+
+Interactive wizard to add a new remote connection. Collects name, SSH user, host, port, and credentials via `@inkjs/ui` TUI.
+
+- Name is collected in-form (not as positional argument).
+- SSH validation is performed before saving.
+- Unknown hostkeys are shown; user must explicitly accept.
+- Passwords are stored obfuscated (NOT encrypted — see ADR 0014).
+
+Supported types:
+
+- `ssh user@host + password` (store or transient).
+- `ssh user@host + path to private key`.
+
 ### `tako remotes <subcommand>`
 
-Connection management:
+Connection management (remaining subcommands):
 
-- `add <name>`: adds a remote (interactive wizard).
 - `list`: lists configured remotes.
 - `rm <name>`: removes a remote.
 - `use <name>`: sets the active remote.
 - `test <name>`: tests the connection.
-
-Supported types:
-
-- `local`: makes no connection, operates on the current host.
-- `ssh user@host + password`.
-- `ssh user@host + path to private key`.
-
-Both auth methods at the same level. Credential storage with a secure format.
 
 ### `tako status [--host X]`
 
@@ -93,7 +99,6 @@ Redeploy of a previous tag. If `--to` is not specified, it offers a list of avai
 
 ## Deferrable (does not block MVP)
 
-- Wizard UX of `remotes add`.
-- Secure storage format for passwords (master passphrase vs OS keyring).
+- Secure storage format for passwords (master passphrase vs OS keyring). Currently uses reversible obfuscation (v0 debt).
 - Default cron frequency.
 - Tag naming scheme for rollback.
