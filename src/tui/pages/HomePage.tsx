@@ -23,6 +23,9 @@ export function HomePage({ groups, selectable, cursor, view }: HomePageProps): R
       {/* Logo */}
       <Logo />
 
+      {/* 2-line spacer under logo */}
+      <Box height={2} />
+
       {/* Menu */}
       <ActionMenu groups={groups} selectable={selectable} cursor={cursor} view={view} />
 
