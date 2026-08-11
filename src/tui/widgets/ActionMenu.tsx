@@ -51,9 +51,9 @@ export function ActionMenu({ groups, selectable, cursor, view }: ActionMenuProps
 
   // In list view, render all groups with their items
   return (
-    <Box flexDirection='column' gap={3}>
+    <Box flexDirection='column' gap={0}>
       {groups.map(group => (
-        <Box key={group.id} flexDirection='column' gap={1}>
+        <Box key={group.id} flexDirection='column' gap={0}>
           {/* Group label */}
           <Text bold dimColor={false}>
             {group.label}
