@@ -4,5 +4,5 @@ import { Text } from 'ink';
 import { VERSION } from '../../shared/lib/version.js';
 
 export function VersionBar(): React.ReactElement {
-  return <Text dimColor={true}>tako v{VERSION}</Text>;
+  return <Text dimColor={true}>v{VERSION}</Text>;
 }
