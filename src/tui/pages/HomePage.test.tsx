@@ -75,7 +75,7 @@ describe('HomePage', () => {
       <HomePage groups={groups} selectable={selectable} cursor={0} view={view} />
     );
 
-    // VersionBar shows takov{VERSION}
-    expect(lastFrame()).toContain('tako');
+    // VersionBar shows v{VERSION}
+    expect(lastFrame()).toContain('v0.0.0');
   });
 });
