@@ -40,4 +40,6 @@ remote
     }
   });
 
-program.parse();
+export function runCli(argv: string[] = process.argv): void {
+  program.parse(argv);
+}

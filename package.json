@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "tako": "src/cli/index.ts"
+    "tako": "src/index.tsx"
   },
   "scripts": {
     "lint": "eslint .",
@@ -20,6 +20,7 @@
     "test:all": "vitest run",
     "test:coverage": "vitest run unit --coverage",
     "dev": "bun --watch src/cli/index.ts",
+    "prebuild": "bun scripts/generate-version.ts",
     "build": "bun build src/cli/index.ts --compile --target=bun-linux-x64-modern --outfile dist/tako-linux-x64"
   },
   "dependencies": {

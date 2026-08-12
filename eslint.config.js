@@ -86,6 +86,23 @@ export default defineConfig(
         },
       ],
       'import-x/prefer-default-export': 'off',
+      'import-x/no-restricted-paths': [
+        'error',
+        {
+          zones: [
+            {
+              target: ['src/tui/**/*'],
+              from: ['src/cli/**/*'],
+              message: 'Architecture rule: src/tui/ may not import from src/cli/',
+            },
+            {
+              target: ['src/cli/**/*'],
+              from: ['src/tui/**/*'],
+              message: 'Architecture rule: src/cli/ may not import from src/tui/',
+            },
+          ],
+        },
+      ],
     },
   },
   {
