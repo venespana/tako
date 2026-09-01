@@ -13,17 +13,13 @@ const REMOTES_ID = 'remotes';
 /** The single group a remotes submenu route renders as its screen. */
 const REMOTES_SUBMENU_GROUP_ID = 'remotes-submenu';
 
-/** Check if a route is a remotes sub-route (remotes, remotes.add, remotes.list, etc.) */
-function isRemotesRoute(route: string): boolean {
-  return route === REMOTES_ID || route.startsWith(`${REMOTES_ID}.`);
-}
-
-/** Routes where arrow-key navigation over a selectable menu is meaningful.
- * On these routes the previous menu is still mounted (behind the screen).
- * On non-navigable routes (doctor, logs, status, cleanup) arrows are ignored
- * and no selectable list is exposed to prevent accidental menu navigation. */
+/** Routes where arrow-key navigation over a selectable menu is meaningful:
+ * home (main list) and the remotes submenu root itself. On remotes.* child
+ * pages and other stub routes (doctor, logs, status, cleanup) arrows and
+ * Enter are ignored and no selectable list is exposed — only Escape (goBack)
+ * works — so the previous menu can never be operated from behind a screen. */
 export function isMenuNavigableRoute(route: string): boolean {
-  return route === 'home' || isRemotesRoute(route);
+  return route === 'home' || route === REMOTES_ID;
 }
 
 /** Find the remotes submenu parent anywhere in the registry groups. */
@@ -62,12 +58,13 @@ export interface MenuFlow {
 
 /** Compute the menu flow for the current route.
  * - home: full selectable (submenu parents included), registry groups
- * - remotes / remotes.*: synthesized submenu screen
- * - isolated routes (doctor, logs, status, cleanup): empty selectable, no navigation */
+ * - remotes (submenu root): synthesized submenu screen
+ * - everything else (remotes.* child pages, doctor, logs, status, cleanup):
+ *   isolated — empty selectable, no navigation */
 export function getSelectableForRoute(route: string, hasActiveRemote: boolean): MenuFlow {
   const groups = getRegistry();
 
-  if (isRemotesRoute(route)) {
+  if (route === REMOTES_ID) {
     const selectable = buildRemotesSelectable(findRemotesItem(groups));
     return {
       selectable,
@@ -76,7 +73,7 @@ export function getSelectableForRoute(route: string, hasActiveRemote: boolean): 
     };
   }
 
-  if (isMenuNavigableRoute(route)) {
+  if (route === 'home') {
     return { selectable: getSelectable(groups, hasActiveRemote), screenGroups: groups, isNavigable: true };
   }
 

@@ -143,13 +143,37 @@ describe('App', () => {
       await wait();
       stdin.write('\r'); // enter remotes submenu
       await wait();
-      stdin.write('j'); // arrows work on remotes.* routes: add → list
+      stdin.write('j'); // arrows work on the remotes submenu root: add → list
       await wait();
       stdin.write('\r'); // Enter on routed action item → navigate
       await wait();
 
       expect(appRouter.getState().currentRoute).toBe('remotes.list');
       expect(lastFrame()).toContain('remotes.list');
+      unmount();
+    });
+
+    it('ignores arrows and Enter on a remotes.* child page (no ghost menu behind the screen)', async () => {
+      const { stdin, unmount } = render(<App hasActiveRemote={false} />);
+
+      stdin.write('j'); // home: focus remotes
+      await wait();
+      stdin.write('\r'); // enter remotes submenu
+      await wait();
+      stdin.write('j'); // focus list
+      await wait();
+      stdin.write('\r'); // → remotes.list (isolated child page)
+      await wait();
+      expect(appRouter.getState().currentRoute).toBe('remotes.list');
+
+      // The bug regression: arrows/Enter on the child page must NOT operate
+      // the submenu model from behind the screen
+      stdin.write('j'); // down — ignored
+      await wait();
+      stdin.write('\r'); // Enter — ignored
+      await wait();
+
+      expect(appRouter.getState().currentRoute).toBe('remotes.list');
       unmount();
     });
   });

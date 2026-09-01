@@ -43,18 +43,11 @@ describe('getSelectableForRoute', () => {
       expect(flow.screenGroups[0]!.label).toBe('remotes');
       expect(flow.screenGroups[0]!.items).toBe(flow.selectable);
     });
-
-    it('uses the same submenu model on child routes (remotes.list)', () => {
-      const flow = getSelectableForRoute('remotes.list', false);
-
-      expect(flow.isNavigable).toBe(true);
-      expect(flow.selectable.map(i => i.label)).toEqual(REMOTES_CMDS);
-    });
   });
 
-  describe('isolated routes (doctor/logs/status/cleanup)', () => {
+  describe('isolated routes (remotes.* children, doctor/logs/status/cleanup)', () => {
     it('exposes no selectable list and disables navigation', () => {
-      for (const route of ['doctor', 'logs', 'status', 'cleanup']) {
+      for (const route of ['remotes.add', 'remotes.list', 'remotes.rm', 'remotes.use', 'remotes.test', 'doctor', 'logs', 'status', 'cleanup']) {
         const flow = getSelectableForRoute(route, true);
         expect(flow.isNavigable).toBe(false);
         expect(flow.selectable).toEqual([]);
@@ -65,17 +58,17 @@ describe('getSelectableForRoute', () => {
 });
 
 describe('isMenuNavigableRoute', () => {
-  it('is true on home and remotes.* routes', () => {
+  it('is true only on home and the remotes submenu root', () => {
     expect(isMenuNavigableRoute('home')).toBe(true);
     expect(isMenuNavigableRoute('remotes')).toBe(true);
-    expect(isMenuNavigableRoute('remotes.add')).toBe(true);
   });
 
-  it('is false on isolated routes', () => {
+  it('is false on remotes.* child pages and isolated routes', () => {
+    expect(isMenuNavigableRoute('remotes.add')).toBe(false);
+    expect(isMenuNavigableRoute('remotes.nope')).toBe(false);
     expect(isMenuNavigableRoute('doctor')).toBe(false);
     expect(isMenuNavigableRoute('logs')).toBe(false);
     expect(isMenuNavigableRoute('status')).toBe(false);
     expect(isMenuNavigableRoute('cleanup')).toBe(false);
-    expect(isMenuNavigableRoute('remotes.nope')).toBe(true); // still a remotes submenu route
   });
 });
