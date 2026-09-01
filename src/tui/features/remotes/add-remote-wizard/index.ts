@@ -3,5 +3,5 @@
 // ADR-0014: this slice is the one sanctioned tui→cli boundary exception
 // (`tako remote add` launches the wizard from the CLI).
 
-export { runAddRemoteWizard } from './run.js';
-export type { RunWizardDeps } from './run.js';
+export { runAddRemoteWizard } from './lib/run.js';
+export type { RunWizardDeps } from './lib/run.js';

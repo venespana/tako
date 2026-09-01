@@ -1,4 +1,4 @@
-// tui/features/remotes/add-remote-wizard/wizard-store.test.ts — Zustand store tests
+// tui/features/remotes/add-remote-wizard/model/wizard-store.test.ts — Zustand store tests
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import { useWizardStore, initialWizardState } from './wizard-store.js';

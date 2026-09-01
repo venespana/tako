@@ -1,7 +1,7 @@
-// tui/features/remotes/add-remote-wizard/wizard-store.ts — Zustand store for wizard
+// tui/features/remotes/add-remote-wizard/model/wizard-store.ts — Zustand store for wizard
 import { create } from 'zustand';
 
-import type { SshCredentialType } from '../../../../domains/remotes/domain/types.js';
+import type { SshCredentialType } from '../../../../../domains/remotes/domain/types.js';
 
 // ---------------------------------------------------------------------------
 // Wizard step union
@@ -114,6 +114,9 @@ function errorStepForCategory(category: string): WizardStep {
 // Store
 // ---------------------------------------------------------------------------
 
+// WHY a module-level singleton instead of a store factory: this wizard is a
+// single-use flow — one instance per process, reset by lib/run.ts before each
+// render. A factory would add selector plumbing with no second consumer.
 export const useWizardStore = create<WizardStore>(set => ({
   ...initialWizardState,
 

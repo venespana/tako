@@ -1,4 +1,5 @@
-// types.ts — Shared types for the menu feature.
+// menu-items.ts — Menu item model: the item/group/enablement types shared by
+// every part of the menu feature (registry, navigation, route flow).
 
 /** Condition that determines whether an item is selectable */
 export type EnableCondition = 'always' | 'hasActiveRemote';

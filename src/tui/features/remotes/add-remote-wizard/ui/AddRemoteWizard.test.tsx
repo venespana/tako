@@ -1,10 +1,10 @@
-// tui/features/remotes/add-remote-wizard/AddRemoteWizard.test.tsx — STRICT TDD RED phase
+// tui/features/remotes/add-remote-wizard/ui/AddRemoteWizard.test.tsx — STRICT TDD RED phase
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 
 import { AddRemoteWizard } from './AddRemoteWizard.js';
-import { useWizardStore } from './wizard-store.js';
-import type { AddRemoteResult } from '../../../../domains/remotes/domain/types.js';
+import { useWizardStore } from '../model/wizard-store.js';
+import type { AddRemoteResult } from '../../../../../domains/remotes/domain/types.js';
 
 // ---------------------------------------------------------------------------
 // Fake AddRemote use case factory
@@ -13,7 +13,7 @@ import type { AddRemoteResult } from '../../../../domains/remotes/domain/types.j
 function createFakeAddRemote(executeResult: AddRemoteResult) {
   return {
     execute: vi.fn(async () => executeResult),
-  } as unknown as import('../../../../domains/remotes/application/AddRemote.js').AddRemote;
+  } as unknown as import('../../../../../domains/remotes/application/AddRemote.js').AddRemote;
 }
 
 // ---------------------------------------------------------------------------

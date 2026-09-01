@@ -1,7 +1,7 @@
-// navigation.test.ts — Unit tests for pure navigation functions.
+// menu-navigation.test.ts — Unit tests for pure navigation functions.
 import { describe, it, expect } from 'vitest';
-import type { ActionItem, ActionGroup } from './types.js';
-import { getSelectable, moveCursor } from './navigation.js';
+import type { ActionItem, ActionGroup } from './menu-items.js';
+import { getSelectable, moveCursor } from './menu-navigation.js';
 
 const fakeItem = (id: string, enabledWhen: 'always' | 'hasActiveRemote' = 'always'): ActionItem =>
   ({ id, label: id, command: id, kind: 'action', enabledWhen });

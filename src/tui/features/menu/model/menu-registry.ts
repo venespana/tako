@@ -1,10 +1,10 @@
-// registry.ts — Declarative action registry for the home menu.
+// menu-registry.ts — Declarative action registry for the home menu.
 // Only implemented commands appear; unimplemented ones are excluded entirely.
 // Submenu items (remotes) live in the router registry; home shows remotes as a single submenu entry.
 // The registry is a module-level frozen constant so consumers can memoize on
 // its identity (a fresh array per call would defeat React memo deps).
 
-import type { ActionGroup } from './types.js';
+import type { ActionGroup } from './menu-items.js';
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && (typeof value === 'object' || typeof value === 'function')) {

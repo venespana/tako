@@ -1,12 +1,12 @@
-// tui/features/remotes/add-remote-wizard/run.ts — Wizard entry point for CLI
+// tui/features/remotes/add-remote-wizard/lib/run.ts — Wizard entry point for CLI
 import React from 'react';
 
 import { render } from 'ink';
 
-import { AddRemoteWizard } from './AddRemoteWizard.js';
-import { useWizardStore } from './wizard-store.js';
-import type { AddRemote } from '../../../../domains/remotes/application/AddRemote.js';
-import type { AddRemoteResult } from '../../../../domains/remotes/domain/types.js';
+import type { AddRemote } from '../../../../../domains/remotes/application/AddRemote.js';
+import type { AddRemoteResult } from '../../../../../domains/remotes/domain/types.js';
+import { useWizardStore } from '../model/wizard-store.js';
+import { AddRemoteWizard } from '../ui/AddRemoteWizard.js';
 
 export type RunWizardDeps = {
   addRemoteUc: AddRemote;

@@ -1,7 +1,7 @@
-// navigation.ts — Pure navigation functions for the menu feature.
+// menu-navigation.ts — Pure navigation functions for the menu feature.
 // These are pure (no side effects, no React hooks) making them trivial to unit-test.
 
-import type { ActionGroup, ActionItem } from './types.js';
+import type { ActionGroup, ActionItem } from './menu-items.js';
 
 /** Returns the selectable ActionItems for the menu.
  * Submenu parent items (kind === 'submenu') ARE included in the flat selectable list

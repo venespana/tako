@@ -3,9 +3,9 @@
 // selectable list, the groups a screen should render, and whether arrow-key
 // navigation is active. Pure — no React, no side effects.
 
-import { getSelectable } from './navigation.js';
-import { getRegistry } from './registry.js';
-import type { ActionGroup, ActionItem } from './types.js';
+import type { ActionGroup, ActionItem } from './menu-items.js';
+import { getSelectable } from './menu-navigation.js';
+import { getRegistry } from './menu-registry.js';
 
 /** Menu item id of the remotes submenu parent — the only submenu in the registry. */
 const REMOTES_ID = 'remotes';

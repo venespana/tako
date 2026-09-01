@@ -1,7 +1,7 @@
 // menu-flow.test.ts — Unit tests for the route-aware menu flow.
 import { describe, it, expect } from 'vitest';
 import { getSelectableForRoute, isMenuNavigableRoute } from './menu-flow.js';
-import { getRegistry } from './registry.js';
+import { getRegistry } from './menu-registry.js';
 
 const REMOTES_CMDS = ['add', 'list', 'rm', 'use', 'test'];
 
