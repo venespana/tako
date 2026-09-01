@@ -9,7 +9,7 @@ import { runRemoteAdd } from './remote-add.js';
 // Mock runAddRemoteWizard — controls what the TUI wizard returns
 // ---------------------------------------------------------------------------
 
-vi.mock('../../tui/features/remotes/add-remote-wizard/run.js', () => {
+vi.mock('../../tui/features/remotes/add-remote-wizard/index.js', () => {
   return {
     runAddRemoteWizard: vi.fn().mockImplementation(() => Promise.resolve({ saved: true })),
   };
@@ -26,7 +26,7 @@ describe('runRemoteAdd exit codes', () => {
 
   // (a) saved → exit code 0
   it('5.2 RED: saved → exit code 0', async () => {
-    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/run.js');
+    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
     (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ saved: true });
 
     const exitCode = await runRemoteAdd({
@@ -41,7 +41,7 @@ describe('runRemoteAdd exit codes', () => {
 
   // (b) duplicate → exit code 1
   it('5.2 RED: duplicate → exit code 1', async () => {
-    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/run.js');
+    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
     (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ saved: false, reason: 'duplicate' });
 
     const exitCode = await runRemoteAdd({
@@ -56,7 +56,7 @@ describe('runRemoteAdd exit codes', () => {
 
   // (c) validation → exit code 1
   it('5.2 RED: validation failure → exit code 1', async () => {
-    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/run.js');
+    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
     (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ saved: false, reason: 'validation' });
 
     const exitCode = await runRemoteAdd({
@@ -71,7 +71,7 @@ describe('runRemoteAdd exit codes', () => {
 
   // (d) hostkey → exit code 1
   it('5.2 RED: hostkey declined → exit code 1', async () => {
-    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/run.js');
+    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
     (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ saved: false, reason: 'hostkey' });
 
     const exitCode = await runRemoteAdd({
@@ -86,7 +86,7 @@ describe('runRemoteAdd exit codes', () => {
 
   // (e) abort → exit code 1
   it('5.2 RED: abort → exit code 1', async () => {
-    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/run.js');
+    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
     (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ saved: false, reason: 'abort' });
 
     const exitCode = await runRemoteAdd({
@@ -101,7 +101,7 @@ describe('runRemoteAdd exit codes', () => {
 
   // (f) unexpected throw → exit code 2
   it('5.2 RED: unexpected throw → exit code 2', async () => {
-    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/run.js');
+    const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
     (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('unexpected internal error'));
 
     const exitCode = await runRemoteAdd({

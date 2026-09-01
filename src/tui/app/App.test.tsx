@@ -2,29 +2,25 @@
 // Tests the full keypress flow using ink-testing-library against the
 // app router instance (route-driven navigation, cursor reset on route
 // change, arrows active on home/remotes.* routes, ignored on isolated
-// routes, Escape → goBack).
+// routes, Escape → goBack, q/Ctrl-C quit while other ctrl combos don't).
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import App from './App.js';
 import { appRouter } from './app-router.js';
-import type { ActionGroup, DispatchMap } from '../features/menu/types.js';
 
-// The dispatch coverage needs an action item WITHOUT a route (Enter on such
-// an item dispatches its handler). Every action in the real registry carries
-// a route, so that single test swaps getRegistry() for a fixture via this
-// override; all other tests use the real registry.
-let registryOverride: ActionGroup[] | null = null;
+// Capture App's exit() calls so quit-key tests can assert on them without
+// depending on Ink's unmount internals. ink-testing-library renders with
+// exitOnCtrlC: false, so Ctrl+C is delivered to our useInput handler.
+const { exitMock } = vi.hoisted(() => ({ exitMock: vi.fn() }));
 
-vi.mock('../features/menu/registry.js', async importOriginal => {
-  const actual = await importOriginal<typeof import('../features/menu/registry.js')>();
-  return {
-    getRegistry: () => registryOverride ?? actual.getRegistry(),
-  };
+vi.mock('ink', async importOriginal => {
+  const actual = await importOriginal<typeof import('ink')>();
+  return { ...actual, useApp: () => ({ exit: exitMock }) };
 });
 
 // Reset the app router instance between tests so each starts on 'home'.
 beforeEach(() => {
-  registryOverride = null;
+  exitMock.mockReset();
   appRouter.reset();
   appRouter.setExitHandler(() => {});
 });
@@ -38,8 +34,7 @@ const waitAfterEscape = () => wait(50);
 describe('App', () => {
   describe('initial render', () => {
     it('renders the home screen with logo, groups, and key hints', () => {
-      const dispatch: DispatchMap = { doctor: vi.fn() };
-      const { lastFrame, unmount } = render(<App dispatch={dispatch} hasActiveRemote={false} />);
+      const { lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       // Logo renders (box characters)
       expect(lastFrame()).toContain('███╗');
@@ -52,19 +47,11 @@ describe('App', () => {
       expect(lastFrame()).toContain('↑↓');
       unmount();
     });
-
-    it('does not call dispatch on initial render', () => {
-      const dispatch: DispatchMap = { doctor: vi.fn() };
-      const { unmount } = render(<App dispatch={dispatch} hasActiveRemote={false} />);
-      expect((dispatch.doctor as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
-      unmount();
-    });
   });
 
   describe('keyboard navigation', () => {
     it('renders with cursor on first selectable item', () => {
-      const dispatch: DispatchMap = { doctor: vi.fn() };
-      const { lastFrame, unmount } = render(<App dispatch={dispatch} hasActiveRemote={false} />);
+      const { lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       // Cursor glyph appears on the first item (doctor)
       expect(lastFrame()).toContain('❯');
@@ -73,8 +60,7 @@ describe('App', () => {
     });
 
     it('moves the cursor down with j on home', async () => {
-      const dispatch: DispatchMap = { doctor: vi.fn() };
-      const { stdin, lastFrame, unmount } = render(<App dispatch={dispatch} hasActiveRemote={false} />);
+      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       // Cursor starts on doctor (index 0); j moves to remotes (index 1)
       expect(lastFrame()).toContain('❯ doctor');
@@ -85,8 +71,7 @@ describe('App', () => {
     });
 
     it('moves the cursor up with the up arrow on home', async () => {
-      const dispatch: DispatchMap = { doctor: vi.fn() };
-      const { stdin, lastFrame, unmount } = render(<App dispatch={dispatch} hasActiveRemote={false} />);
+      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       stdin.write('j'); // doctor → remotes
       await wait();
@@ -97,13 +82,30 @@ describe('App', () => {
     });
   });
 
+  describe('quit keys', () => {
+    it('Ctrl+A does not exit; Ctrl+C does', async () => {
+      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
+
+      // Ctrl+A (\x01) parses as { input: 'a', ctrl: true } — must NOT quit
+      stdin.write('\x01');
+      await wait();
+      expect(exitMock).not.toHaveBeenCalled();
+      expect(lastFrame()).toContain('Local');
+
+      // Ctrl+C (\x03) parses as { input: 'c', ctrl: true } — quits
+      stdin.write('\x03');
+      await wait();
+      expect(exitMock).toHaveBeenCalledTimes(1);
+      unmount();
+    });
+  });
+
   describe('router navigation via Enter', () => {
     it('navigates to the doctor route on Enter over doctor (logo hidden)', async () => {
-      const dispatch: DispatchMap = { doctor: vi.fn() };
-      const { stdin, lastFrame, unmount } = render(<App dispatch={dispatch} hasActiveRemote={false} />);
+      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
-      // Press Enter to select doctor — it is an action item WITH a route,
-      // so Enter navigates instead of dispatching.
+      // Press Enter to select doctor — it is a routed action item,
+      // so Enter navigates to its route.
       stdin.write('\r');
       await wait();
 
@@ -111,13 +113,11 @@ describe('App', () => {
       // Isolated route: logo hidden, home menu groups gone
       expect(lastFrame()).not.toContain('███╗');
       expect(lastFrame()).not.toContain('Local');
-      // Routing replaced the old dispatch behavior for routed actions
-      expect(dispatch.doctor).not.toHaveBeenCalled();
       unmount();
     });
 
     it('navigates to the remotes submenu on Enter over remotes and resets the cursor', async () => {
-      const { stdin, lastFrame, unmount } = render(<App dispatch={{}} hasActiveRemote={false} />);
+      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       stdin.write('j'); // focus remotes (index 1) on home
       await wait();
@@ -137,7 +137,7 @@ describe('App', () => {
     });
 
     it('navigates to remotes.list on Enter over a remotes subaction', async () => {
-      const { stdin, lastFrame, unmount } = render(<App dispatch={{}} hasActiveRemote={false} />);
+      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       stdin.write('j'); // home: focus remotes
       await wait();
@@ -152,42 +152,11 @@ describe('App', () => {
       expect(lastFrame()).toContain('remotes.list');
       unmount();
     });
-
-    it('dispatches the handler for an action item without a route', async () => {
-      // Preserves the old dispatch coverage: Enter on an action item whose
-      // handlerKey has no route invokes dispatch[handlerKey] and stays put.
-      registryOverride = [
-        {
-          id: 'local',
-          label: 'Local',
-          items: [
-            {
-              id: 'doctor',
-              label: 'doctor',
-              command: 'doctor',
-              kind: 'action',
-              enabledWhen: 'always',
-              handlerKey: 'doctor',
-            },
-          ],
-        },
-      ];
-      const doctorFn = vi.fn().mockResolvedValue(undefined);
-      const dispatch: DispatchMap = { doctor: doctorFn };
-      const { stdin, unmount } = render(<App dispatch={dispatch} hasActiveRemote={false} />);
-
-      stdin.write('\r');
-      await wait();
-
-      expect(doctorFn).toHaveBeenCalled();
-      expect(appRouter.getState().currentRoute).toBe('home');
-      unmount();
-    });
   });
 
   describe('router navigation via Escape', () => {
     it('returns to the previous route on Escape', async () => {
-      const { stdin, lastFrame, unmount } = render(<App dispatch={{}} hasActiveRemote={false} />);
+      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       stdin.write('\r'); // home → doctor
       await wait();
@@ -206,21 +175,19 @@ describe('App', () => {
 
   describe('isolated routes (doctor/logs/status/cleanup)', () => {
     it('ignores arrows and Enter on isolated routes', async () => {
-      const dispatch: DispatchMap = { doctor: vi.fn() };
-      const { stdin, lastFrame, unmount } = render(<App dispatch={dispatch} hasActiveRemote={false} />);
+      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       stdin.write('\r'); // home → doctor (isolated route)
       await wait();
       expect(appRouter.getState().currentRoute).toBe('doctor');
 
-      // Arrow keys and Enter must be ignored: no navigation, no dispatch
+      // Arrow keys and Enter must be ignored: no navigation
       stdin.write('j');
       stdin.write('\r');
       await wait();
 
       expect(appRouter.getState().currentRoute).toBe('doctor');
       expect(lastFrame()).not.toContain('███╗');
-      expect(dispatch.doctor).not.toHaveBeenCalled();
       unmount();
     });
   });

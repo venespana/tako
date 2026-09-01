@@ -23,14 +23,7 @@
     "types": ["node", "bun-types"],
     "outDir": "dist",
     "rootDir": ".",
-    "ignoreDeprecations": "6.0",
-    "baseUrl": ".",
-    "paths": {
-      "@shared/*": ["src/shared/*"],
-      "@entities/*": ["src/entities/*"],
-      "@features/*": ["src/features/*"],
-      "@app/*": ["src/app/*"]
-    }
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src", "eslint.config.js"],
   "exclude": ["node_modules", "dist", "build", "coverage", "docs", "templates"]

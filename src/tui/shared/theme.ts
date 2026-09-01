@@ -8,8 +8,6 @@ export const theme = {
   cursorColor: 'cyan' as const,
   /** Ink color name for disabled/greyed items */
   disabledColor: 'gray' as const,
-  /** Dim color for less prominent text */
-  dimColor: 'white' as const,
 } as const;
 
 export type Theme = typeof theme;

@@ -31,7 +31,7 @@ export interface RouterOptions<TRouteName extends string> {
  * A router instance: imperative API + React hooks bound to this instance.
  * Created via `createRouter` — never instantiated directly.
  */
-export interface TakoRouter<TRouteName extends string> {
+export interface Router<TRouteName extends string> {
   /** Navigate to a route, optionally with params. */
   navigate(route: TRouteName, params?: RouteParams): void;
   /** Pop the history stack. Returns false when history was empty → the exit signal fired. */

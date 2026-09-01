@@ -8,6 +8,11 @@ describe('getRegistry', () => {
     expect(groups).toHaveLength(3);
   });
 
+  it('returns a stable identity across calls (frozen constant)', () => {
+    // A fresh array per call would defeat React memo deps in consumers.
+    expect(getRegistry()).toBe(getRegistry());
+  });
+
   it('groups are labeled Local, Remote, Config', () => {
     const groups = getRegistry();
     expect(groups.map(g => g.label)).toEqual(['Local', 'Remote', 'Config']);

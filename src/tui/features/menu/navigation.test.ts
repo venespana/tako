@@ -1,7 +1,7 @@
 // navigation.test.ts — Unit tests for pure navigation functions.
 import { describe, it, expect } from 'vitest';
 import type { ActionItem, ActionGroup } from './types.js';
-import { getSelectable, moveCursor, enterSubmenu, exitSubmenu } from './navigation.js';
+import { getSelectable, moveCursor } from './navigation.js';
 
 const fakeItem = (id: string, enabledWhen: 'always' | 'hasActiveRemote' = 'always'): ActionItem =>
   ({ id, label: id, command: id, kind: 'action', enabledWhen });
@@ -17,7 +17,7 @@ describe('getSelectable', () => {
     const groups: ActionGroup[] = [
       group([fakeItem('a', 'always'), fakeItem('b', 'hasActiveRemote')]),
     ];
-    const result = getSelectable(groups, { view: 'list' }, false);
+    const result = getSelectable(groups, false);
     expect(result.map(i => i.id)).toEqual(['a']);
   });
 
@@ -25,7 +25,7 @@ describe('getSelectable', () => {
     const groups: ActionGroup[] = [
       group([fakeItem('a', 'always'), fakeItem('b', 'hasActiveRemote')]),
     ];
-    const result = getSelectable(groups, { view: 'list' }, true);
+    const result = getSelectable(groups, true);
     expect(result.map(i => i.id)).toEqual(['a', 'b']);
   });
 
@@ -33,23 +33,17 @@ describe('getSelectable', () => {
     const groups: ActionGroup[] = [
       group([fakeItem('a', 'hasActiveRemote')]),
     ];
-    const result = getSelectable(groups, { view: 'list' }, false);
+    const result = getSelectable(groups, false);
     expect(result).toEqual([]);
   });
 
-  it('includes submenu items in the flat selectable list (view is ignored)', () => {
+  it('includes submenu items in the flat selectable list', () => {
     // Submenu parents are selectable: Enter on them navigates to their route.
-    // The view argument is ignored by design — filtering by view moved to the router.
     const action = fakeItem('a', 'always');
     const submenu = { id: 'remotes', label: 'remotes', command: 'remotes', kind: 'submenu' as const, submenu: ['add', 'list', 'rm', 'use', 'test'] };
     const groups: ActionGroup[] = [group([action, submenu])];
 
-    const fromList = getSelectable(groups, { view: 'list' }, false);
-    const fromSubmenu = getSelectable(groups, { view: 'submenu', parentId: 'remotes', restoreCursor: 0 }, false);
-
-    expect(fromList.map(i => i.id)).toEqual(['a', 'remotes']);
-    // Both views yield the same flat list
-    expect(fromSubmenu).toEqual(fromList);
+    expect(getSelectable(groups, false).map(i => i.id)).toEqual(['a', 'remotes']);
   });
 });
 
@@ -82,27 +76,5 @@ describe('moveCursor', () => {
 
   it('returns 0 when items array is empty', () => {
     expect(moveCursor([], 0, 1)).toBe(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// enterSubmenu
-// ---------------------------------------------------------------------------
-
-describe('enterSubmenu', () => {
-  it('returns submenu view state with parentId and current cursor', () => {
-    const result = enterSubmenu('remotes', 3);
-    expect(result).toEqual({ view: 'submenu', parentId: 'remotes', restoreCursor: 3 });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// exitSubmenu
-// ---------------------------------------------------------------------------
-
-describe('exitSubmenu', () => {
-  it('returns to list view', () => {
-    const result = exitSubmenu({ view: 'submenu', parentId: 'remotes', restoreCursor: 3 });
-    expect(result).toEqual({ view: 'list' });
   });
 });

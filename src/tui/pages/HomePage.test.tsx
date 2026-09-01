@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import { HomePage } from './HomePage.js';
-import type { ActionGroup, ActionItem } from '../features/menu/types.js';
+import type { ActionGroup, ActionItem } from '../features/menu/index.js';
 
 const makeItem = (overrides: Partial<ActionItem> = {}): ActionItem => ({
   id: 'test',

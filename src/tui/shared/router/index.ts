@@ -5,4 +5,4 @@
 // only through a router instance, and tested directly from inside the directory.
 
 export { createRouter } from './create-router.js';
-export type { RouteParams, HistoryEntry, RouterState, RouterOptions, TakoRouter } from './types.js';
+export type { RouteParams, HistoryEntry, RouterState, RouterOptions, Router } from './types.js';

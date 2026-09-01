@@ -1,5 +1,8 @@
 // DoctorPage.tsx — Stub for doctor route.
 import { Text } from 'ink';
-export function DoctorPage(): React.ReactElement {
+
+import type { ScreenProps } from '../features/menu/index.js';
+
+export function DoctorPage(_props: ScreenProps): React.ReactElement {
   return <Text>doctor</Text>;
 }

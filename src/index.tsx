@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
-// index.ts — Composition root: bare `tako` → TUI, args → commander CLI.
-// This file is the ONLY module allowed to import both `cli/` and `tui/`.
-// It sits above both layers and respects the architecture's `cli↔tui` forbidden import rule.
+// index.tsx — Composition root: bare `tako` → TUI, args → commander CLI.
+// This file sits above both layers and may import `cli/` and `tui/` freely.
+// The one sanctioned cli→tui exception is the add-remote-wizard feature
+// (ADR-0014, enforced with a carve-out in eslint.config.js); every other
+// cli↔tui import remains forbidden.
 
 import { runCli } from './cli/index.js';
 
@@ -11,10 +13,9 @@ if (process.argv.length <= 2) {
   // Dynamic import to avoid pulling Ink/React into CLI-only invocations
   const { render } = await import('ink');
   const { default: App } = await import('./tui/app/App.js');
-  const { buildDefaultDispatch } = await import('./tui/features/menu/dispatch/index.js');
   // alternateScreen: render on a separate screen buffer (like vim/htop).
   // No scrollback pollution while running; original terminal content restored on exit.
-  const instance = render(<App dispatch={buildDefaultDispatch()} hasActiveRemote={false} />, {
+  const instance = render(<App hasActiveRemote={false} />, {
     alternateScreen: true,
   });
   await instance.waitUntilExit();

@@ -4,6 +4,7 @@
 
 import type { ReactNode } from 'react';
 
+import type { ScreenProps } from '../features/menu/index.js';
 import { CleanupPage } from '../pages/CleanupPage.js';
 import { DoctorPage } from '../pages/DoctorPage.js';
 import { HomePage } from '../pages/HomePage.js';
@@ -32,8 +33,8 @@ export type RouteName =
   | 'status'
   | 'cleanup';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ScreenComponent = (props?: any) => ReactNode;
+/** Every screen is rendered by App with the menu flow's screen contract. */
+export type ScreenComponent = (props: ScreenProps) => ReactNode;
 
 export interface RouteEntry {
   Screen: ScreenComponent;

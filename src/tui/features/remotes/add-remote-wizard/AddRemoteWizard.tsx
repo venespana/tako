@@ -19,31 +19,28 @@ export type AddRemoteWizardProps = {
 // ---------------------------------------------------------------------------
 
 function NameStep({ onSubmit }: { onSubmit: (name: string) => void }) {
-  const [, setName] = React.useState('');
   return (
     <Box flexDirection='column'>
       <Text>Connection name:</Text>
-      <TextInput defaultValue='' placeholder='e.g. nas-backup' onChange={setName} onSubmit={value => onSubmit(value)} />
+      <TextInput defaultValue='' placeholder='e.g. nas-backup' onSubmit={onSubmit} />
     </Box>
   );
 }
 
 function UserStep({ onSubmit }: { onSubmit: (user: string) => void }) {
-  const [, setUser] = React.useState('');
   return (
     <Box flexDirection='column'>
       <Text>SSH username:</Text>
-      <TextInput defaultValue='' placeholder='e.g. ops' onChange={setUser} onSubmit={value => onSubmit(value)} />
+      <TextInput defaultValue='' placeholder='e.g. ops' onSubmit={onSubmit} />
     </Box>
   );
 }
 
 function HostStep({ onSubmit }: { onSubmit: (host: string) => void }) {
-  const [, setHost] = React.useState('');
   return (
     <Box flexDirection='column'>
       <Text>Hostname or IP address:</Text>
-      <TextInput defaultValue='' placeholder='e.g. 10.0.0.5' onChange={setHost} onSubmit={value => onSubmit(value)} />
+      <TextInput defaultValue='' placeholder='e.g. 10.0.0.5' onSubmit={onSubmit} />
     </Box>
   );
 }
@@ -98,26 +95,19 @@ function SavePasswordStep({ onSubmit }: { onSubmit: (save: boolean) => void }) {
 }
 
 function KeyPathStep({ onSubmit }: { onSubmit: (path: string) => void }) {
-  const [, setPath] = React.useState('');
   return (
     <Box flexDirection='column'>
       <Text>Path to private SSH key:</Text>
-      <TextInput
-        defaultValue=''
-        placeholder='/home/user/.ssh/id_rsa'
-        onChange={setPath}
-        onSubmit={value => onSubmit(value)}
-      />
+      <TextInput defaultValue='' placeholder='/home/user/.ssh/id_rsa' onSubmit={onSubmit} />
     </Box>
   );
 }
 
 function PasswordStep({ onSubmit }: { onSubmit: (password: string) => void }) {
-  const [, setPassword] = React.useState('');
   return (
     <Box flexDirection='column'>
       <Text>SSH password:</Text>
-      <PasswordInput placeholder='Enter password' onChange={setPassword} onSubmit={value => onSubmit(value)} />
+      <PasswordInput placeholder='Enter password' onSubmit={onSubmit} />
     </Box>
   );
 }
@@ -181,6 +171,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
   const errorMessage = useWizardStore(s => s.errorMessage);
   const errorCategory = useWizardStore(s => s.errorCategory);
   const data = useWizardStore(s => s.data);
+  const aborted = useWizardStore(s => s.aborted);
   // Actions — extracted at top level to respect Rules of Hooks
   const setName = useWizardStore(s => s.setName);
   const setUser = useWizardStore(s => s.setUser);
@@ -240,18 +231,22 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
     addRemoteUc.execute(draft, { hostkeyAccepted: false }).then(handleValidationResult);
   }, [step, addRemoteUc, buildDraft, handleValidationResult]);
 
-  // Handle completion — persist WITHOUT re-validating SSH
+  // Persist WITHOUT re-validating SSH once the wizard completes.
+  // savedRef guarantees save runs at most once even if this effect re-runs
+  // (e.g. onComplete identity changes while step === 'done').
+  const savedRef = React.useRef(false);
   useEffect(() => {
-    if (step === 'done') {
-      const draft = buildDraft();
-      addRemoteUc.save(draft).then(onComplete);
-    }
-
-    const { aborted } = useWizardStore.getState();
-    if (aborted) {
-      onComplete({ saved: false, reason: 'abort' });
-    }
+    if (step !== 'done' || savedRef.current) return;
+    savedRef.current = true;
+    const draft = buildDraft();
+    addRemoteUc.save(draft).then(onComplete);
   }, [step, addRemoteUc, buildDraft, onComplete]);
+
+  // Abort — complete with an unsaved result as soon as the wizard aborts
+  useEffect(() => {
+    if (!aborted) return;
+    onComplete({ saved: false, reason: 'abort' });
+  }, [aborted, onComplete]);
 
   return (
     <Box flexDirection='column' padding={1}>

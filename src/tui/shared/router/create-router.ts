@@ -8,7 +8,7 @@ import type { StoreApi } from 'zustand';
 import { DEFAULT_HISTORY_LIMIT } from './router-logic.js';
 import { createRouterStore } from './router-store.js';
 import type { RouterStore } from './router-store.js';
-import type { RouteParams, RouterOptions, RouterState, TakoRouter } from './types.js';
+import type { RouteParams, RouterOptions, RouterState, Router } from './types.js';
 
 /**
  * Create a router instance.
@@ -16,7 +16,7 @@ import type { RouteParams, RouterOptions, RouterState, TakoRouter } from './type
  * The exit handler is NOT wired here — the host app calls
  * `setExitHandler(exit)` (e.g. with Ink's `useApp().exit`) after creation.
  */
-export function createRouter<TRouteName extends string>(options: RouterOptions<TRouteName>): TakoRouter<TRouteName> {
+export function createRouter<TRouteName extends string>(options: RouterOptions<TRouteName>): Router<TRouteName> {
   const { initialRoute, initialParams = {}, historyLimit = DEFAULT_HISTORY_LIMIT } = options;
 
   const store = createRouterStore<TRouteName>({ initialRoute, initialParams, historyLimit });

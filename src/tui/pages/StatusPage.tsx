@@ -1,5 +1,8 @@
 // StatusPage.tsx — Stub for status route.
 import { Text } from 'ink';
-export function StatusPage(): React.ReactElement {
+
+import type { ScreenProps } from '../features/menu/index.js';
+
+export function StatusPage(_props: ScreenProps): React.ReactElement {
   return <Text>status</Text>;
 }

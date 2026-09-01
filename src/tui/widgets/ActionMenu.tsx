@@ -2,7 +2,7 @@
 // Cursor: > cyan on focused item only. Disabled items rendered greyed.
 import { Box, Text } from 'ink';
 
-import type { ActionGroup, ActionItem } from '../features/menu/types.js';
+import type { ActionGroup, ActionItem } from '../features/menu/index.js';
 import { theme } from '../shared/theme.js';
 
 export interface ActionMenuProps {

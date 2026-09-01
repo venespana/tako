@@ -2,18 +2,12 @@
 // Logo is rendered conditionally by App.tsx based on ROUTE_TABLE[route].showLogo.
 import { Box } from 'ink';
 
-import type { ActionGroup, ActionItem } from '../features/menu/types.js';
+import type { ScreenProps } from '../features/menu/index.js';
 import { ActionMenu } from '../widgets/ActionMenu.js';
 import { KeyHints } from '../widgets/KeyHints.js';
 import { VersionBar } from '../widgets/VersionBar.js';
 
-export interface HomePageProps {
-  groups: ActionGroup[];
-  selectable: ActionItem[];
-  cursor: number;
-}
-
-export function HomePage({ groups, selectable, cursor }: HomePageProps): React.ReactElement {
+export function HomePage({ groups, selectable, cursor }: ScreenProps): React.ReactElement {
   return (
     // flexGrow=1: fill the space left by the Logo inside App's viewport-height root Box.
     // Never pin height to process.stdout.rows here — the root already owns that budget

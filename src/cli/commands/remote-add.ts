@@ -7,7 +7,7 @@ import { CheckDuplicateRemote } from '../../domains/remotes/application/CheckDup
 import type { RemoteRepository } from '../../domains/remotes/application/RemoteRepository.js';
 import type { SecretVault } from '../../domains/remotes/application/SecretVault.js';
 import { ValidateSshConnection } from '../../domains/remotes/application/ValidateSshConnection.js';
-import { runAddRemoteWizard } from '../../tui/features/remotes/add-remote-wizard/run.js';
+import { runAddRemoteWizard } from '../../tui/features/remotes/add-remote-wizard/index.js';
 
 export type RemoteAddDeps = {
   checkDuplicate: CheckDuplicateRemote;

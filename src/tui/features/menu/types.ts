@@ -1,19 +1,9 @@
 // types.ts — Shared types for the menu feature.
 
-// ---------------------------------------------------------------------------
-// View State Machine (deprecated — router owns route; kept for helpers)
-// ---------------------------------------------------------------------------
-
-export type ViewState = { view: 'list' } | { view: 'submenu'; parentId: string; restoreCursor: number };
-
-// ---------------------------------------------------------------------------
-// Action Registry
-// ---------------------------------------------------------------------------
-
-export type ActionItemKind = 'action' | 'submenu';
-
 /** Condition that determines whether an item is selectable */
 export type EnableCondition = 'always' | 'hasActiveRemote';
+
+export type ActionItemKind = 'action' | 'submenu';
 
 /** A single selectable/renderable menu item */
 export interface ActionItem {
@@ -29,7 +19,8 @@ export interface ActionItem {
   submenu?: string[];
   /** When to show this item as enabled (selectable) */
   enabledWhen?: EnableCondition;
-  /** Key looked up in the DispatchMap at runtime (for kind === 'action') */
+  /** Stable action identifier for kind === 'action' (command namespacing; the
+   * old dispatch-map lookup was removed when routing replaced dispatching) */
   handlerKey?: string;
   /** Target route when kind === 'submenu'; also used by action items that navigate.
    * Untyped string on purpose (features must not import the app layer's route
@@ -44,9 +35,10 @@ export interface ActionGroup {
   items: ActionItem[];
 }
 
-// ---------------------------------------------------------------------------
-// Dispatch
-// ---------------------------------------------------------------------------
-
-/** Map from handlerKey (string) to an async handler function */
-export type DispatchMap = Record<string, () => Promise<void>>;
+/** Props every screen receives from the root component: the groups to render,
+ * the pre-filtered selectable list, and the focused index into it. */
+export interface ScreenProps {
+  groups: ActionGroup[];
+  selectable: ActionItem[];
+  cursor: number;
+}
