@@ -1,7 +1,7 @@
 // HomePage.test.tsx — Unit tests for HomePage composition.
 // HomePage renders ActionMenu + KeyHints + VersionBar from
 // groups/selectable/cursor. The Logo is owned by App.tsx (shown per
-// ROUTE_REGISTRY[route].showLogo), so it is NOT part of HomePage.
+// ROUTE_TABLE[route].showLogo), so it is NOT part of HomePage.
 import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import { HomePage } from './HomePage.js';
@@ -25,7 +25,7 @@ const makeGroup = (overrides: Partial<ActionGroup> & { items?: ActionItem[] } = 
 describe('HomePage', () => {
   it('does not render the Logo (App owns it)', () => {
     // The old test asserted HomePage renders the Logo. Logo ownership moved
-    // to App.tsx (conditional on ROUTE_REGISTRY[route].showLogo); the positive
+    // to App.tsx (conditional on ROUTE_TABLE[route].showLogo); the positive
     // "logo renders on home" coverage lives in App.test.tsx.
     const groups = [makeGroup({ id: 'local', label: 'Local', items: [makeItem({ id: 'doctor' })] })];
     const selectable = groups[0]!.items;

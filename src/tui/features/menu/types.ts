@@ -1,7 +1,5 @@
 // types.ts — Shared types for the menu feature.
 
-import type { RouteName } from '../../app/router/types.js';
-
 // ---------------------------------------------------------------------------
 // View State Machine (deprecated — router owns route; kept for helpers)
 // ---------------------------------------------------------------------------
@@ -33,8 +31,10 @@ export interface ActionItem {
   enabledWhen?: EnableCondition;
   /** Key looked up in the DispatchMap at runtime (for kind === 'action') */
   handlerKey?: string;
-  /** Target route when kind === 'submenu'; also used by action items that navigate */
-  route?: RouteName;
+  /** Target route when kind === 'submenu'; also used by action items that navigate.
+   * Untyped string on purpose (features must not import the app layer's route
+   * union); the app narrows it via isAppRoute before navigating. */
+  route?: string;
 }
 
 /** A named group of ActionItems rendered together */

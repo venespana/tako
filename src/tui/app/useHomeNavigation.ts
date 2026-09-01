@@ -8,7 +8,7 @@ import {
   enterSubmenu as pureEnterSubmenu,
   exitSubmenu as pureExitSubmenu,
 } from '../features/menu/navigation.js';
-import { useRouterStore } from './router/index.js';
+import { appRouter } from './app-router.js';
 import type { ActionGroup, ViewState } from '../features/menu/types.js';
 
 export interface UseHomeNavigationResult {
@@ -29,7 +29,7 @@ export interface UseHomeNavigationResult {
 }
 
 export function useHomeNavigation(groups: ActionGroup[], hasActiveRemote: boolean): UseHomeNavigationResult {
-  const currentRoute = useRouterStore(s => s.currentRoute);
+  const currentRoute = appRouter.useCurrentRoute();
   const [view, setView] = useState<ViewState>({ view: 'list' });
   const [cursor, setCursor] = useState(0);
 

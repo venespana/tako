@@ -1,15 +1,17 @@
 // App.tsx — Root TUI component: router-driven screen renderer + useInput.
-// No more useState<ViewState>; route state lives in the Zustand router store.
+// No more useState<ViewState>; route state lives in the app router instance
+// (built from the shared headless router in shared/router).
 import { useEffect, useState, useMemo } from 'react';
 
 import { useInput, useApp, Box } from 'ink';
 import type { Key } from 'ink';
 
+import { appRouter } from './app-router.js';
+import { ROUTE_TABLE, isAppRoute } from './routes.js';
+import type { RouteName } from './routes.js';
 import { getSelectable, moveCursor } from '../features/menu/navigation.js';
 import { getRegistry } from '../features/menu/registry.js';
 import type { ActionItem, DispatchMap } from '../features/menu/types.js';
-import type { RouteName } from './router/types.js';
-import { useRouterStore, setExitHandler, ROUTE_REGISTRY } from './router/index.js';
 import { Logo } from '../widgets/Logo.js';
 
 export interface AppProps {
@@ -52,10 +54,10 @@ export default function App({ dispatch = {}, hasActiveRemote = false }: AppProps
   const groups = getRegistry();
   const { exit } = useApp();
 
-  // Router state
-  const currentRoute = useRouterStore(s => s.currentRoute);
-  const navigate = useRouterStore(s => s.navigate);
-  const goBack = useRouterStore(s => s.goBack);
+  // Router state (instance-bound hooks from the shared router factory)
+  const currentRoute = appRouter.useCurrentRoute();
+  const navigate = appRouter.useNavigate();
+  const goBack = appRouter.useGoBack();
 
   // Home cursor is local UI state (not router state)
   const [cursor, setCursor] = useState<number>(0);
@@ -86,11 +88,11 @@ export default function App({ dispatch = {}, hasActiveRemote = false }: AppProps
     setCursor(0);
   }, [currentRoute]);
 
-  // Wire Ink exit to router's setExitHandler once.
+  // Wire Ink exit to the router instance once.
   // Terminal cleanup is handled by Ink's alternateScreen at the composition root —
   // never write raw escape sequences here: they corrupt Ink's frame sync.
   useEffect(() => {
-    setExitHandler(exit);
+    appRouter.setExitHandler(exit);
   }, [exit]);
 
   // handleKey doesn't need memoization since useInput re-registers on each render
@@ -125,14 +127,14 @@ export default function App({ dispatch = {}, hasActiveRemote = false }: AppProps
       const focused = selectable[cursor];
       if (!focused) return;
 
-      // Submenu item on home — navigate to the submenu
-      if (focused.kind === 'submenu' && focused.route) {
+      // Submenu item on home — navigate to the submenu route
+      if (focused.kind === 'submenu' && focused.route !== undefined && isAppRoute(focused.route)) {
         navigate(focused.route);
         return;
       }
 
       // Action item with a route (e.g. remotes sub-items) — navigate to the route
-      if (focused.kind === 'action' && focused.route) {
+      if (focused.kind === 'action' && focused.route !== undefined && isAppRoute(focused.route)) {
         navigate(focused.route);
         return;
       }
@@ -150,7 +152,7 @@ export default function App({ dispatch = {}, hasActiveRemote = false }: AppProps
 
   useInput(handleKey);
 
-  const entry = ROUTE_REGISTRY[currentRoute];
+  const entry = ROUTE_TABLE[currentRoute];
   const Screen = entry?.Screen ?? (() => <span>Not found</span>);
 
   // Determine which groups and selectable to pass to the Screen

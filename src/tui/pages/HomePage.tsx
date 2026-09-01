@@ -1,5 +1,5 @@
 // HomePage.tsx — Composes the home screen: ActionMenu + KeyHints + VersionBar.
-// Logo is rendered conditionally by App.tsx based on ROUTE_REGISTRY[route].showLogo.
+// Logo is rendered conditionally by App.tsx based on ROUTE_TABLE[route].showLogo.
 import { Box } from 'ink';
 
 import type { ActionGroup, ActionItem } from '../features/menu/types.js';

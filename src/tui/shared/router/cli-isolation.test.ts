@@ -1,4 +1,5 @@
-// cli-isolation.test.ts — Static guard: router-store must not be imported by CLI code.
+// cli-isolation.test.ts — Static guard: the TUI router must not be imported by CLI code.
+// src/index.tsx (the composition root) is exempt: it legitimately mounts the TUI.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -24,13 +25,13 @@ function collectTsFiles(dir: string): string[] {
 }
 
 describe('CLI isolation', () => {
-  it('src/cli/ must not import router-store', () => {
+  it('src/cli/ must not import shared/router (or the old app/router path)', () => {
     const cliFiles = collectTsFiles(CLI_DIR);
     if (cliFiles.length === 0) return; // No CLI dir, skip
 
     for (const file of cliFiles) {
       const content = readFileSync(file, 'utf-8');
-      expect(content).not.toMatch(/router-store/);
+      expect(content).not.toMatch(/shared\/router|app\/router/);
     }
   });
 });

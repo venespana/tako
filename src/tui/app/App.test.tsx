@@ -1,12 +1,12 @@
 // App.test.tsx — Integration tests for the App component.
 // Tests the full keypress flow using ink-testing-library against the
-// Zustand router store (route-driven navigation, cursor reset on route
+// app router instance (route-driven navigation, cursor reset on route
 // change, arrows active on home/remotes.* routes, ignored on isolated
 // routes, Escape → goBack).
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import App from './App.js';
-import { useRouterStore, setExitHandler } from './router/index.js';
+import { appRouter } from './app-router.js';
 import type { ActionGroup, DispatchMap } from '../features/menu/types.js';
 
 // The dispatch coverage needs an action item WITHOUT a route (Enter on such
@@ -22,11 +22,11 @@ vi.mock('../features/menu/registry.js', async importOriginal => {
   };
 });
 
-// Reset the shared router store between tests so each starts on 'home'.
+// Reset the app router instance between tests so each starts on 'home'.
 beforeEach(() => {
   registryOverride = null;
-  useRouterStore.setState({ currentRoute: 'home', params: {}, history: [] });
-  setExitHandler(() => {});
+  appRouter.reset();
+  appRouter.setExitHandler(() => {});
 });
 
 // Ink buffers a lone trailing ESC for ~20ms (pendingInputFlushDelay) to
@@ -107,7 +107,7 @@ describe('App', () => {
       stdin.write('\r');
       await wait();
 
-      expect(useRouterStore.getState().currentRoute).toBe('doctor');
+      expect(appRouter.getState().currentRoute).toBe('doctor');
       // Isolated route: logo hidden, home menu groups gone
       expect(lastFrame()).not.toContain('███╗');
       expect(lastFrame()).not.toContain('Local');
@@ -124,7 +124,7 @@ describe('App', () => {
       stdin.write('\r'); // Enter on submenu item → navigate to its route
       await wait();
 
-      expect(useRouterStore.getState().currentRoute).toBe('remotes');
+      expect(appRouter.getState().currentRoute).toBe('remotes');
       // The submenu screen shows the subaction labels as its selectable list
       expect(lastFrame()).toContain('add');
       expect(lastFrame()).toContain('list');
@@ -148,7 +148,7 @@ describe('App', () => {
       stdin.write('\r'); // Enter on routed action item → navigate
       await wait();
 
-      expect(useRouterStore.getState().currentRoute).toBe('remotes.list');
+      expect(appRouter.getState().currentRoute).toBe('remotes.list');
       expect(lastFrame()).toContain('remotes.list');
       unmount();
     });
@@ -180,7 +180,7 @@ describe('App', () => {
       await wait();
 
       expect(doctorFn).toHaveBeenCalled();
-      expect(useRouterStore.getState().currentRoute).toBe('home');
+      expect(appRouter.getState().currentRoute).toBe('home');
       unmount();
     });
   });
@@ -191,12 +191,12 @@ describe('App', () => {
 
       stdin.write('\r'); // home → doctor
       await wait();
-      expect(useRouterStore.getState().currentRoute).toBe('doctor');
+      expect(appRouter.getState().currentRoute).toBe('doctor');
 
       stdin.write('\x1b'); // Escape → goBack (flushed after Ink's pending-escape delay)
       await waitAfterEscape();
-      expect(useRouterStore.getState().currentRoute).toBe('home');
-      expect(useRouterStore.getState().history).toEqual([]);
+      expect(appRouter.getState().currentRoute).toBe('home');
+      expect(appRouter.getState().history).toEqual([]);
       // Back on home: logo and menu are visible again
       expect(lastFrame()).toContain('███╗');
       expect(lastFrame()).toContain('Local');
@@ -211,14 +211,14 @@ describe('App', () => {
 
       stdin.write('\r'); // home → doctor (isolated route)
       await wait();
-      expect(useRouterStore.getState().currentRoute).toBe('doctor');
+      expect(appRouter.getState().currentRoute).toBe('doctor');
 
       // Arrow keys and Enter must be ignored: no navigation, no dispatch
       stdin.write('j');
       stdin.write('\r');
       await wait();
 
-      expect(useRouterStore.getState().currentRoute).toBe('doctor');
+      expect(appRouter.getState().currentRoute).toBe('doctor');
       expect(lastFrame()).not.toContain('███╗');
       expect(dispatch.doctor).not.toHaveBeenCalled();
       unmount();
