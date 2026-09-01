@@ -14,6 +14,7 @@ const FILES = [
   'status.tsx',
   'cleanup.tsx',
   'remotes/layout.tsx',
+  'remotes/index.tsx',
   'remotes/add.tsx',
   'remotes/list.tsx',
   'remotes/rm.tsx',
@@ -37,12 +38,13 @@ describe('buildRouteTree', () => {
     expect(children.find(c => c.path === 'doctor')).toMatchObject({ importPath: './routes/doctor.js' });
   });
 
-  it('nests remotes children under the remotes layout, sorted', () => {
+  it('nests the remotes index + children under the remotes layout, sorted', () => {
     const remotes = buildRouteTree(FILES)[0]?.children?.find(c => c.path === 'remotes');
 
     expect(remotes?.importPath).toBe('./routes/remotes/layout.js');
-    expect(remotes?.children?.map(c => c.path)).toEqual(['add', 'list', 'rm', 'test', 'use']);
-    expect(remotes?.children?.map(c => c.importPath)).toEqual([
+    expect(remotes?.children?.[0]).toEqual({ index: true, importPath: './routes/remotes/index.js' });
+    expect(remotes?.children?.filter(c => !c.index).map(c => c.path)).toEqual(['add', 'list', 'rm', 'test', 'use']);
+    expect(remotes?.children?.filter(c => !c.index).map(c => c.importPath)).toEqual([
       './routes/remotes/add.js',
       './routes/remotes/list.js',
       './routes/remotes/rm.js',
@@ -79,7 +81,9 @@ describe('emitRouteModule', () => {
     expect(out1).toContain('export const routeTree: RouteObject[] = [');
     expect(out1).toContain("import { defineRoute } from './shared/lib/route-tree.js';");
     expect(out1).toContain("import * as route_remotes_list from './routes/remotes/list.js';");
+    expect(out1).toContain("import * as route_remotes_index from './routes/remotes/index.js';");
     expect(out1).toContain('defineRoute({ index: true, module: route_index }),');
+    expect(out1).toContain('defineRoute({ index: true, module: route_remotes_index }),');
     expect(out1).toContain("path: 'remotes',");
   });
 });

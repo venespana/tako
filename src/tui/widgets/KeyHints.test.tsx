@@ -1,32 +1,46 @@
-// KeyHints.test.tsx — Unit tests for KeyHints widget.
-// KeyHints is prop-less: the hint bar is identical on every route and the
-// back key is always visible (Esc/⌫/h → goBack via the router).
+// KeyHints.test.tsx — Unit tests for the KeyHints widget.
+// Menu screens (selectableItems) show movement + select hints; command
+// pages show back/quit only. Back/quit are always visible (Esc/⌫/h →
+// navigate(-1), exit at home).
 import { describe, it, expect } from 'vitest';
 import { renderToString } from 'ink';
 import { KeyHints } from './KeyHints.js';
 
 describe('KeyHints', () => {
-  it('renders movement key hints', () => {
-    const output = renderToString(<KeyHints />);
-    expect(output).toContain('↑↓');
-    expect(output).toContain('j');
-    expect(output).toContain('k');
+  describe('menu screens (selectableItems)', () => {
+    it('renders movement key hints', () => {
+      const output = renderToString(<KeyHints selectableItems={true} />);
+      expect(output).toContain('↑↓/j k');
+    });
+
+    it('renders the select hint', () => {
+      const output = renderToString(<KeyHints selectableItems={true} />);
+      expect(output).toContain('Enter/l');
+      expect(output).toContain('select');
+    });
+
+    it('renders back and quit hints', () => {
+      const output = renderToString(<KeyHints selectableItems={true} />);
+      expect(output).toContain('h/Esc');
+      expect(output).toContain('back');
+      expect(output).toContain('q');
+      expect(output).toContain('quit');
+    });
   });
 
-  it('renders select and quit hints', () => {
-    const output = renderToString(<KeyHints />);
-    expect(output).toContain('Enter');
-    expect(output).toContain('l');
-    expect(output).toContain('q');
-  });
+  describe('command pages (no selectable list)', () => {
+    it('omits the movement and select hints', () => {
+      const output = renderToString(<KeyHints selectableItems={false} />);
+      expect(output).not.toContain('↑↓');
+      expect(output).not.toContain('select');
+    });
 
-  it('always renders the back hint', () => {
-    // The old view-based tests asserted back was hidden on the list view and
-    // shown on the submenu view. With the router there is no view distinction:
-    // back (goBack) is always available, so the hint is always rendered.
-    const output = renderToString(<KeyHints />);
-    expect(output).toContain('h');
-    expect(output).toContain('Esc');
-    expect(output).toContain('back');
+    it('still renders back and quit hints', () => {
+      const output = renderToString(<KeyHints selectableItems={false} />);
+      expect(output).toContain('h/Esc');
+      expect(output).toContain('back');
+      expect(output).toContain('q');
+      expect(output).toContain('quit');
+    });
   });
 });

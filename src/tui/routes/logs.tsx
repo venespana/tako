@@ -1,7 +1,5 @@
-// routes/logs.tsx — Route shim for '/logs' (isolated stub: no logo, no menu).
+// routes/logs.tsx — Route shim for '/logs' (command page: no menu, so the
+// footer shows back/quit hints only).
 import { LogsPage } from '../pages/LogsPage.js';
-import type { RouteHandle } from '../shared/lib/route-tree.js';
 
 export default LogsPage;
-
-export const routeMeta = { showLogo: false } satisfies RouteHandle;

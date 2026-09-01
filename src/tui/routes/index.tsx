@@ -1,18 +1,16 @@
-// routes/index.tsx — Route shim for '/': adapts the root layout's outlet
-// context to HomePage's props, keeping the page router-agnostic (and
-// unit-testable with plain props).
-import { useOutletContext } from 'react-router';
-
-import type { ScreenProps } from '../features/menu/index.js';
+// routes/index.tsx — Route shim for '/': adapts the app runtime's
+// hasActiveRemote flag into HomePage's prop, keeping the page free of
+// app-layer imports (FSD). Menu cursor/select live inside HomePage itself.
+import { useAppRuntime } from '../app/app-runtime.js';
 import { HomePage } from '../pages/HomePage.js';
 import type { RouteHandle } from '../shared/lib/route-tree.js';
 
 function HomeRoute(): React.ReactElement {
-  const screen = useOutletContext<ScreenProps>();
-  return <HomePage {...screen} />;
+  const { hasActiveRemote } = useAppRuntime();
+  return <HomePage hasActiveRemote={hasActiveRemote} />;
 }
 
 export default HomeRoute;
 
-/** Home shows the logo and drives the home registry menu. */
-export const routeMeta = { showLogo: true, menu: 'home' } satisfies RouteHandle;
+/** Home drives the home registry menu (full footer hints). */
+export const routeMeta = { menu: 'home' } satisfies RouteHandle;

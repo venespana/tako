@@ -1,5 +1,5 @@
 // menu-items.ts — Menu item model: the item/group/enablement types shared by
-// every part of the menu feature (registry, navigation, route flow).
+// every part of the menu feature (registry, navigation, submenu building).
 
 /** Condition that determines whether an item is selectable */
 export type EnableCondition = 'always' | 'hasActiveRemote';
@@ -35,12 +35,4 @@ export interface ActionGroup {
   id: string;
   label: string;
   items: ActionItem[];
-}
-
-/** Props every screen receives from the root component: the groups to render,
- * the pre-filtered selectable list, and the focused index into it. */
-export interface ScreenProps {
-  groups: ActionGroup[];
-  selectable: ActionItem[];
-  cursor: number;
 }

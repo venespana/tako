@@ -32,24 +32,37 @@ describe('routeTree (generated)', () => {
     }
   });
 
-  it('nests the five remotes children under the remotes layout', () => {
+  it('nests the remotes index + five command children under the remotes layout', () => {
     const remotes = childByPath(root, 'remotes');
-    expect(remotes?.children?.map(child => child.path)).toEqual(['add', 'list', 'rm', 'test', 'use']);
-    for (const child of remotes?.children ?? []) {
+    const children = remotes?.children ?? [];
+    expect(children.find(child => child.index)).toBeDefined();
+    expect(children.filter(child => !child.index).map(child => child.path)).toEqual([
+      'add',
+      'list',
+      'rm',
+      'test',
+      'use',
+    ]);
+    for (const child of children) {
       expect(typeof child.Component).toBe('function');
     }
   });
 
-  it('carries handles: home + remotes submenu opt in, isolated routes do not', () => {
+  it('carries handles: menu pages flag their menu, command pages have none', () => {
     const index = root.children?.find(child => child.index);
-    expect(index?.handle).toEqual({ showLogo: true, menu: 'home' });
-    expect(childByPath(root, 'remotes')?.handle).toEqual({ showLogo: true, menu: 'submenu' });
-    // remotes children have no own handle — they inherit via the match chain
-    for (const child of childByPath(root, 'remotes')?.children ?? []) {
+    expect(index?.handle).toEqual({ menu: 'home' });
+
+    // The remotes layout is a passthrough; the submenu flag lives on the
+    // '/remotes' index page. Command pages carry no handle at all.
+    const remotes = childByPath(root, 'remotes');
+    expect(remotes?.handle).toEqual({});
+    const remotesIndex = remotes?.children?.find(child => child.index);
+    expect(remotesIndex?.handle).toEqual({ menu: 'submenu' });
+    for (const child of remotes?.children?.filter(child => !child.index) ?? []) {
       expect(child.handle).toEqual({});
     }
     for (const path of ['cleanup', 'doctor', 'logs', 'status']) {
-      expect(childByPath(root, path)?.handle).toEqual({ showLogo: false });
+      expect(childByPath(root, path)?.handle).toEqual({});
     }
   });
 });

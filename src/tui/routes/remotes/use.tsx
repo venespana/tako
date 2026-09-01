@@ -1,6 +1,5 @@
-// routes/remotes/use.tsx — Route shim for '/remotes/use' (stub page).
-// No routeMeta: logo and the submenu menu flow are inherited from the
-// remotes layout handle through the match chain.
+// routes/remotes/use.tsx — Route shim for '/remotes/use' (command page: no
+// menu of its own — the submenu lives on the '/remotes' index page).
 import { RemotesUsePage } from '../../pages/RemotesUsePage.js';
 
 export default RemotesUsePage;

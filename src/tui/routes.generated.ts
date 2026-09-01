@@ -11,6 +11,7 @@ import * as route_index from './routes/index.js';
 import * as route_layout from './routes/layout.js';
 import * as route_logs from './routes/logs.js';
 import * as route_remotes_add from './routes/remotes/add.js';
+import * as route_remotes_index from './routes/remotes/index.js';
 import * as route_remotes_layout from './routes/remotes/layout.js';
 import * as route_remotes_list from './routes/remotes/list.js';
 import * as route_remotes_rm from './routes/remotes/rm.js';
@@ -33,6 +34,7 @@ export const routeTree: RouteObject[] = [
         path: 'remotes',
         module: route_remotes_layout,
         children: [
+          defineRoute({ index: true, module: route_remotes_index }),
           defineRoute({ path: 'add', module: route_remotes_add }),
           defineRoute({ path: 'list', module: route_remotes_list }),
           defineRoute({ path: 'rm', module: route_remotes_rm }),

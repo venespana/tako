@@ -8,11 +8,10 @@ import type { RouteObject } from 'react-router';
 
 /** Metadata a route module may export as `routeMeta`. The generator attaches
  * it to the RouteObject `handle`, where hooks read it at runtime via
- * useMatches(). Absent routeMeta means "inherit from the match chain". */
+ * useMatches(). Absent routeMeta means an empty handle. */
 export interface RouteHandle {
-  /** Show the logo above the screen (any match in the chain opting in wins). */
-  showLogo?: boolean;
-  /** Which menu the keyboard drives: the home registry or the remotes submenu. */
+  /** Which menu the screen drives: full movement/select footer hints are
+   * shown for routes declaring this; other screens get back/quit hints. */
   menu?: 'home' | 'submenu';
 }
 
@@ -49,8 +48,9 @@ export function defineRoute({ path, index, module, children }: DefineRouteOption
   return route;
 }
 
-/** Logo policy: any match in the chain opting in turns the logo on, so a
- * layout handle covers all of its children. */
-export function hasShowLogo(matches: readonly RouteMatchLike[]): boolean {
-  return matches.some(match => (match.handle as RouteHandle | undefined)?.showLogo === true);
+/** Menu policy: any match in the chain declaring a menu handle marks the
+ * screen as a menu page (full movement/select footer hints); the deepest
+ * declaration wins by virtue of being present in the chain. */
+export function hasMenuHandle(matches: readonly RouteMatchLike[]): boolean {
+  return matches.some(match => (match.handle as RouteHandle | undefined)?.menu !== undefined);
 }

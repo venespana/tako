@@ -1,7 +1,7 @@
 // route-tree.test.ts — Unit tests for the route-tree infrastructure helpers.
 import { describe, expect, it } from 'vitest';
 
-import { defineRoute, hasShowLogo } from './route-tree.js';
+import { defineRoute, hasMenuHandle } from './route-tree.js';
 import type { RouteModule } from './route-tree.js';
 
 const Screen = (): null => null;
@@ -13,15 +13,15 @@ const moduleWith = (routeMeta?: RouteModule['routeMeta']): RouteModule => ({
 
 describe('defineRoute', () => {
   it('builds a path route with component and handle', () => {
-    const route = defineRoute({ path: 'remotes', module: moduleWith({ showLogo: true, menu: 'submenu' }) });
+    const route = defineRoute({ path: 'remotes', module: moduleWith({ menu: 'submenu' }) });
 
-    expect(route).toMatchObject({ path: 'remotes', Component: Screen, handle: { showLogo: true, menu: 'submenu' } });
+    expect(route).toMatchObject({ path: 'remotes', Component: Screen, handle: { menu: 'submenu' } });
   });
 
   it('builds an index route', () => {
-    const route = defineRoute({ index: true, module: moduleWith({ showLogo: true, menu: 'home' }) });
+    const route = defineRoute({ index: true, module: moduleWith({ menu: 'home' }) });
 
-    expect(route).toMatchObject({ index: true, Component: Screen, handle: { showLogo: true, menu: 'home' } });
+    expect(route).toMatchObject({ index: true, Component: Screen, handle: { menu: 'home' } });
     expect(route.path).toBeUndefined();
   });
 
@@ -39,16 +39,17 @@ describe('defineRoute', () => {
   });
 });
 
-describe('hasShowLogo', () => {
-  it('is true when any match in the chain opts in', () => {
-    const matches = [{ handle: {} }, { handle: { showLogo: true, menu: 'submenu' } }, { handle: {} }];
+describe('hasMenuHandle', () => {
+  it('is true when any match in the chain declares a menu', () => {
+    const matches = [{ handle: {} }, { handle: { menu: 'home' } }, { handle: {} }];
 
-    expect(hasShowLogo(matches)).toBe(true);
+    expect(hasMenuHandle(matches)).toBe(true);
+    expect(hasMenuHandle([{ handle: { menu: 'submenu' } }])).toBe(true);
   });
 
-  it('is false with no handles or only explicit false', () => {
-    expect(hasShowLogo([{ handle: { showLogo: false } }])).toBe(false);
-    expect(hasShowLogo([{ handle: undefined }])).toBe(false);
-    expect(hasShowLogo([])).toBe(false);
+  it('is false with no handles or menu-less handles', () => {
+    expect(hasMenuHandle([{ handle: {} }])).toBe(false);
+    expect(hasMenuHandle([{ handle: undefined }])).toBe(false);
+    expect(hasMenuHandle([])).toBe(false);
   });
 });

@@ -1,6 +1,5 @@
-// routes/remotes/add.tsx — Route shim for '/remotes/add' (stub page).
-// No routeMeta: logo and the submenu menu flow are inherited from the
-// remotes layout handle through the match chain.
+// routes/remotes/add.tsx — Route shim for '/remotes/add' (command page: no
+// menu of its own — the submenu lives on the '/remotes' index page).
 import { RemotesAddPage } from '../../pages/RemotesAddPage.js';
 
 export default RemotesAddPage;

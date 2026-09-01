@@ -1,82 +1,101 @@
-// HomePage.test.tsx — Unit tests for HomePage composition.
-// HomePage renders ActionMenu + KeyHints + VersionBar from
-// groups/selectable/cursor. The Logo is owned by the app shell (shown per
-// route handles), so it is NOT part of HomePage.
+// HomePage.test.tsx — Unit tests for the home menu page. HomePage owns its
+// list (registry groups + selectable + useMenuList); logo, key hints, and
+// version are app-shell chrome and NOT part of this page. MemoryRouter
+// supplies the router context useNavigate/useLocation need.
 import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
+import { MemoryRouter } from 'react-router';
+
 import { HomePage } from './HomePage.js';
-import type { ActionGroup, ActionItem } from '../features/menu/index.js';
 
-const makeItem = (overrides: Partial<ActionItem> = {}): ActionItem => ({
-  id: 'test',
-  label: 'test',
-  command: 'test',
-  kind: 'action',
-  ...overrides,
-});
+type RenderResult = ReturnType<typeof render>;
 
-const makeGroup = (overrides: Partial<ActionGroup> & { items?: ActionItem[] } = {}): ActionGroup => ({
-  id: 'group1',
-  label: 'Group',
-  items: [],
-  ...overrides,
-});
+const wait = (ms = 10) => new Promise(resolve => setTimeout(resolve, ms));
+
+/** Poll until predicate(frame) holds or the timeout elapses. */
+async function settle(
+  lastFrame: RenderResult['lastFrame'],
+  predicate: (frame: string) => boolean,
+  timeoutMs: number
+): Promise<string> {
+  let frame = lastFrame() ?? '';
+  for (let waited = 0; !predicate(frame) && waited < timeoutMs; waited += 10) {
+    await wait(10);
+    frame = lastFrame() ?? '';
+  }
+  return frame;
+}
+
+/** Write a key and wait until the expected frame change is visible (a fresh
+ * page's first frame can paint before Ink's useInput effect subscribes). */
+async function pressAndSettle(
+  stdin: RenderResult['stdin'],
+  lastFrame: RenderResult['lastFrame'],
+  key: string,
+  expectFrame: (frame: string) => boolean
+): Promise<string> {
+  let frame = '';
+  for (let attempt = 0; attempt < 2 && !expectFrame(frame); attempt++) {
+    stdin.write(key);
+    frame = await settle(lastFrame, expectFrame, 350);
+  }
+  return frame;
+}
+
+const renderHome = (hasActiveRemote = false) =>
+  render(
+    <MemoryRouter initialEntries={['/']}>
+      <HomePage hasActiveRemote={hasActiveRemote} />
+    </MemoryRouter>
+  );
 
 describe('HomePage', () => {
-  it('does not render the Logo (App owns it)', () => {
-    // The old test asserted HomePage renders the Logo. Logo ownership moved
-    // to App.tsx (conditional on ROUTE_TABLE[route].showLogo); the positive
-    // "logo renders on home" coverage lives in App.test.tsx.
-    const groups = [makeGroup({ id: 'local', label: 'Local', items: [makeItem({ id: 'doctor' })] })];
-    const selectable = groups[0]!.items;
+  it('renders the registry groups and items', async () => {
+    const { lastFrame } = renderHome();
+    const frame = await settle(lastFrame, f => f.includes('Local'), 1000);
 
-    const { lastFrame } = render(
-      <HomePage groups={groups} selectable={selectable} cursor={0} />
-    );
-
-    // Logo contains box-drawing characters — none expected here
-    expect(lastFrame()).not.toContain('███╗');
+    expect(frame).toContain('Local');
+    expect(frame).toContain('Remote');
+    expect(frame).toContain('Config');
+    expect(frame).toContain('doctor');
+    expect(frame).toContain('remotes');
   });
 
-  it('renders the ActionMenu', () => {
-    const groups = [
-      makeGroup({ id: 'local', label: 'Local', items: [makeItem({ id: 'doctor', label: 'doctor' })] }),
-      makeGroup({ id: 'remote', label: 'Remote', items: [] }),
-      makeGroup({ id: 'config', label: 'Config', items: [] }),
-    ];
-    const selectable = groups[0]!.items;
+  it('starts the cursor on the first selectable item (doctor)', async () => {
+    const { lastFrame } = renderHome();
+    const frame = await settle(lastFrame, f => f.includes('Local'), 1000);
 
-    const { lastFrame } = render(
-      <HomePage groups={groups} selectable={selectable} cursor={0} />
-    );
-
-    expect(lastFrame()).toContain('doctor');
-    expect(lastFrame()).toContain('Local');
-    expect(lastFrame()).toContain('Remote');
-    expect(lastFrame()).toContain('Config');
+    expect(frame).toContain('❯ doctor');
   });
 
-  it('renders the KeyHints', () => {
-    const groups = [makeGroup({ id: 'local', label: 'Local', items: [makeItem({ id: 'doctor' })] })];
-    const selectable = groups[0]!.items;
+  it('wraps movement within the gated selectable list (no active remote)', async () => {
+    // hasActiveRemote=false: selectable = [doctor, remotes] — two j presses
+    // wrap back to doctor instead of landing on the gated logs item.
+    const { stdin, lastFrame } = renderHome(false);
+    await settle(lastFrame, f => f.includes('❯ doctor'), 1000);
 
-    const { lastFrame } = render(
-      <HomePage groups={groups} selectable={selectable} cursor={0} />
-    );
+    const frame1 = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ remotes'));
+    expect(frame1).toContain('❯ remotes');
 
-    expect(lastFrame()).toContain('↑↓');
-    expect(lastFrame()).toContain('q');
+    const frame2 = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ doctor') && !f.includes('❯ remotes'));
+    expect(frame2).toContain('❯ doctor');
   });
 
-  it('renders the VersionBar', () => {
-    const groups = [makeGroup({ id: 'local', label: 'Local', items: [makeItem({ id: 'doctor' })] })];
-    const selectable = groups[0]!.items;
+  it('reaches gated items when a remote is active', async () => {
+    const { stdin, lastFrame } = renderHome(true);
+    await settle(lastFrame, f => f.includes('❯ doctor'), 1000);
 
-    const { lastFrame } = render(
-      <HomePage groups={groups} selectable={selectable} cursor={0} />
-    );
+    await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ remotes'));
+    const frame = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ logs'));
+    expect(frame).toContain('❯ logs');
+  });
 
-    // VersionBar shows v{VERSION}
-    expect(lastFrame()).toContain('v0.0.0');
+  it('does not render shell chrome (logo, key hints, version)', async () => {
+    const { lastFrame } = renderHome();
+    const frame = await settle(lastFrame, f => f.includes('Local'), 1000);
+
+    expect(frame).not.toContain('███╗');
+    expect(frame).not.toContain('quit');
+    expect(frame).not.toContain('v0.0.0');
   });
 });

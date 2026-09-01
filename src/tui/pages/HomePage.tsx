@@ -1,30 +1,47 @@
-// HomePage.tsx — Composes the home screen: ActionMenu + KeyHints + VersionBar.
-// Logo is rendered conditionally by the app shell from the route handles.
+// HomePage.tsx — The home menu as a page: owns its data (registry groups +
+// selectable) and its list interaction (useMenuList). Footer (hints +
+// version) and logo are app-shell chrome, not part of this page.
+import { useMemo } from 'react';
+
 import { Box } from 'ink';
 
-import type { ScreenProps } from '../features/menu/index.js';
-import { ActionMenu } from '../widgets/ActionMenu.js';
-import { KeyHints } from '../widgets/KeyHints.js';
-import { VersionBar } from '../widgets/VersionBar.js';
+import { useLocation, useNavigate } from 'react-router';
 
-export function HomePage({ groups, selectable, cursor }: ScreenProps): React.ReactElement {
+import { getRegistry, getSelectable, useMenuList } from '../features/menu/index.js';
+import type { ActionItem } from '../features/menu/index.js';
+import { ActionMenu } from '../widgets/ActionMenu.js';
+
+export interface HomePageProps {
+  /** Whether a remote is currently configured (gates hasActiveRemote items). */
+  hasActiveRemote: boolean;
+}
+
+export function HomePage({ hasActiveRemote }: HomePageProps): React.ReactElement {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Registry identity is stable (frozen constant), so this memo is exact.
+  const groups = getRegistry();
+  const selectable = useMemo(() => getSelectable(groups, hasActiveRemote), [groups, hasActiveRemote]);
+
+  // Select = navigate to the item's route (registry items only ever carry
+  // valid route paths; the same path is deduped as a no-op).
+  const handleSelect = (item: ActionItem): void => {
+    if (item.route === undefined) return;
+    if (location.pathname === item.route) return;
+    navigate(item.route);
+  };
+
+  const { cursor } = useMenuList({ selectable, onSelect: handleSelect });
+
   return (
-    // flexGrow=1: fill the space left by the Logo inside App's viewport-height root Box.
-    // Never pin height to process.stdout.rows here — the root already owns that budget
-    // and double-pinning pushes the logo off-screen (total = rows + logo height).
-    <Box flexDirection='column' alignItems='flex-start' flexGrow={1} paddingLeft={2}>
-      {/* 2-line spacer at top */}
+    // flexGrow is owned by the shell's Outlet box; this page only lays out
+    // its own content inside it.
+    <Box flexDirection='column' alignItems='flex-start' paddingLeft={2}>
+      {/* 2-line spacer under the logo */}
       <Box height={2} />
 
-      {/* Menu */}
       <ActionMenu groups={groups} selectable={selectable} cursor={cursor} />
-
-      {/* 3-line spacer before footer */}
-      <Box height={3} />
-
-      {/* Key hints + Version */}
-      <KeyHints />
-      <VersionBar />
     </Box>
   );
 }
