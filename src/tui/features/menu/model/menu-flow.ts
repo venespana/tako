@@ -1,11 +1,18 @@
-// menu-flow.ts — Route-aware menu model for the TUI screens.
-// Owns the remotes submenu synthesis: given the current route it produces the
-// selectable list, the groups a screen should render, and whether arrow-key
-// navigation is active. Pure — no React, no side effects.
+// menu-flow.ts — Menu model derived from the react-router match chain.
+// Given the matched route chain it produces the selectable list, the groups
+// the active screen renders, and whether arrow-key navigation is active.
+// Pure — no React, no router imports, no side effects (matches enter as a
+// structural { handle } shape, so unit tests pass plain objects).
 
 import type { ActionGroup, ActionItem } from './menu-items.js';
 import { getSelectable } from './menu-navigation.js';
 import { getRegistry } from './menu-registry.js';
+import type { RouteHandle } from '../../../shared/lib/route-tree.js';
+
+/** Structural subset of a react-router match that menu derivation needs. */
+export interface RouteMatchLike {
+  handle?: unknown;
+}
 
 /** Menu item id of the remotes submenu parent — the only submenu in the registry. */
 const REMOTES_ID = 'remotes';
@@ -13,13 +20,23 @@ const REMOTES_ID = 'remotes';
 /** The single group a remotes submenu route renders as its screen. */
 const REMOTES_SUBMENU_GROUP_ID = 'remotes-submenu';
 
-/** Routes where arrow-key navigation over a selectable menu is meaningful:
- * home (main list) and the remotes submenu root itself. On remotes.* child
- * pages and other stub routes (doctor, logs, status, cleanup) arrows and
- * Enter are ignored and no selectable list is exposed — only Escape (goBack)
- * works — so the previous menu can never be operated from behind a screen. */
-export function isMenuNavigableRoute(route: string): boolean {
-  return route === 'home' || route === REMOTES_ID;
+/** Menu model for one route chain: what is selectable, what the active
+ * screen renders, and whether arrow-key navigation is active. */
+export interface MenuFlow {
+  selectable: ActionItem[];
+  screenGroups: ActionGroup[];
+  isNavigable: boolean;
+}
+
+/** Deepest match whose handle declares a menu. Children of the remotes
+ * layout inherit its 'submenu' through the match chain; isolated stub
+ * routes (doctor, logs, status, cleanup) find none. */
+function activeMenuKind(matches: readonly RouteMatchLike[]): RouteHandle['menu'] {
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const meta = matches[i]?.handle as RouteHandle | undefined;
+    if (meta?.menu !== undefined) return meta.menu;
+  }
+  return undefined;
 }
 
 /** Find the remotes submenu parent anywhere in the registry groups. */
@@ -44,27 +61,21 @@ function buildRemotesSelectable(remotesItem: ActionItem | undefined): ActionItem
     kind: 'action' as const,
     enabledWhen: 'always' as const,
     handlerKey: `remotes.${cmd}`,
-    route: `remotes.${cmd}`,
+    route: `/remotes/${cmd}`,
   }));
 }
 
-/** Menu model for one route: what is selectable, what the screen renders, and
- * whether arrow-key navigation is active on that route. */
-export interface MenuFlow {
-  selectable: ActionItem[];
-  screenGroups: ActionGroup[];
-  isNavigable: boolean;
-}
-
-/** Compute the menu flow for the current route.
+/** Compute the menu flow for the matched route chain.
  * - home: full selectable (submenu parents included), registry groups
- * - remotes (submenu root): synthesized submenu screen
- * - everything else (remotes.* child pages, doctor, logs, status, cleanup):
- *   isolated — empty selectable, no navigation */
-export function getSelectableForRoute(route: string, hasActiveRemote: boolean): MenuFlow {
+ * - remotes and remotes/* (submenu layout chain): synthesized submenu list —
+ *   the layout keeps it visible (master-detail) while a child renders
+ * - everything else (doctor, logs, status, cleanup): isolated — empty
+ *   selectable, no navigation */
+export function getMenuFlowForMatches(matches: readonly RouteMatchLike[], hasActiveRemote: boolean): MenuFlow {
   const groups = getRegistry();
+  const menuKind = activeMenuKind(matches);
 
-  if (route === REMOTES_ID) {
+  if (menuKind === 'submenu') {
     const selectable = buildRemotesSelectable(findRemotesItem(groups));
     return {
       selectable,
@@ -73,7 +84,7 @@ export function getSelectableForRoute(route: string, hasActiveRemote: boolean): 
     };
   }
 
-  if (route === 'home') {
+  if (menuKind === 'home') {
     return { selectable: getSelectable(groups, hasActiveRemote), screenGroups: groups, isNavigable: true };
   }
 

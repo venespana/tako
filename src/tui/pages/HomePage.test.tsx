@@ -1,7 +1,7 @@
 // HomePage.test.tsx — Unit tests for HomePage composition.
 // HomePage renders ActionMenu + KeyHints + VersionBar from
-// groups/selectable/cursor. The Logo is owned by App.tsx (shown per
-// ROUTE_TABLE[route].showLogo), so it is NOT part of HomePage.
+// groups/selectable/cursor. The Logo is owned by the app shell (shown per
+// route handles), so it is NOT part of HomePage.
 import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import { HomePage } from './HomePage.js';

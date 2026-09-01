@@ -32,9 +32,10 @@ describe('CLI isolation', () => {
 
     for (const file of cliFiles) {
       const content = readFileSync(file, 'utf-8');
-      // The router library must never leak into cli/; the wizard feature is
+      // The router library (react-router, the generated route tree, and the
+      // old custom router) must never leak into cli/; the wizard feature is
       // the only tui import allowed (checked separately by eslint zones).
-      expect(content).not.toMatch(/shared\/router|app\/router/);
+      expect(content).not.toMatch(/shared\/router|app\/router|react-router|routes\.generated|tui\/routes/);
       if (content.includes('tui/')) {
         expect(content.includes('add-remote-wizard')).toBe(true);
       }

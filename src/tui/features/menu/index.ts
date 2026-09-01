@@ -4,5 +4,5 @@
 export type { ActionGroup, ActionItem, ActionItemKind, EnableCondition, ScreenProps } from './model/menu-items.js';
 export { getSelectable, moveCursor } from './model/menu-navigation.js';
 export { getRegistry } from './model/menu-registry.js';
-export { getSelectableForRoute, isMenuNavigableRoute } from './model/menu-flow.js';
-export type { MenuFlow } from './model/menu-flow.js';
+export { getMenuFlowForMatches } from './model/menu-flow.js';
+export type { MenuFlow, RouteMatchLike } from './model/menu-flow.js';

@@ -1,12 +1,14 @@
 // App.test.tsx — Integration tests for the App component.
 // Tests the full keypress flow using ink-testing-library against the
-// app router instance (route-driven navigation, cursor reset on route
-// change, arrows active on home/remotes.* routes, ignored on isolated
-// routes, Escape → goBack, q/Ctrl-C quit while other ctrl combos don't).
+// react-router data router (path-driven navigation, cursor reset on path
+// change, arrows active on the visible menu — home registry or remotes
+// submenu — ignored on isolated routes, Escape → back/exit, q/Ctrl-C quit
+// while other ctrl combos don't). Router state is asserted through rendered
+// frames: each App mount owns a fresh router, so there is no shared
+// singleton to reset between tests.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import App from './App.js';
-import { appRouter } from './app-router.js';
 
 // Capture App's exit() calls so quit-key tests can assert on them without
 // depending on Ink's unmount internals. ink-testing-library renders with
@@ -18,11 +20,8 @@ vi.mock('ink', async importOriginal => {
   return { ...actual, useApp: () => ({ exit: exitMock }) };
 });
 
-// Reset the app router instance between tests so each starts on 'home'.
 beforeEach(() => {
   exitMock.mockReset();
-  appRouter.reset();
-  appRouter.setExitHandler(() => {});
 });
 
 // Ink buffers a lone trailing ESC for ~20ms (pendingInputFlushDelay) to
@@ -47,9 +46,7 @@ describe('App', () => {
       expect(lastFrame()).toContain('↑↓');
       unmount();
     });
-  });
 
-  describe('keyboard navigation', () => {
     it('renders with cursor on first selectable item', () => {
       const { lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
@@ -58,7 +55,9 @@ describe('App', () => {
       expect(lastFrame()).toContain('❯ doctor');
       unmount();
     });
+  });
 
+  describe('keyboard navigation', () => {
     it('moves the cursor down with j on home', async () => {
       const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
@@ -100,118 +99,137 @@ describe('App', () => {
     });
   });
 
-  describe('router navigation via Enter', () => {
-    it('navigates to the doctor route on Enter over doctor (logo hidden)', async () => {
+  describe('navigation via Enter', () => {
+    it('navigates to /doctor on Enter over doctor (logo hidden)', async () => {
       const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       // Press Enter to select doctor — it is a routed action item,
-      // so Enter navigates to its route.
+      // so Enter navigates to its path.
       stdin.write('\r');
       await wait();
 
-      expect(appRouter.getState().currentRoute).toBe('doctor');
-      // Isolated route: logo hidden, home menu groups gone
+      // Isolated route: logo hidden, home menu groups gone, stub screen shown
+      expect(lastFrame()).toContain('doctor');
       expect(lastFrame()).not.toContain('███╗');
       expect(lastFrame()).not.toContain('Local');
       unmount();
     });
 
-    it('navigates to the remotes submenu on Enter over remotes and resets the cursor', async () => {
+    it('navigates to /remotes on Enter over remotes and resets the cursor', async () => {
       const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       stdin.write('j'); // focus remotes (index 1) on home
       await wait();
-      stdin.write('\r'); // Enter on submenu item → navigate to its route
+      stdin.write('\r'); // Enter on submenu item → navigate to its path
       await wait();
 
-      expect(appRouter.getState().currentRoute).toBe('remotes');
       // The submenu screen shows the subaction labels as its selectable list
       expect(lastFrame()).toContain('add');
       expect(lastFrame()).toContain('list');
       expect(lastFrame()).toContain('rm');
       expect(lastFrame()).toContain('use');
       expect(lastFrame()).toContain('test');
-      // Cursor reset to 0 on route change (was on index 1 before navigating)
+      // Cursor reset to 0 on path change (was on index 1 before navigating)
       expect(lastFrame()).toContain('❯ add');
       unmount();
     });
 
-    it('navigates to remotes.list on Enter over a remotes subaction', async () => {
+    it('navigates to /remotes/list on Enter over a remotes subaction (submenu stays visible)', async () => {
       const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
+      // NOTE: each keypress is its own stdin write — a combined 'j\r' chunk
+      // reaches useInput as the single input string 'j\r', matching neither
+      // the 'j' shortcut nor key.return.
       stdin.write('j'); // home: focus remotes
       await wait();
       stdin.write('\r'); // enter remotes submenu
       await wait();
-      stdin.write('j'); // arrows work on the remotes submenu root: add → list
+      stdin.write('j'); // submenu: add → list
       await wait();
       stdin.write('\r'); // Enter on routed action item → navigate
       await wait();
 
-      expect(appRouter.getState().currentRoute).toBe('remotes.list');
+      // Child page rendered (stub text)…
       expect(lastFrame()).toContain('remotes.list');
+      // …and the master-detail layout keeps the submenu visible above it
+      expect(lastFrame()).toContain('❯ add');
       unmount();
     });
 
-    it('ignores arrows and Enter on a remotes.* child page (no ghost menu behind the screen)', async () => {
-      const { stdin, unmount } = render(<App hasActiveRemote={false} />);
+    it('lets arrows + Enter drive the visible submenu from a remotes child page', async () => {
+      // Inversion of the old ghost-menu regression: on /remotes/* child pages
+      // the submenu is VISIBLE (master-detail), so arrows move its cursor and
+      // Enter switches the outlet child.
+      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
       stdin.write('j'); // home: focus remotes
       await wait();
-      stdin.write('\r'); // enter remotes submenu
+      stdin.write('\r'); // → /remotes
       await wait();
-      stdin.write('j'); // focus list
+      stdin.write('j'); // submenu: add → list
       await wait();
-      stdin.write('\r'); // → remotes.list (isolated child page)
+      stdin.write('\r'); // → /remotes/list
       await wait();
-      expect(appRouter.getState().currentRoute).toBe('remotes.list');
+      expect(lastFrame()).toContain('remotes.list');
 
-      // The bug regression: arrows/Enter on the child page must NOT operate
-      // the submenu model from behind the screen
-      stdin.write('j'); // down — ignored
+      stdin.write('j'); // cursor reset to 'add' on path change; j → 'list'
       await wait();
-      stdin.write('\r'); // Enter — ignored
-      await wait();
+      expect(lastFrame()).toContain('❯ list');
 
-      expect(appRouter.getState().currentRoute).toBe('remotes.list');
+      stdin.write('\r'); // Enter on 'list' → same path → deduped no-op
+      await wait();
+      expect(lastFrame()).toContain('remotes.list');
+
+      stdin.write('j'); // 'list' → 'rm'
+      await wait();
+      stdin.write('\r'); // Enter → outlet swaps to /remotes/rm
+      await wait();
+      expect(lastFrame()).toContain('remotes.rm');
       unmount();
     });
   });
 
-  describe('router navigation via Escape', () => {
-    it('returns to the previous route on Escape', async () => {
+  describe('isolated routes', () => {
+    it('ignores arrows and Enter on /doctor', async () => {
       const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
 
-      stdin.write('\r'); // home → doctor
+      stdin.write('\r'); // home → /doctor (isolated route)
       await wait();
-      expect(appRouter.getState().currentRoute).toBe('doctor');
+      expect(lastFrame()).toContain('doctor');
+      expect(lastFrame()).not.toContain('███╗');
 
-      stdin.write('\x1b'); // Escape → goBack (flushed after Ink's pending-escape delay)
+      // Arrow keys and Enter must be ignored: the frame does not change
+      const before = lastFrame();
+      stdin.write('j');
+      stdin.write('\r');
+      await wait();
+      expect(lastFrame()).toBe(before);
+      unmount();
+    });
+  });
+
+  describe('navigation via Escape', () => {
+    it('returns to the previous screen on Escape', async () => {
+      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
+
+      stdin.write('\r'); // home → /doctor
+      await wait();
+      expect(lastFrame()).not.toContain('███╗');
+
+      stdin.write('\x1b'); // Escape → history back (flushed after Ink's pending-escape delay)
       await waitAfterEscape();
-      expect(appRouter.getState().currentRoute).toBe('home');
-      expect(appRouter.getState().history).toEqual([]);
       // Back on home: logo and menu are visible again
       expect(lastFrame()).toContain('███╗');
       expect(lastFrame()).toContain('Local');
       unmount();
     });
-  });
 
-  describe('isolated routes (doctor/logs/status/cleanup)', () => {
-    it('ignores arrows and Enter on isolated routes', async () => {
-      const { stdin, lastFrame, unmount } = render(<App hasActiveRemote={false} />);
+    it('exits the app on Escape at home (no history to pop)', async () => {
+      const { stdin, unmount } = render(<App hasActiveRemote={false} />);
 
-      stdin.write('\r'); // home → doctor (isolated route)
-      await wait();
-      expect(appRouter.getState().currentRoute).toBe('doctor');
-
-      // Arrow keys and Enter must be ignored: no navigation
-      stdin.write('j');
-      stdin.write('\r');
-      await wait();
-
-      expect(appRouter.getState().currentRoute).toBe('doctor');
-      expect(lastFrame()).not.toContain('███╗');
+      stdin.write('\x1b');
+      await waitAfterEscape();
+      expect(exitMock).toHaveBeenCalledTimes(1);
       unmount();
     });
   });

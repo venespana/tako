@@ -1,9 +1,11 @@
-// app-router.ts — The app's router instance, built from the shared headless router.
-// App-level singleton: App.tsx, hooks, and tests all consume this instance
-// so route state is shared across the tree. The type-only import keeps this
-// module free of page-component side effects at runtime.
+// app-router.ts — The app's router factory, composing the generated route
+// tree with a memory history rooted at '/'. A factory, not a singleton:
+// data routers cannot be reset, so each App mount owns a fresh instance —
+// which also keeps tests isolated by construction.
+import { createMemoryRouter } from 'react-router';
 
-import type { RouteName } from './routes.js';
-import { createRouter } from '../shared/router/index.js';
+import { routeTree } from '../routes.generated.js';
 
-export const appRouter = createRouter<RouteName>({ initialRoute: 'home' });
+export function createAppRouter(): ReturnType<typeof createMemoryRouter> {
+  return createMemoryRouter(routeTree, { initialEntries: ['/'] });
+}

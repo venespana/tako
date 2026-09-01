@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "generate:routes": "bun scripts/generate-routes.ts",
     "test": "vitest run unit",
     "test:watch": "vitest unit",
     "test:integration": "vitest run integration",
@@ -33,6 +34,7 @@
     "react": "^19.2.8",
     "react-devtools-core": "^7.0.1",
     "react-dom": "^19.2.8",
+    "react-router": "8.3.1",
     "ssh2": "^1.17.0",
     "zustand": "^5.0.14"
   },

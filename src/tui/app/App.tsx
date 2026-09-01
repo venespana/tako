@@ -1,13 +1,13 @@
-// App.tsx — Root TUI component: router-driven screen renderer.
-// App owns only wiring: it consumes the router instance, delegates keyboard
-// input, cursor state, and menu derivation to useMenuKeyboard, and mounts the
-// active screen. The route-aware menu model comes from the menu feature.
-import { Box } from 'ink';
+// App.tsx — Root TUI component: composition root of the router tree.
+// App owns only provider wiring: it creates the per-mount data router,
+// publishes runtime flags to the route tree, and hands off to RouterProvider
+// (the matched route tree renders the app shell and the active screens).
+import { useState } from 'react';
 
-import { appRouter } from './app-router.js';
-import { ROUTE_TABLE } from './routes.js';
-import { useMenuKeyboard } from './use-menu-keyboard.js';
-import { Logo } from '../widgets/Logo.js';
+import { RouterProvider } from 'react-router';
+
+import { createAppRouter } from './app-router.js';
+import { AppRuntimeContext } from './app-runtime.js';
 
 export interface AppProps {
   /** Whether a remote is currently configured. */
@@ -15,20 +15,13 @@ export interface AppProps {
 }
 
 export default function App({ hasActiveRemote = false }: AppProps): React.ReactElement {
-  const currentRoute = appRouter.useCurrentRoute();
-  const { selectable, screenGroups, cursor } = useMenuKeyboard({ hasActiveRemote });
-
-  // ROUTE_TABLE covers the whole RouteName union and isAppRoute guards menu
-  // item routes, so the lookup is total — no fallback screen needed.
-  const { Screen, showLogo } = ROUTE_TABLE[currentRoute];
+  // One router per mount (data routers have no reset); the useState
+  // initializer keeps the instance stable across re-renders.
+  const [router] = useState(createAppRouter);
 
   return (
-    // Root owns the vertical budget: exactly one viewport tall.
-    // Logo takes its natural height; the Screen fills the remainder via flexGrow.
-    // This keeps logo + screen == terminal height (no overflow, no clipped logo).
-    <Box flexDirection='column' height={process.stdout.rows ?? 40}>
-      {showLogo && <Logo />}
-      <Screen groups={screenGroups} selectable={selectable} cursor={cursor} />
-    </Box>
+    <AppRuntimeContext.Provider value={{ hasActiveRemote }}>
+      <RouterProvider router={router} />
+    </AppRuntimeContext.Provider>
   );
 }

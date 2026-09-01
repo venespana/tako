@@ -23,9 +23,10 @@ export interface ActionItem {
   /** Stable action identifier for kind === 'action' (command namespacing; the
    * old dispatch-map lookup was removed when routing replaced dispatching) */
   handlerKey?: string;
-  /** Target route when kind === 'submenu'; also used by action items that navigate.
-   * Untyped string on purpose (features must not import the app layer's route
-   * union); the app narrows it via isAppRoute before navigating. */
+  /** Target path (e.g. '/remotes/list') when kind === 'submenu'; also used by
+   * action items that navigate. A plain path string on purpose: features stay
+   * decoupled from the route tree; the router simply does not match unknown
+   * paths. */
   route?: string;
 }
 
