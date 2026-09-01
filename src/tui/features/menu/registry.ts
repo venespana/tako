@@ -1,5 +1,6 @@
 // registry.ts — Declarative action registry for the home menu.
 // Only implemented commands appear; unimplemented ones are excluded entirely.
+// Submenu items (remotes) live in the router registry; home shows remotes as a single submenu entry.
 
 import type { ActionGroup } from './types.js';
 
@@ -16,6 +17,7 @@ export function getRegistry(): ActionGroup[] {
           kind: 'action',
           enabledWhen: 'always',
           handlerKey: 'doctor',
+          route: 'doctor',
         },
       ],
     },
@@ -31,6 +33,7 @@ export function getRegistry(): ActionGroup[] {
           submenu: ['add', 'list', 'rm', 'use', 'test'],
           enabledWhen: 'always',
           handlerKey: 'remotes',
+          route: 'remotes',
         },
         {
           id: 'remote-logs',
@@ -39,6 +42,7 @@ export function getRegistry(): ActionGroup[] {
           kind: 'action',
           enabledWhen: 'hasActiveRemote',
           handlerKey: 'logs',
+          route: 'logs',
         },
         {
           id: 'remote-status',
@@ -47,6 +51,7 @@ export function getRegistry(): ActionGroup[] {
           kind: 'action',
           enabledWhen: 'hasActiveRemote',
           handlerKey: 'status',
+          route: 'status',
         },
         {
           id: 'remote-cleanup',
@@ -55,6 +60,7 @@ export function getRegistry(): ActionGroup[] {
           kind: 'action',
           enabledWhen: 'hasActiveRemote',
           handlerKey: 'cleanup',
+          route: 'cleanup',
         },
       ],
     },

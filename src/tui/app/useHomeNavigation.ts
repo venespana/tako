@@ -1,6 +1,6 @@
 // useHomeNavigation.ts — Hook wrapping pure navigation functions.
-// Thin useState wrapper around the pure navigation.ts functions.
-import { useState, useCallback } from 'react';
+// Cursor is local UI state; reads currentRoute from router store for cursor-reset effect.
+import { useState, useCallback, useEffect } from 'react';
 
 import {
   getSelectable,
@@ -8,6 +8,7 @@ import {
   enterSubmenu as pureEnterSubmenu,
   exitSubmenu as pureExitSubmenu,
 } from '../features/menu/navigation.js';
+import { useRouterStore } from './router/index.js';
 import type { ActionGroup, ViewState } from '../features/menu/types.js';
 
 export interface UseHomeNavigationResult {
@@ -28,10 +29,16 @@ export interface UseHomeNavigationResult {
 }
 
 export function useHomeNavigation(groups: ActionGroup[], hasActiveRemote: boolean): UseHomeNavigationResult {
+  const currentRoute = useRouterStore(s => s.currentRoute);
   const [view, setView] = useState<ViewState>({ view: 'list' });
   const [cursor, setCursor] = useState(0);
 
   const selectable = getSelectable(groups, view, hasActiveRemote);
+
+  // Reset cursor to 0 whenever the route changes
+  useEffect(() => {
+    setCursor(0);
+  }, [currentRoute]);
 
   const moveCursorFn = useCallback(
     (dir: 1 | -1) => {

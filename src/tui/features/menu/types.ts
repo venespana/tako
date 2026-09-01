@@ -1,7 +1,9 @@
 // types.ts — Shared types for the menu feature.
 
+import type { RouteName } from '../../app/router/types.js';
+
 // ---------------------------------------------------------------------------
-// View State Machine
+// View State Machine (deprecated — router owns route; kept for helpers)
 // ---------------------------------------------------------------------------
 
 export type ViewState = { view: 'list' } | { view: 'submenu'; parentId: string; restoreCursor: number };
@@ -29,8 +31,10 @@ export interface ActionItem {
   submenu?: string[];
   /** When to show this item as enabled (selectable) */
   enabledWhen?: EnableCondition;
-  /** Key looked up in the DispatchMap at runtime */
+  /** Key looked up in the DispatchMap at runtime (for kind === 'action') */
   handlerKey?: string;
+  /** Target route when kind === 'submenu'; also used by action items that navigate */
+  route?: RouteName;
 }
 
 /** A named group of ActionItems rendered together */

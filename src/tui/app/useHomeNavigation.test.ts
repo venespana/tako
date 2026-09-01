@@ -54,12 +54,18 @@ describe('useHomeNavigation integration with pure functions', () => {
     expect(result).toEqual({ view: 'list' });
   });
 
-  it('getSelectable in submenu view returns only the submenu parent', () => {
+  it('getSelectable includes submenu items in the flat list (view param ignored)', () => {
     const groups = getRegistry();
-    const view: ViewState = { view: 'submenu', parentId: 'remotes', restoreCursor: 0 };
-    const selectable = getSelectable(groups, view, false);
+    const listView: ViewState = { view: 'list' };
+    const submenuView: ViewState = { view: 'submenu', parentId: 'remotes', restoreCursor: 0 };
+    const fromList = getSelectable(groups, listView, false);
+    const fromSubmenu = getSelectable(groups, submenuView, false);
 
-    expect(selectable).toHaveLength(1);
-    expect(selectable[0]!.id).toBe('remotes');
+    // Submenu parents (kind === 'submenu') are included: selecting them
+    // navigates to the submenu route. With hasActiveRemote=false the flat
+    // list is doctor + remotes.
+    expect(fromList.map(i => i.id)).toEqual(['doctor', 'remotes']);
+    // The view argument no longer filters — both views yield the same list
+    expect(fromSubmenu).toEqual(fromList);
   });
 });

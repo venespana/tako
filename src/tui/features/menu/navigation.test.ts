@@ -37,11 +37,19 @@ describe('getSelectable', () => {
     expect(result).toEqual([]);
   });
 
-  it('filters to submenu items when in submenu view', () => {
-    const item = { id: 'remotes', label: 'remotes', command: 'remotes', kind: 'submenu' as const, submenu: ['add', 'list', 'rm', 'use', 'test'] };
-    const groups: ActionGroup[] = [group([item])];
-    const result = getSelectable(groups, { view: 'submenu', parentId: 'remotes', restoreCursor: 0 }, false);
-    expect(result.map(i => i.id)).toEqual(['remotes']);
+  it('includes submenu items in the flat selectable list (view is ignored)', () => {
+    // Submenu parents are selectable: Enter on them navigates to their route.
+    // The view argument is ignored by design — filtering by view moved to the router.
+    const action = fakeItem('a', 'always');
+    const submenu = { id: 'remotes', label: 'remotes', command: 'remotes', kind: 'submenu' as const, submenu: ['add', 'list', 'rm', 'use', 'test'] };
+    const groups: ActionGroup[] = [group([action, submenu])];
+
+    const fromList = getSelectable(groups, { view: 'list' }, false);
+    const fromSubmenu = getSelectable(groups, { view: 'submenu', parentId: 'remotes', restoreCursor: 0 }, false);
+
+    expect(fromList.map(i => i.id)).toEqual(['a', 'remotes']);
+    // Both views yield the same flat list
+    expect(fromSubmenu).toEqual(fromList);
   });
 });
 

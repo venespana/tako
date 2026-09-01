@@ -12,7 +12,12 @@ if (process.argv.length <= 2) {
   const { render } = await import('ink');
   const { default: App } = await import('./tui/app/App.js');
   const { buildDefaultDispatch } = await import('./tui/features/menu/dispatch/index.js');
-  render(<App dispatch={buildDefaultDispatch()} hasActiveRemote={false} />);
+  // alternateScreen: render on a separate screen buffer (like vim/htop).
+  // No scrollback pollution while running; original terminal content restored on exit.
+  const instance = render(<App dispatch={buildDefaultDispatch()} hasActiveRemote={false} />, {
+    alternateScreen: true,
+  });
+  await instance.waitUntilExit();
 } else {
   runCli();
 }

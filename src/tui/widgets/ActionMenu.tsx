@@ -1,8 +1,8 @@
 // ActionMenu.tsx — Renders the menu groups and items with cursor glyph.
-// Cursor: ❯ cyan on focused item only. Disabled items rendered greyed.
+// Cursor: > cyan on focused item only. Disabled items rendered greyed.
 import { Box, Text } from 'ink';
 
-import type { ActionGroup, ActionItem, ViewState } from '../features/menu/types.js';
+import type { ActionGroup, ActionItem } from '../features/menu/types.js';
 import { theme } from '../shared/theme.js';
 
 export interface ActionMenuProps {
@@ -11,8 +11,6 @@ export interface ActionMenuProps {
   selectable: ActionItem[];
   /** Index into selectable[] that is currently focused */
   cursor: number;
-  /** Current view state */
-  view: ViewState;
 }
 
 function isCursorPosition(
@@ -30,26 +28,7 @@ function isCursorPosition(
   return item.id === focusedItem.id;
 }
 
-export function ActionMenu({ groups, selectable, cursor, view }: ActionMenuProps): React.ReactElement {
-  // In submenu view, render the subaction list
-  if (view.view === 'submenu') {
-    const parent = selectable[cursor];
-    if (!parent || parent.kind !== 'submenu' || !parent.submenu) {
-      return <Box />;
-    }
-    return (
-      <Box flexDirection='column' gap={0}>
-        {parent.submenu.map(label => (
-          <Text key={label} dimColor={false}>
-            {'  '}
-            {label}
-          </Text>
-        ))}
-      </Box>
-    );
-  }
-
-  // In list view, render all groups with their items
+export function ActionMenu({ groups, selectable, cursor }: ActionMenuProps): React.ReactElement {
   return (
     <Box flexDirection='column' gap={1}>
       {groups.map(group => (

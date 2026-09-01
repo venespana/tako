@@ -4,17 +4,10 @@
 import type { ActionGroup, ActionItem, ViewState } from './types.js';
 
 /** Returns only the selectable ActionItems for the current view.
+ * Submenu parent items (kind === 'submenu') ARE included in the flat selectable list
+ * because selecting them triggers router navigation to the submenu root.
  * Disabled items (enabledWhen: 'hasActiveRemote' with hasActiveRemote=false) are excluded. */
-export function getSelectable(groups: ActionGroup[], view: ViewState, hasActiveRemote: boolean): ActionItem[] {
-  if (view.view === 'submenu') {
-    // In submenu, only the submenu parent item itself is selectable
-    for (const group of groups) {
-      const found = group.items.find(item => item.id === view.parentId);
-      if (found) return [found];
-    }
-    return [];
-  }
-
+export function getSelectable(groups: ActionGroup[], _view: ViewState, hasActiveRemote: boolean): ActionItem[] {
   const selectable: ActionItem[] = [];
   for (const group of groups) {
     for (const item of group.items) {
@@ -36,11 +29,13 @@ export function moveCursor(selectable: ActionItem[], cursor: number, dir: 1 | -1
 }
 
 /** Returns the submenu view state when entering a submenu. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function enterSubmenu(parentId: string, restoreCursor: number): ViewState {
-  return { view: 'submenu', parentId, restoreCursor };
+  return { view: 'submenu', parentId, restoreCursor } as ViewState;
 }
 
 /** Returns the list view state when exiting a submenu. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function exitSubmenu(_view: ViewState): ViewState {
-  return { view: 'list' };
+  return { view: 'list' } as ViewState;
 }

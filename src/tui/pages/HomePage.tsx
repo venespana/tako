@@ -1,39 +1,35 @@
-// HomePage.tsx — Composes the home screen: Logo + ActionMenu + KeyHints + VersionBar.
+// HomePage.tsx — Composes the home screen: ActionMenu + KeyHints + VersionBar.
+// Logo is rendered conditionally by App.tsx based on ROUTE_REGISTRY[route].showLogo.
 import { Box } from 'ink';
 
-import type { ActionGroup, ActionItem, ViewState } from '../features/menu/types.js';
+import type { ActionGroup, ActionItem } from '../features/menu/types.js';
 import { ActionMenu } from '../widgets/ActionMenu.js';
 import { KeyHints } from '../widgets/KeyHints.js';
-import { Logo } from '../widgets/Logo.js';
 import { VersionBar } from '../widgets/VersionBar.js';
 
 export interface HomePageProps {
   groups: ActionGroup[];
   selectable: ActionItem[];
   cursor: number;
-  view: ViewState;
 }
 
-export function HomePage({ groups, selectable, cursor, view }: HomePageProps): React.ReactElement {
+export function HomePage({ groups, selectable, cursor }: HomePageProps): React.ReactElement {
   return (
-    <Box flexDirection='column' alignItems='flex-start' height={process.stdout.rows ?? 40} paddingLeft={2}>
+    // flexGrow=1: fill the space left by the Logo inside App's viewport-height root Box.
+    // Never pin height to process.stdout.rows here — the root already owns that budget
+    // and double-pinning pushes the logo off-screen (total = rows + logo height).
+    <Box flexDirection='column' alignItems='flex-start' flexGrow={1} paddingLeft={2}>
       {/* 2-line spacer at top */}
       <Box height={2} />
 
-      {/* Logo */}
-      <Logo />
-
-      {/* 2-line spacer under logo */}
-      <Box height={2} />
-
       {/* Menu */}
-      <ActionMenu groups={groups} selectable={selectable} cursor={cursor} view={view} />
+      <ActionMenu groups={groups} selectable={selectable} cursor={cursor} />
 
       {/* 3-line spacer before footer */}
       <Box height={3} />
 
       {/* Key hints + Version */}
-      <KeyHints view={view} />
+      <KeyHints />
       <VersionBar />
     </Box>
   );
