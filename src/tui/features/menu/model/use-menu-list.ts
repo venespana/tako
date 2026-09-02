@@ -2,8 +2,9 @@
 // state and the list keyboard model (up/k, down/j move; Enter/l select).
 // Each page mounts its own instance, so the cursor starts at 0 naturally —
 // navigating between pages remounts them and the reset-on-route-change
-// pattern disappears entirely. Consumed by menu pages; navigation itself
-// stays page-owned (features stay decoupled from the router).
+// pattern disappears entirely. Consumed by menu pages together with
+// use-menu-navigation (route navigation used to be page-owned; the two
+// duplicated inline handlers were extracted into that hook).
 import { useState } from 'react';
 
 import { useInput } from 'ink';

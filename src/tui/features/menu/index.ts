@@ -7,3 +7,4 @@ export { getRegistry } from './model/menu-registry.js';
 export { buildRemotesSelectable, getRemotesSelectable, getRemotesGroups } from './model/menu-submenu.js';
 export { useMenuList } from './model/use-menu-list.js';
 export type { UseMenuListOptions, MenuListController } from './model/use-menu-list.js';
+export { useMenuNavigation } from './model/use-menu-navigation.js';

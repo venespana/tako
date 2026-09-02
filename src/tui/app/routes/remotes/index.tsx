@@ -1,6 +1,6 @@
 // routes/remotes/index.tsx — Route shim for '/remotes': the remotes submenu
 // page (menus are pages).
-import { RemotesMenuPage } from '../../../pages/RemotesMenuPage.js';
+import { RemotesMenuPage } from '../../../pages/remotes-menu/index.js';
 import type { RouteHandle } from '../../../shared/lib/route-tree.js';
 
 export default RemotesMenuPage;

@@ -1,11 +1,12 @@
 // RemotesMenuPage.test.tsx — Unit tests for the remotes submenu page. The
-// page owns its submenu list (feature-built groups + useMenuList); logo and
-// footer are app-shell chrome. MemoryRouter supplies the router context.
+// page owns its submenu list (model/remotes-menu data +
+// useMenuList/useMenuNavigation); logo and footer are app-shell chrome.
+// MemoryRouter supplies the router context.
 import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import { MemoryRouter } from 'react-router';
 
-import { pressAndSettle, settle } from '../test-utils/ink-interactions.js';
+import { pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
 import { RemotesMenuPage } from './RemotesMenuPage.js';
 
 const renderRemotes = () =>
