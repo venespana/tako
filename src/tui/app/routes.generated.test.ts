@@ -53,15 +53,15 @@ describe('routeTree (generated)', () => {
 
   it('carries handles: menu pages flag their menu, command pages have none', () => {
     const index = root.children?.find(child => child.index);
-    expect(index?.handle).toEqual({ menu: 'home' });
+    expect(index?.handle).toEqual({ menu: true });
 
     // The '/remotes' prefix is module-less (no handle of its own); the
-    // submenu flag lives on the '/remotes' index page. Command pages
+    // menu flag lives on the '/remotes' index page. Command pages
     // carry no handle at all.
     const remotes = childByPath(root, 'remotes');
     expect(remotes?.handle).toBeUndefined();
     const remotesIndex = remotes?.children?.find(child => child.index);
-    expect(remotesIndex?.handle).toEqual({ menu: 'submenu' });
+    expect(remotesIndex?.handle).toEqual({ menu: true });
     for (const child of remotes?.children?.filter(child => !child.index) ?? []) {
       expect(child.handle).toEqual({});
     }

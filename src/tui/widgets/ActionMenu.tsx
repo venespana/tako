@@ -3,7 +3,7 @@
 import { Box, Text } from 'ink';
 
 import type { ActionGroup, ActionItem } from '../features/menu/index.js';
-import { theme } from '../shared/theme.js';
+import { theme } from '../shared/ui/theme.js';
 
 export interface ActionMenuProps {
   groups: ActionGroup[];

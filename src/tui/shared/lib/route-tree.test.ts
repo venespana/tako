@@ -13,15 +13,15 @@ const moduleWith = (routeMeta?: RouteModule['routeMeta']): RouteModule => ({
 
 describe('defineRoute', () => {
   it('builds a path route with component and handle', () => {
-    const route = defineRoute({ path: 'remotes', module: moduleWith({ menu: 'submenu' }) });
+    const route = defineRoute({ path: 'remotes', module: moduleWith({ menu: true }) });
 
-    expect(route).toMatchObject({ path: 'remotes', Component: Screen, handle: { menu: 'submenu' } });
+    expect(route).toMatchObject({ path: 'remotes', Component: Screen, handle: { menu: true } });
   });
 
   it('builds an index route', () => {
-    const route = defineRoute({ index: true, module: moduleWith({ menu: 'home' }) });
+    const route = defineRoute({ index: true, module: moduleWith({ menu: true }) });
 
-    expect(route).toMatchObject({ index: true, Component: Screen, handle: { menu: 'home' } });
+    expect(route).toMatchObject({ index: true, Component: Screen, handle: { menu: true } });
     expect(route.path).toBeUndefined();
   });
 
@@ -41,10 +41,10 @@ describe('defineRoute', () => {
 
 describe('hasMenuHandle', () => {
   it('is true when any match in the chain declares a menu', () => {
-    const matches = [{ handle: {} }, { handle: { menu: 'home' } }, { handle: {} }];
+    const matches = [{ handle: {} }, { handle: { menu: true } }, { handle: {} }];
 
     expect(hasMenuHandle(matches)).toBe(true);
-    expect(hasMenuHandle([{ handle: { menu: 'submenu' } }])).toBe(true);
+    expect(hasMenuHandle([{ handle: { menu: true } }])).toBe(true);
   });
 
   it('is false with no handles or menu-less handles', () => {

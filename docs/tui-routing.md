@@ -42,9 +42,9 @@ tree consumed by the router.
 A shim's module may export `routeMeta: RouteHandle`
 (see `src/tui/shared/lib/route-tree.ts`). The generator attaches it to the
 route's `handle`, where the shell reads it at runtime — currently the
-`menu: 'home' | 'submenu'` hint that switches the footer between
-movement/select hints and back/quit-only hints. Omit `routeMeta` for
-command pages.
+`menu: true` flag, which marks the route as driving a menu screen and
+switches the footer to movement/select hints instead of back/quit-only.
+Omit `routeMeta` for command pages.
 
 ## Generated tree
 

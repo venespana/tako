@@ -10,9 +10,9 @@ import type { RouteObject } from 'react-router';
  * it to the RouteObject `handle`, where hooks read it at runtime via
  * useMatches(). Absent routeMeta means an empty handle. */
 export interface RouteHandle {
-  /** Which menu the screen drives: full movement/select footer hints are
-   * shown for routes declaring this; other screens get back/quit hints. */
-  menu?: 'home' | 'submenu';
+  /** Declares that this route drives a menu screen: full movement/select
+   * footer hints are shown; other screens get back/quit hints. */
+  menu?: true;
 }
 
 /** Structural subset of a react-router match used by handle-driven helpers

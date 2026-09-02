@@ -5,5 +5,5 @@ import type { RouteHandle } from '../../../shared/lib/route-tree.js';
 
 export default RemotesMenuPage;
 
-/** The remotes submenu drives the submenu list (full footer hints). */
-export const routeMeta = { menu: 'submenu' } satisfies RouteHandle;
+/** The remotes menu drives its subcommand list (full footer hints). */
+export const routeMeta = { menu: true } satisfies RouteHandle;

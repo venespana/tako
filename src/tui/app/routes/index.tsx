@@ -12,5 +12,5 @@ function HomeRoute(): React.ReactElement {
 
 export default HomeRoute;
 
-/** Home drives the home registry menu (full footer hints). */
-export const routeMeta = { menu: 'home' } satisfies RouteHandle;
+/** Home drives the registry menu (full footer hints). */
+export const routeMeta = { menu: true } satisfies RouteHandle;

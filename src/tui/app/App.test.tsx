@@ -13,6 +13,7 @@
 // Each press verifies its expected frame change and retries once if lost.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from 'ink-testing-library';
+import { pressAndSettle, settle, wait } from '../test-utils/ink-interactions.js';
 import App from './App.js';
 
 // Capture App's exit() calls so quit-key tests can assert on them without
@@ -28,45 +29,6 @@ vi.mock('ink', async importOriginal => {
 beforeEach(() => {
   exitMock.mockReset();
 });
-
-type RenderResult = ReturnType<typeof render>;
-
-const wait = (ms = 10) => new Promise(resolve => setTimeout(resolve, ms));
-
-/** Poll until predicate(frame) holds or the timeout elapses. */
-async function settle(
-  lastFrame: RenderResult['lastFrame'],
-  predicate: (frame: string) => boolean,
-  timeoutMs: number
-): Promise<string> {
-  let frame = lastFrame() ?? '';
-  for (let waited = 0; !predicate(frame) && waited < timeoutMs; waited += 10) {
-    await wait(10);
-    frame = lastFrame() ?? '';
-  }
-  return frame;
-}
-
-// Ink flushes a processed key within ~32ms (frame throttle); anything past
-// this means the key was dropped (pre-subscription window) and may be retried.
-const KEY_FLUSH_MS = 350;
-
-/** Write a key, waiting until the expected frame change is visible. A single
- * retry covers keys dropped before a freshly mounted page subscribed. Only
- * use with idempotent-in-context keys (navigation targets, no exit). */
-async function pressAndSettle(
-  stdin: RenderResult['stdin'],
-  lastFrame: RenderResult['lastFrame'],
-  key: string,
-  expectFrame: (frame: string) => boolean
-): Promise<string> {
-  let frame = '';
-  for (let attempt = 0; attempt < 2 && !expectFrame(frame); attempt++) {
-    stdin.write(key);
-    frame = await settle(lastFrame, expectFrame, KEY_FLUSH_MS);
-  }
-  return frame;
-}
 
 describe('App', () => {
   describe('initial render', () => {

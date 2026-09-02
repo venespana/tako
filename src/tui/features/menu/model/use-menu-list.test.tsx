@@ -7,6 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import { Text } from 'ink';
 
+import { KEY_FLUSH_MS, pressAndSettle, settle, wait } from '../../../test-utils/ink-interactions.js';
 import { useMenuList } from './use-menu-list.js';
 import type { UseMenuListOptions } from './use-menu-list.js';
 import type { ActionItem } from './menu-items.js';
@@ -16,39 +17,6 @@ const fakeItem = (id: string): ActionItem => ({ id, label: id, command: id, kind
 function Probe({ selectable, onSelect }: UseMenuListOptions): React.ReactElement {
   const { cursor } = useMenuList({ selectable, onSelect });
   return <Text>cursor={cursor}</Text>;
-}
-
-type RenderResult = ReturnType<typeof render>;
-
-const wait = (ms = 10) => new Promise(resolve => setTimeout(resolve, ms));
-
-/** Poll until predicate(frame) holds or the timeout elapses. */
-async function settle(
-  lastFrame: RenderResult['lastFrame'],
-  predicate: (frame: string) => boolean,
-  timeoutMs: number
-): Promise<string> {
-  let frame = lastFrame() ?? '';
-  for (let waited = 0; !predicate(frame) && waited < timeoutMs; waited += 10) {
-    await wait(10);
-    frame = lastFrame() ?? '';
-  }
-  return frame;
-}
-
-/** Write a key and wait until the expected frame change is visible. */
-async function pressAndSettle(
-  stdin: RenderResult['stdin'],
-  lastFrame: RenderResult['lastFrame'],
-  key: string,
-  expectFrame: (frame: string) => boolean
-): Promise<string> {
-  let frame = '';
-  for (let attempt = 0; attempt < 2 && !expectFrame(frame); attempt++) {
-    stdin.write(key);
-    frame = await settle(lastFrame, expectFrame, 350);
-  }
-  return frame;
 }
 
 const ITEMS = [fakeItem('a'), fakeItem('b'), fakeItem('c')];
@@ -106,7 +74,7 @@ describe('useMenuList', () => {
     expect(onSelect).toHaveBeenCalledWith(ITEMS[0]);
 
     stdin.write('j');
-    await settle(lastFrame, f => f.includes('cursor=1'), 350);
+    await settle(lastFrame, f => f.includes('cursor=1'), KEY_FLUSH_MS);
     stdin.write('l');
     await wait(50);
     expect(onSelect).toHaveBeenCalledTimes(2);
