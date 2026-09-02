@@ -24,13 +24,18 @@ src/
 │   ├── index.ts                # entry, parse argv
 │   └── commands/               # thin handlers: parse args → call use case → print
 └── tui/                        # TUI presentation (FSD)
-    ├── app/                    # App.tsx, providers, router, theme
+    ├── app/                    # App.tsx, app-router, generated route tree, providers
     ├── pages/                  # screens
     ├── widgets/                # composite blocks
     ├── features/               # user-facing actions UI
     ├── entities/               # entity views (React components)
     └── shared/                 # TUI-specific shared (theme tokens, nav)
 ```
+
+TUI routing is file-based: route shims live in `src/tui/app/routes/`
+(convention documented in [tui-routing.md](tui-routing.md))
+and are wired into `src/tui/app/routes.generated.ts` by
+`bun run generate:routes`.
 
 ## Dependency rules (strict)
 

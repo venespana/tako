@@ -6,6 +6,7 @@ Index of Tako's documentation.
 
 - [Architecture](architecture.md) — architectural philosophy, FSD + Clean Arch + shared kernel.
 - [Technical stack](stack.md) — Bun + TypeScript + Ink + React + dockerode + ssh2.
+- [TUI routing](tui-routing.md) — file-based route convention and generator.
 - [CLI spec](commands.md) — the 9 commands and their public contract.
 - [Testing strategy](testing.md) — co-located unit tests, integration and e2e separated.
 - [Distribution](distribution.md) — GitHub Releases + install.sh + npm.

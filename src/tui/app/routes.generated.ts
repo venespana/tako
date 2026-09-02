@@ -1,7 +1,9 @@
 // routes.generated.ts — GENERATED FILE, DO NOT EDIT.
 // Regenerate with: bun run generate:routes
-// Source of truth: the file convention in src/tui/routes/ (layout.tsx wraps its
-// siblings, index.tsx is the index route, other name.tsx are child routes).
+// Source of truth: the file convention in src/tui/app/routes/ (layout.tsx wraps its
+// siblings when present, index.tsx is the index route, other name.tsx are child
+// routes; subdirectories are module-less path prefixes unless they define a
+// layout.tsx).
 // Handles are read at runtime from each module's `routeMeta` export.
 import type { RouteObject } from 'react-router';
 
@@ -12,13 +14,12 @@ import * as route_layout from './routes/layout.js';
 import * as route_logs from './routes/logs.js';
 import * as route_remotes_add from './routes/remotes/add.js';
 import * as route_remotes_index from './routes/remotes/index.js';
-import * as route_remotes_layout from './routes/remotes/layout.js';
 import * as route_remotes_list from './routes/remotes/list.js';
 import * as route_remotes_rm from './routes/remotes/rm.js';
 import * as route_remotes_test from './routes/remotes/test.js';
 import * as route_remotes_use from './routes/remotes/use.js';
 import * as route_status from './routes/status.js';
-import { defineRoute } from './shared/lib/route-tree.js';
+import { defineRoute } from '../shared/lib/route-tree.js';
 
 export const routeTree: RouteObject[] = [
   defineRoute({
@@ -32,7 +33,6 @@ export const routeTree: RouteObject[] = [
       defineRoute({ path: 'status', module: route_status }),
       defineRoute({
         path: 'remotes',
-        module: route_remotes_layout,
         children: [
           defineRoute({ index: true, module: route_remotes_index }),
           defineRoute({ path: 'add', module: route_remotes_add }),

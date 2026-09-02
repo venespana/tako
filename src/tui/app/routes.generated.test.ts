@@ -1,11 +1,10 @@
 // routes.generated.test.ts — Structure guard for the generated route tree:
 // every route file must be wired with the right path, nesting, and handle.
-// The generator's pure build/emit functions are tested in
-// generate-routes.test.ts; this asserts the committed artifact.
+// This asserts the committed artifact produced by scripts/generate-routes.ts.
 import { describe, it, expect } from 'vitest';
 import type { RouteObject } from 'react-router';
 
-import { routeTree } from '../routes.generated.js';
+import { routeTree } from './routes.generated.js';
 
 function childByPath(route: RouteObject, path: string): RouteObject | undefined {
   return route.children?.find(child => !child.index && child.path === path);
@@ -32,8 +31,12 @@ describe('routeTree (generated)', () => {
     }
   });
 
-  it('nests the remotes index + five command children under the remotes layout', () => {
+  it('nests the remotes index + five command children under a module-less remotes prefix', () => {
     const remotes = childByPath(root, 'remotes');
+    // No layout.tsx in routes/remotes/ → path prefix without a module:
+    // no Component (react-router renders an implicit Outlet), no handle.
+    expect(remotes).toBeDefined();
+    expect(remotes?.Component).toBeUndefined();
     const children = remotes?.children ?? [];
     expect(children.find(child => child.index)).toBeDefined();
     expect(children.filter(child => !child.index).map(child => child.path)).toEqual([
@@ -52,10 +55,11 @@ describe('routeTree (generated)', () => {
     const index = root.children?.find(child => child.index);
     expect(index?.handle).toEqual({ menu: 'home' });
 
-    // The remotes layout is a passthrough; the submenu flag lives on the
-    // '/remotes' index page. Command pages carry no handle at all.
+    // The '/remotes' prefix is module-less (no handle of its own); the
+    // submenu flag lives on the '/remotes' index page. Command pages
+    // carry no handle at all.
     const remotes = childByPath(root, 'remotes');
-    expect(remotes?.handle).toEqual({});
+    expect(remotes?.handle).toBeUndefined();
     const remotesIndex = remotes?.children?.find(child => child.index);
     expect(remotesIndex?.handle).toEqual({ menu: 'submenu' });
     for (const child of remotes?.children?.filter(child => !child.index) ?? []) {

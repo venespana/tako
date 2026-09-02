@@ -4,7 +4,7 @@
 // which also keeps tests isolated by construction.
 import { createMemoryRouter } from 'react-router';
 
-import { routeTree } from '../routes.generated.js';
+import { routeTree } from './routes.generated.js';
 
 export function createAppRouter(): ReturnType<typeof createMemoryRouter> {
   return createMemoryRouter(routeTree, { initialEntries: ['/'] });

@@ -21,9 +21,9 @@ export interface RouteMatchLike {
   handle?: unknown;
 }
 
-/** What every route module in src/tui/routes/ exports: the component (the
- * generated tree mounts it) plus optional metadata. The generated file uses
- * namespace imports so both exports are reachable at runtime. */
+/** What every route module in src/tui/app/routes/ exports: the component
+ * (the generated tree mounts it) plus optional metadata. The generated file
+ * uses namespace imports so both exports are reachable at runtime. */
 export interface RouteModule {
   default: ComponentType<unknown>;
   routeMeta?: RouteHandle;
@@ -34,16 +34,25 @@ export interface DefineRouteOptions {
   path?: string;
   /** Index route: renders at the parent layout's exact path. */
   index?: true;
-  module: RouteModule;
+  /** Route module. Absent for module-less path-prefix parents
+   * (subdirectories without a layout.tsx): the route gets no Component —
+   * react-router renders an implicit Outlet for element-less parents —
+   * and no handle. */
+  module?: RouteModule;
   children?: RouteObject[];
 }
 
 /** Build one RouteObject from a route module: eager component, runtime
- * handle from the module's routeMeta ({} when absent), optional children. */
+ * handle from the module's routeMeta ({} when absent), optional children.
+ * With module absent, the route is a bare path prefix: children only, no
+ * Component (react-router renders an implicit Outlet for element-less
+ * parents) and no handle. */
 export function defineRoute({ path, index, module, children }: DefineRouteOptions): RouteObject {
   const route: RouteObject = index ? { index: true } : { path };
-  route.Component = module.default;
-  route.handle = module.routeMeta ?? {};
+  if (module !== undefined) {
+    route.Component = module.default;
+    route.handle = module.routeMeta ?? {};
+  }
   if (children !== undefined) route.children = children;
   return route;
 }

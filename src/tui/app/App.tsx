@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { RouterProvider } from 'react-router';
 
 import { createAppRouter } from './app-router.js';
-import { AppRuntimeContext } from './app-runtime.js';
+import { AppRuntimeContext } from './providers/app-runtime.js';
 
 export interface AppProps {
   /** Whether a remote is currently configured. */

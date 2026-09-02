@@ -1,4 +1,4 @@
-// use-global-keys.ts — App-layer hook owning the TUI's global keyboard
+// use-global-keys.ts — Shared-layer hook owning the TUI's global keyboard
 // model: quit (q / Ctrl-C) and linear back (h/Esc/⌫). Menu cursors and
 // selection live in the menu pages via useMenuList; nothing here knows about
 // menus. Consumed by AppShell; router state comes from the react-router data

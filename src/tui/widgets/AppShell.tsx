@@ -1,18 +1,18 @@
-// AppShell.tsx — Root layout route component: the persistent chrome. The
+// AppShell.tsx — Root layout widget: the persistent chrome. The
 // ASCII logo header is ALWAYS rendered (the old showLogo policy is gone),
 // the matched route renders exactly one screen in the Outlet, and the
 // footer shows the contextual key hints plus the version. Global keys
 // (quit/back) are wired here; everything screen-specific lives in pages.
-// The router renders it via routes/layout.tsx.
+// The router renders it via app/routes/layout.tsx.
 import { Box } from 'ink';
 
 import { Outlet, useMatches } from 'react-router';
 
-import { useGlobalKeys } from './use-global-keys.js';
+import { KeyHints } from './KeyHints.js';
+import { Logo } from './Logo.js';
+import { VersionBar } from './VersionBar.js';
 import { hasMenuHandle } from '../shared/lib/route-tree.js';
-import { KeyHints } from '../widgets/KeyHints.js';
-import { Logo } from '../widgets/Logo.js';
-import { VersionBar } from '../widgets/VersionBar.js';
+import { useGlobalKeys } from '../shared/lib/use-global-keys.js';
 
 export function AppShell(): React.ReactElement {
   useGlobalKeys();

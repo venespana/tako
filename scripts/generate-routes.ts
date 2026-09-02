@@ -1,19 +1,24 @@
 #!/usr/bin/env bun
 // scripts/generate-routes.ts — Codegen for the file-based route convention.
 //
-// Scans src/tui/routes/ and emits src/tui/routes.generated.ts: a typed
-// react-router RouteObject[] that is committed to the repo (like TanStack's
-// routeTree.gen.ts). Convention:
-//   - layout.tsx  → layout route wrapping its sibling routes
+// Scans src/tui/app/routes/ and emits src/tui/app/routes.generated.ts:
+// a typed react-router RouteObject[] that is committed to the repo (like
+// TanStack's routeTree.gen.ts). Convention:
+//   - layout.tsx  → layout route wrapping its sibling routes; optional per
+//                   directory — required only when the path prefix needs
+//                   shared chrome (the root layout.tsx wraps the whole app
+//                   in the AppShell and stays)
 //   - index.tsx   → index route at its layout's exact path
 //   - name.tsx    → child route at /<dir>/name
-//   - every subdirectory must define a layout.tsx
+//   - subdirectories map to nested path prefixes: a module-less parent
+//     node (no import, react-router renders an implicit Outlet) unless
+//     the subdirectory defines a layout.tsx (module-backed parent)
 //
 // Deterministic and idempotent: the scan is sorted and both the tree
-// building and the emission are pure functions (unit-tested in
-// src/tui/app/generate-routes.test.ts). Handles are NOT baked in here: the
-// generated file uses namespace imports and defineRoute reads each module's
-// `routeMeta` export at runtime.
+// building and the emission are pure functions. Handles are NOT baked in
+// here: the generated file uses namespace imports and defineRoute reads
+// each module's `routeMeta` export at runtime. The committed artifact is
+// structure-guarded by src/tui/app/routes.generated.test.ts.
 //
 // Run: bun run generate:routes
 
@@ -26,14 +31,17 @@ export interface RouteSpec {
   path?: string;
   /** Index route: renders at the parent layout's exact path. */
   index?: true;
-  /** Import specifier of the route module, relative to src/tui/. */
-  importPath: string;
+  /** Import specifier of the route module, relative to the output file
+   * (the generated file sits in src/tui/app/, the route shims in
+   * src/tui/app/routes/). Absent for subdirectories without a layout.tsx:
+   * they become module-less path-prefix parents. */
+  importPath?: string;
   /** Child routes nested under this layout route. */
   children?: RouteSpec[];
 }
 
-const ROUTES_DIR = join('src', 'tui', 'routes');
-const OUTPUT_FILE = join('src', 'tui', 'routes.generated.ts');
+const ROUTES_DIR = join('src', 'tui', 'app', 'routes');
+const OUTPUT_FILE = join('src', 'tui', 'app', 'routes.generated.ts');
 
 /** Collect route .tsx files under routesDir ('/'-separated, relative, sorted,
  * test files excluded). Bun-only: called from the CLI entry, never imported
@@ -75,8 +83,8 @@ function directSubdirs(byDir: Map<string, string[]>, dir: string): string[] {
 }
 
 /** Children of one directory: file routes first (index route first, then
- * alphabetical), then subdirectories (alphabetical, each wrapped by its
- * layout.tsx). */
+ * alphabetical), then subdirectories (alphabetical, each either wrapped by
+ * its layout.tsx or emitted as a module-less path-prefix parent). */
 function buildChildren(byDir: Map<string, string[]>, dir: string): RouteSpec[] {
   const own = byDir.get(dir) ?? [];
   const children: RouteSpec[] = [];
@@ -97,15 +105,12 @@ function buildChildren(byDir: Map<string, string[]>, dir: string): RouteSpec[] {
   }
 
   for (const sub of directSubdirs(byDir, dir)) {
-    if (!(byDir.get(sub) ?? []).includes('layout.tsx')) {
-      throw new Error(`src/tui/routes/${sub}/ has no layout.tsx — the route convention requires one per directory`);
-    }
     const segment = sub.slice(sub.lastIndexOf('/') + 1);
-    children.push({
-      path: segment,
-      importPath: `./routes/${sub}/layout.js`,
-      children: buildChildren(byDir, sub),
-    });
+    const spec: RouteSpec = { path: segment, children: buildChildren(byDir, sub) };
+    if ((byDir.get(sub) ?? []).includes('layout.tsx')) {
+      spec.importPath = `./routes/${sub}/layout.js`;
+    }
+    children.push(spec);
   }
 
   return children;
@@ -125,7 +130,7 @@ export function buildRouteTree(files: string[]): RouteSpec[] {
 /** Stable variable name for a route module import:
  * './routes/remotes/list.js' → 'route_remotes_list'. */
 function moduleVar(importPath: string): string {
-  const name = importPath.replace('./routes/', '').replace(/\.js$/, '');
+  const name = importPath.replace(/^\.\/routes\//, '').replace(/\.js$/, '');
   return `route_${name.replaceAll(/[^a-zA-Z0-9]/g, '_')}`;
 }
 
@@ -133,23 +138,25 @@ function moduleVar(importPath: string): string {
 function collectImports(specs: RouteSpec[]): string[] {
   const paths: string[] = [];
   for (const spec of specs) {
-    paths.push(spec.importPath);
+    if (spec.importPath !== undefined) paths.push(spec.importPath);
     if (spec.children !== undefined) paths.push(...collectImports(spec.children));
   }
   return [...new Set(paths)].sort();
 }
 
-/** Emit the defineRoute call for one spec (prettier-shaped, es5 commas). */
+/** Emit the defineRoute call for one spec (prettier-shaped, es5 commas).
+ * Module-less specs (subdirectories without layout.tsx) emit path/index +
+ * children only — no module reference. */
 function emitSpec(spec: RouteSpec, indent: string): string[] {
   const selector = spec.index ? 'index: true' : `path: '${spec.path}'`;
-  const moduleRef = moduleVar(spec.importPath);
+  const moduleRef = spec.importPath !== undefined ? moduleVar(spec.importPath) : undefined;
   if (spec.children === undefined) {
     return [`${indent}defineRoute({ ${selector}, module: ${moduleRef} }),`];
   }
   return [
     `${indent}defineRoute({`,
     `${indent}  ${selector},`,
-    `${indent}  module: ${moduleRef},`,
+    ...(moduleRef === undefined ? [] : [`${indent}  module: ${moduleRef},`]),
     `${indent}  children: [`,
     ...emitSpecs(spec.children, `${indent}    `),
     `${indent}  ],`,
@@ -161,21 +168,41 @@ function emitSpecs(specs: RouteSpec[], indent: string): string[] {
   return specs.flatMap(spec => emitSpec(spec, indent));
 }
 
+/** Sort import specifiers segment-wise, mirroring eslint-plugin-import-x's
+ * alphabetize comparator ('../' parent paths sort after './' siblings, then
+ * by segment, then by depth) so the generated file stays lint-clean. */
+function byEslintImportOrder(a: string, b: string): number {
+  const segmentsA = a.split('/');
+  const segmentsB = b.split('/');
+  for (let i = 0; i < Math.min(segmentsA.length, segmentsB.length); i++) {
+    const x = segmentsA[i]!;
+    const y = segmentsB[i]!;
+    const bothRelativeDots = (x === '.' || x === '..') && (y === '.' || y === '..');
+    if (bothRelativeDots && x !== y) break;
+    if (!bothRelativeDots && x !== y) return x < y ? -1 : 1;
+  }
+  return segmentsA.length - segmentsB.length;
+}
+
 /** Pure: emit the full generated module text for a route spec tree. */
 export function emitRouteModule(specs: RouteSpec[]): string {
-  const defineRoutePath = './shared/lib/route-tree.js';
+  // The generated file sits in src/tui/app/, one level below src/tui/shared/.
+  const defineRoutePath = '../shared/lib/route-tree.js';
   const lines: string[] = [
     '// routes.generated.ts — GENERATED FILE, DO NOT EDIT.',
     '// Regenerate with: bun run generate:routes',
-    '// Source of truth: the file convention in src/tui/routes/ (layout.tsx wraps its',
-    '// siblings, index.tsx is the index route, other name.tsx are child routes).',
+    '// Source of truth: the file convention in src/tui/app/routes/ (layout.tsx wraps its',
+    '// siblings when present, index.tsx is the index route, other name.tsx are child',
+    '// routes; subdirectories are module-less path prefixes unless they define a',
+    '// layout.tsx).',
     "// Handles are read at runtime from each module's `routeMeta` export.",
     "import type { RouteObject } from 'react-router';",
     '',
-    // Internal imports sorted by specifier: route modules use namespace
-    // imports (default + routeMeta must both be reachable at runtime)
+    // Internal imports sorted by specifier (eslint import-x/order shape):
+    // route modules use namespace imports (default + routeMeta must both
+    // be reachable at runtime)
     ...[...collectImports(specs), defineRoutePath]
-      .sort()
+      .sort(byEslintImportOrder)
       .map(path =>
         path === defineRoutePath
           ? `import { defineRoute } from '${path}';`
