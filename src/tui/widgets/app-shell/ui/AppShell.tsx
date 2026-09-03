@@ -11,8 +11,8 @@ import { Outlet, useMatches } from 'react-router';
 import { KeyHints } from './KeyHints.js';
 import { Logo } from './Logo.js';
 import { VersionBar } from './VersionBar.js';
-import { hasMenuHandle } from '../shared/lib/route-tree.js';
-import { useGlobalKeys } from '../shared/lib/use-global-keys.js';
+import { hasMenuHandle } from '../../../shared/lib/route-tree.js';
+import { useGlobalKeys } from '../../../shared/lib/use-global-keys.js';
 
 export function AppShell(): React.ReactElement {
   useGlobalKeys();

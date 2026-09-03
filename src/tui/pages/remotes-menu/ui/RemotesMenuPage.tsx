@@ -8,7 +8,7 @@ import { useMemo } from 'react';
 import { Box } from 'ink';
 
 import { useMenuList, useMenuNavigation } from '../../../features/menu/index.js';
-import { ActionMenu } from '../../../widgets/ActionMenu.js';
+import { ActionMenu } from '../../../widgets/action-menu/index.js';
 import { getRemotesMenu } from '../model/remotes-menu.js';
 
 export function RemotesMenuPage(): React.ReactElement {
@@ -22,12 +22,15 @@ export function RemotesMenuPage(): React.ReactElement {
 
   const { cursor } = useMenuList({ selectable: menu.selectable, onSelect: handleSelect });
 
+  // The widget matches focus by id — map the controller's cursor index here.
+  const focusedId = menu.selectable[cursor]?.id;
+
   return (
     <Box flexDirection='column' alignItems='flex-start' paddingLeft={2}>
       {/* 2-line spacer under the logo */}
       <Box height={2} />
 
-      <ActionMenu groups={menu.groups} selectable={menu.selectable} cursor={cursor} />
+      <ActionMenu groups={menu.groups} focusedId={focusedId} />
     </Box>
   );
 }

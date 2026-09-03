@@ -7,7 +7,7 @@ import { useMemo } from 'react';
 import { Box } from 'ink';
 
 import { useMenuList, useMenuNavigation } from '../../../features/menu/index.js';
-import { ActionMenu } from '../../../widgets/ActionMenu.js';
+import { ActionMenu } from '../../../widgets/action-menu/index.js';
 import { getHomeMenu } from '../model/home-menu.js';
 
 export interface HomePageProps {
@@ -25,6 +25,9 @@ export function HomePage({ hasActiveRemote }: HomePageProps): React.ReactElement
 
   const { cursor } = useMenuList({ selectable, onSelect: handleSelect });
 
+  // The widget matches focus by id — map the controller's cursor index here.
+  const focusedId = selectable[cursor]?.id;
+
   return (
     // flexGrow is owned by the shell's Outlet box; this page only lays out
     // its own content inside it.
@@ -32,7 +35,7 @@ export function HomePage({ hasActiveRemote }: HomePageProps): React.ReactElement
       {/* 2-line spacer under the logo */}
       <Box height={2} />
 
-      <ActionMenu groups={groups} selectable={selectable} cursor={cursor} />
+      <ActionMenu groups={groups} focusedId={focusedId} />
     </Box>
   );
 }

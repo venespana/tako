@@ -1,7 +1,8 @@
-// menu-navigation.ts — Pure navigation functions for the menu feature.
+// menu-navigation.ts — Pure menu-state functions for the menu feature:
+// enablement gating (getSelectable / withEnablement) and cursor movement.
 // These are pure (no side effects, no React hooks) making them trivial to unit-test.
 
-import type { ActionGroup, ActionItem } from './menu-items.js';
+import type { ActionGroup, ActionItem, RenderableActionGroup } from './menu-items.js';
 
 /** Returns the selectable ActionItems for the menu.
  * Submenu parent items (kind === 'submenu') ARE included in the flat selectable list
@@ -16,6 +17,19 @@ export function getSelectable(groups: ActionGroup[], hasActiveRemote: boolean): 
     }
   }
   return selectable;
+}
+
+/** Map groups + their gated selectable list to render-ready groups where each
+ * item carries `enabled`. This is the single place the enablement rule is
+ * evaluated for rendering — widgets receive the flag and stay free of menu
+ * semantics. Pure: returns fresh objects (the registry stays frozen). */
+export function withEnablement(groups: ActionGroup[], selectable: ActionItem[]): RenderableActionGroup[] {
+  const selectableIds = new Set(selectable.map(item => item.id));
+  return groups.map(group => ({
+    id: group.id,
+    label: group.label,
+    items: group.items.map(item => ({ ...item, enabled: selectableIds.has(item.id) })),
+  }));
 }
 
 /** Moves the cursor by `dir` (+1 = down, -1 = up), wrapping at boundaries.
