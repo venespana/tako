@@ -1,8 +1,26 @@
 // infrastructure/Ssh2ConnectionTester.test.ts — STRICT TDD RED phase
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import type { SshTestConfig } from '../domain/types.js';
-import * as fs from 'node:fs';
-import * as os from 'node:os';
+import { readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+
+// Partial module mocks (ESM namespaces are non-configurable, so vi.spyOn
+// cannot intercept them — and the SUT's named imports could never be spied).
+// Per-test behavior is configured via vi.mocked(); reset in afterEach.
+vi.mock('node:fs', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return { ...actual, readFileSync: vi.fn() };
+});
+
+vi.mock('node:os', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:os')>();
+  return { ...actual, homedir: vi.fn() };
+});
+
+afterEach(() => {
+  vi.mocked(readFileSync).mockReset();
+  vi.mocked(homedir).mockReset();
+});
 
 // RED: import the class that doesn't exist yet
 import { Ssh2ConnectionTester } from './Ssh2ConnectionTester.js';
@@ -187,22 +205,20 @@ describe('Ssh2ConnectionTester', () => {
 
       tester.test(config);
 
-      await new Promise((r) => setImmediate(r));
+      await new Promise(r => setImmediate(r));
 
       expect(mockClient.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           password: 'hunter2',
-        }),
+        })
       );
     });
 
     it('4.5 RED: key auth reads key file and passes content to connect', async () => {
-      // Spy on readFileSync and homedir
-      const readFileSpy = vi.spyOn(fs, 'readFileSync');
-      const homedirSpy = vi.spyOn(os, 'homedir');
-
-      readFileSpy.mockReturnValue('-----BEGIN OPENSSH PRIVATE KEY-----\ntest-key-content\n-----END OPENSSH PRIVATE KEY-----');
-      homedirSpy.mockReturnValue('/home/ops');
+      vi.mocked(readFileSync).mockReturnValue(
+        '-----BEGIN OPENSSH PRIVATE KEY-----\ntest-key-content\n-----END OPENSSH PRIVATE KEY-----'
+      );
+      vi.mocked(homedir).mockReturnValue('/home/ops');
 
       const mockClient = {
         once: vi.fn(() => mockClient),
@@ -221,24 +237,20 @@ describe('Ssh2ConnectionTester', () => {
 
       tester.test(config);
 
-      await new Promise((r) => setImmediate(r));
+      await new Promise(r => setImmediate(r));
 
       expect(mockClient.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           privateKey: '-----BEGIN OPENSSH PRIVATE KEY-----\ntest-key-content\n-----END OPENSSH PRIVATE KEY-----',
-        }),
+        })
       );
-
-      readFileSpy.mockRestore();
-      homedirSpy.mockRestore();
     });
 
     it('4.5 RED: key auth with ~/ expands to home directory', async () => {
-      const readFileSpy = vi.spyOn(fs, 'readFileSync');
-      const homedirSpy = vi.spyOn(os, 'homedir');
-
-      readFileSpy.mockReturnValue('-----BEGIN OPENSSH PRIVATE KEY-----\ntest-key\n-----END OPENSSH PRIVATE KEY-----');
-      homedirSpy.mockReturnValue('/home/ops');
+      vi.mocked(readFileSync).mockReturnValue(
+        '-----BEGIN OPENSSH PRIVATE KEY-----\ntest-key\n-----END OPENSSH PRIVATE KEY-----'
+      );
+      vi.mocked(homedir).mockReturnValue('/home/ops');
 
       const mockClient = {
         once: vi.fn(() => mockClient),
@@ -257,13 +269,10 @@ describe('Ssh2ConnectionTester', () => {
 
       tester.test(config);
 
-      await new Promise((r) => setImmediate(r));
+      await new Promise(r => setImmediate(r));
 
-      expect(readFileSpy).toHaveBeenCalledWith('/home/ops/.ssh/id_rsa', 'utf8');
-      expect(homedirSpy).toHaveBeenCalled();
-
-      readFileSpy.mockRestore();
-      homedirSpy.mockRestore();
+      expect(readFileSync).toHaveBeenCalledWith('/home/ops/.ssh/id_rsa', 'utf8');
+      expect(homedir).toHaveBeenCalled();
     });
 
     it('4.5 RED: readyTimeout is set to 10_000', async () => {
@@ -284,12 +293,12 @@ describe('Ssh2ConnectionTester', () => {
 
       tester.test(config);
 
-      await new Promise((r) => setImmediate(r));
+      await new Promise(r => setImmediate(r));
 
       expect(mockClient.connect).toHaveBeenCalledWith(
         expect.objectContaining({
           readyTimeout: 10_000,
-        }),
+        })
       );
     });
 
