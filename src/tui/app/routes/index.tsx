@@ -1,13 +1,14 @@
-// routes/index.tsx — Route shim for '/': adapts the app runtime's
-// hasActiveRemote flag into HomePage's prop, keeping the page free of
-// app-layer imports (FSD). Menu cursor/select live inside HomePage itself.
+// routes/index.tsx — Route shim for '/': adapts the app runtime's session
+// state into HomePage's prop (activeRemote → hasActiveRemote), keeping the
+// page free of app-layer imports (FSD). Consuming the context here means
+// selecting a remote re-renders the home menu with gated items live.
 import { HomePage } from '../../pages/home/index.js';
 import type { RouteHandle } from '../../shared/lib/route-tree.js';
 import { useAppRuntime } from '../providers/app-runtime.js';
 
 function HomeRoute(): React.ReactElement {
-  const { hasActiveRemote } = useAppRuntime();
-  return <HomePage hasActiveRemote={hasActiveRemote} />;
+  const { activeRemote } = useAppRuntime();
+  return <HomePage hasActiveRemote={activeRemote !== undefined} />;
 }
 
 export default HomeRoute;

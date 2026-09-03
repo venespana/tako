@@ -1,6 +1,6 @@
 // ConfRemoteRepository.ts — INFRASTRUCTURE adapter (sole conf consumer for remotes)
 import type { RemoteRepository } from '../application/RemoteRepository.js';
-import type { Remote } from '../domain/types.js';
+import type { Remote, RemoteSummary } from '../domain/types.js';
 
 const NAMESPACE = 'remotes';
 
@@ -41,5 +41,16 @@ export class ConfRemoteRepository implements RemoteRepository {
   async save(remote: Remote): Promise<void> {
     const conf = this.getConf();
     conf.set(`${NAMESPACE}.${remote.name}`, remote);
+  }
+
+  async list(): Promise<RemoteSummary[]> {
+    const conf = this.getConf();
+    const remotes = conf.get(NAMESPACE) as Record<string, Remote> | undefined;
+    if (!remotes) return [];
+
+    // Sorted by name so the selection list is stable across sessions.
+    return Object.values(remotes)
+      .map(remote => ({ name: remote.name, endpoint: `${remote.username}@${remote.host}:${remote.port}` }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 }

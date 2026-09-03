@@ -193,4 +193,55 @@ describe('ConfRemoteRepository', () => {
       expect(store.remotes).not.toHaveProperty('other');
     });
   });
+
+  describe('list', () => {
+    it('returns name + endpoint summaries sorted by name', async () => {
+      const mockConf = createMockConf({
+        remotes: {
+          webserver: {
+            name: 'webserver',
+            type: 'ssh',
+            username: 'admin',
+            host: '10.0.0.10',
+            port: 2222,
+            credentialType: 'ssh-key',
+            keyPath: '/home/admin/.ssh/id_rsa',
+          },
+          nas: baseRemote,
+        },
+      });
+
+      const repo = new ConfRemoteRepository(mockConf as unknown as RemoteRepository);
+
+      const summaries = await repo.list();
+
+      expect(summaries).toEqual([
+        { name: 'nas', endpoint: 'ops@10.0.0.5:22' },
+        { name: 'webserver', endpoint: 'admin@10.0.0.10:2222' },
+      ]);
+    });
+
+    it('returns an empty list when no remotes are configured', async () => {
+      const mockConf = createMockConf({});
+
+      const repo = new ConfRemoteRepository(mockConf as unknown as RemoteRepository);
+
+      const summaries = await repo.list();
+
+      expect(summaries).toEqual([]);
+    });
+
+    it('does not leak stored credentials into summaries', async () => {
+      const mockConf = createMockConf({
+        remotes: { nas: baseRemote },
+      });
+
+      const repo = new ConfRemoteRepository(mockConf as unknown as RemoteRepository);
+
+      const summaries = await repo.list();
+
+      expect(summaries[0]).not.toHaveProperty('obfuscatedPassword');
+      expect(JSON.stringify(summaries)).not.toContain('encrypted-hunter2');
+    });
+  });
 });

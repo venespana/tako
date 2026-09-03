@@ -9,10 +9,7 @@ import { CheckDuplicateRemote } from './CheckDuplicateRemote.js';
 describe('CheckDuplicateRemote', () => {
   // 5 scenarios from task 3.1
 
-  function fakeRepo(opts: {
-    nameExists?: boolean;
-    endpointExists?: boolean;
-  }): RemoteRepository {
+  function fakeRepo(opts: { nameExists?: boolean; endpointExists?: boolean }): RemoteRepository {
     return {
       existsByName: vi.fn(async (name: string) => {
         return opts.nameExists ?? false;
@@ -21,6 +18,7 @@ describe('CheckDuplicateRemote', () => {
         return opts.endpointExists ?? false;
       }),
       save: vi.fn(async () => {}),
+      list: vi.fn(async () => []),
     };
   }
 

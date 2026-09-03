@@ -21,6 +21,13 @@ export interface Remote {
   readonly keyPath?: string;
 }
 
+/** Minimal read model for listing remotes (no credentials leak to the UI). */
+export interface RemoteSummary {
+  readonly name: string;
+  /** user@host:port */
+  readonly endpoint: string;
+}
+
 // ---------------------------------------------------------------------------
 // Draft (in-flight, before persistence)
 // ---------------------------------------------------------------------------

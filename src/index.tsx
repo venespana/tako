@@ -15,7 +15,7 @@ if (process.argv.length <= 2) {
   const { default: App } = await import('./tui/app/App.js');
   // alternateScreen: render on a separate screen buffer (like vim/htop).
   // No scrollback pollution while running; original terminal content restored on exit.
-  const instance = render(<App hasActiveRemote={false} />, {
+  const instance = render(<App />, {
     alternateScreen: true,
   });
   await instance.waitUntilExit();

@@ -11,7 +11,7 @@ import { ActionMenu } from '../../../widgets/action-menu/index.js';
 import { getHomeMenu } from '../model/home-menu.js';
 
 export interface HomePageProps {
-  /** Whether a remote is currently configured (gates hasActiveRemote items). */
+  /** Whether a remote is selected this session (gates hasActiveRemote items). */
   hasActiveRemote: boolean;
 }
 

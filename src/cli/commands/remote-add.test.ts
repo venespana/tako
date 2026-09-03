@@ -30,10 +30,14 @@ describe('runRemoteAdd exit codes', () => {
     (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ saved: true });
 
     const exitCode = await runRemoteAdd({
-      checkDuplicate: { check: vi.fn() } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
-      validateConnection: { validate: vi.fn() } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
+      checkDuplicate: {
+        check: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
+      validateConnection: {
+        validate: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(0);
@@ -42,13 +46,20 @@ describe('runRemoteAdd exit codes', () => {
   // (b) duplicate → exit code 1
   it('5.2 RED: duplicate → exit code 1', async () => {
     const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
-    (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ saved: false, reason: 'duplicate' });
+    (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      saved: false,
+      reason: 'duplicate',
+    });
 
     const exitCode = await runRemoteAdd({
-      checkDuplicate: { check: vi.fn() } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
-      validateConnection: { validate: vi.fn() } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
+      checkDuplicate: {
+        check: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
+      validateConnection: {
+        validate: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(1);
@@ -57,13 +68,20 @@ describe('runRemoteAdd exit codes', () => {
   // (c) validation → exit code 1
   it('5.2 RED: validation failure → exit code 1', async () => {
     const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
-    (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ saved: false, reason: 'validation' });
+    (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      saved: false,
+      reason: 'validation',
+    });
 
     const exitCode = await runRemoteAdd({
-      checkDuplicate: { check: vi.fn() } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
-      validateConnection: { validate: vi.fn() } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
+      checkDuplicate: {
+        check: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
+      validateConnection: {
+        validate: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(1);
@@ -72,13 +90,20 @@ describe('runRemoteAdd exit codes', () => {
   // (d) hostkey → exit code 1
   it('5.2 RED: hostkey declined → exit code 1', async () => {
     const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
-    (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ saved: false, reason: 'hostkey' });
+    (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      saved: false,
+      reason: 'hostkey',
+    });
 
     const exitCode = await runRemoteAdd({
-      checkDuplicate: { check: vi.fn() } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
-      validateConnection: { validate: vi.fn() } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
+      checkDuplicate: {
+        check: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
+      validateConnection: {
+        validate: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(1);
@@ -87,13 +112,20 @@ describe('runRemoteAdd exit codes', () => {
   // (e) abort → exit code 1
   it('5.2 RED: abort → exit code 1', async () => {
     const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
-    (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ saved: false, reason: 'abort' });
+    (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      saved: false,
+      reason: 'abort',
+    });
 
     const exitCode = await runRemoteAdd({
-      checkDuplicate: { check: vi.fn() } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
-      validateConnection: { validate: vi.fn() } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
+      checkDuplicate: {
+        check: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
+      validateConnection: {
+        validate: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(1);
@@ -102,13 +134,19 @@ describe('runRemoteAdd exit codes', () => {
   // (f) unexpected throw → exit code 2
   it('5.2 RED: unexpected throw → exit code 2', async () => {
     const runAddRemoteWizard = await import('../../tui/features/remotes/add-remote-wizard/index.js');
-    (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('unexpected internal error'));
+    (runAddRemoteWizard.runAddRemoteWizard as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error('unexpected internal error')
+    );
 
     const exitCode = await runRemoteAdd({
-      checkDuplicate: { check: vi.fn() } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
-      validateConnection: { validate: vi.fn() } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
+      checkDuplicate: {
+        check: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/CheckDuplicateRemote.js').CheckDuplicateRemote,
+      validateConnection: {
+        validate: vi.fn(),
+      } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(2);

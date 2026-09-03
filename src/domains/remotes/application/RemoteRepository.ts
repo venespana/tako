@@ -1,5 +1,5 @@
 // RemoteRepository.ts — PORT interface (application layer owns this)
-import type { Remote } from '../domain/types.js';
+import type { Remote, RemoteSummary } from '../domain/types.js';
 
 /** Port: persistence for remote connections */
 export interface RemoteRepository {
@@ -9,4 +9,6 @@ export interface RemoteRepository {
   existsByEndpoint(endpoint: string): Promise<boolean>;
   /** Persist a remote (caller is responsible for ensuring no duplicates) */
   save(remote: Remote): Promise<void>;
+  /** List all configured remotes (name + endpoint only, sorted by name) */
+  list(): Promise<RemoteSummary[]>;
 }
