@@ -5,9 +5,9 @@ import { useEffect } from 'react';
 
 import { Box, Text, useInput } from 'ink';
 
+import { DoctorToolLine } from './DoctorToolLine.js';
 import type { SystemCheckResult } from '../../../../domains/system/domain/types.js';
 import { useDoctorCheck } from '../model/use-doctor-check.js';
-import { DoctorToolLine } from './DoctorToolLine.js';
 
 export type DoctorScreenProps = {
   /** Async check function — typically CheckHostDependencies.checkAll(). */
@@ -24,7 +24,7 @@ export type DoctorScreenProps = {
 
 function CheckingState(): React.ReactElement {
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box flexDirection='column' padding={1}>
       <Text>Checking host dependencies...</Text>
     </Box>
   );
@@ -33,8 +33,8 @@ function CheckingState(): React.ReactElement {
 function ErrorState({ error }: { error: unknown }): React.ReactElement {
   const message = error instanceof Error ? error.message : String(error);
   return (
-    <Box flexDirection="column" padding={1}>
-      <Text color="red">Error: {message}</Text>
+    <Box flexDirection='column' padding={1}>
+      <Text color='red'>Error: {message}</Text>
     </Box>
   );
 }
@@ -71,7 +71,7 @@ export function DoctorScreen({ runCheck, onComplete, onError }: DoctorScreenProp
 
   if (status.status === 'error') {
     return (
-      <Box flexDirection="column">
+      <Box flexDirection='column'>
         <ErrorState error={status.error} />
         {isStandalone && <StandaloneWaiter onConfirm={recheck} />}
       </Box>
@@ -82,7 +82,7 @@ export function DoctorScreen({ runCheck, onComplete, onError }: DoctorScreenProp
   const { result } = status;
 
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box flexDirection='column' padding={1}>
       {result.results.map(r => (
         <DoctorToolLine key={r.tool} result={r} />
       ))}

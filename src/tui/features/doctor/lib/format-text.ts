@@ -13,9 +13,12 @@ const TOOL_LABELS: Record<string, string> = {
   'docker-compose': 'docker compose',
 };
 
-function computeStatus(
-  result: SystemCheckResult,
-): { passed: number; failed: number; warnings: number; status: 'Ok' | 'Failed' | 'Degraded' } {
+function computeStatus(result: SystemCheckResult): {
+  passed: number;
+  failed: number;
+  warnings: number;
+  status: 'Ok' | 'Failed' | 'Degraded';
+} {
   const passed = result.results.filter(r => r.status === 'found').length;
   const failed = result.results.filter(r => r.status === 'not-found').length;
   const warnings = result.results.filter(r => r.status === 'found' && !r.version).length;

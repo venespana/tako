@@ -1,6 +1,7 @@
 // tui/features/doctor/ui/DoctorToolLine.tsx — Single tool status line.
 // Shows green check or red X with tool name and version.
 import { Text } from 'ink';
+
 import type { ToolCheckResult } from '../../../../domains/system/domain/types.js';
 
 const TOOL_LABELS: Record<string, string> = {
@@ -21,7 +22,7 @@ export function DoctorToolLine({ result }: DoctorToolLineProps): React.ReactElem
   if (result.status === 'found') {
     return (
       <Text>
-        <Text color="green">✓</Text>
+        <Text color='green'>✓</Text>
         <Text> {label}</Text>
         <Text dimColor> {result.version ?? 'unknown version'}</Text>
       </Text>
@@ -30,7 +31,7 @@ export function DoctorToolLine({ result }: DoctorToolLineProps): React.ReactElem
 
   return (
     <Text>
-      <Text color="red">✖</Text>
+      <Text color='red'>✖</Text>
       <Text> {label}</Text>
       <Text dimColor> not found</Text>
     </Text>

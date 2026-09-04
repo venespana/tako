@@ -1,6 +1,6 @@
 // doctor.ts — CLI handler for `tako doctor`
-import { LocalHostToolChecker } from '../../domains/system/infrastructure/LocalHostToolChecker.js';
 import { CheckHostDependencies } from '../../domains/system/application/CheckHostDependencies.js';
+import { LocalHostToolChecker } from '../../domains/system/infrastructure/LocalHostToolChecker.js';
 import { formatDoctorText } from '../../tui/features/doctor/index.js';
 
 export async function runDoctor(): Promise<number> {
