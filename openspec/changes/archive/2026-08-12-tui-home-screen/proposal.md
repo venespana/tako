@@ -7,6 +7,7 @@
 ## Scope
 
 ### In Scope
+
 - `src/tui/` FSD scaffolding: `app/`, `pages/`, `widgets/`, `features/`, `entities/`, `shared/`.
 - Home render: ASCII logo (centered), 3 grouped menus, version footer, key-hint bar.
 - Navigation state machine: list → submenu (`remotes`) → back.
@@ -18,6 +19,7 @@
 - Unit tests via `ink-testing-library`; strict TDD.
 
 ### Out of Scope
+
 - Real implementation of `install`/`update`/`status`/`logs`/`cleanup`/`rollback` use cases (separate changes each).
 - `remotes add` wizard; secure credential storage.
 - SSH layer, docker remote adapter.
@@ -28,9 +30,11 @@
 > Contract for sdd-spec. No TUI spec exists yet.
 
 ### New Capabilities
+
 - `tui-home-navigation`: render the home screen, navigate groups/items/submenus via keyboard, and dispatch selections to action handlers.
 
 ### Modified Capabilities
+
 - None (TUI layer has no specs yet; `host-dependency-check` untouched).
 
 ## Approach
@@ -39,20 +43,20 @@ FSD layout under `src/tui/`. `app/App.tsx` owns the view-state machine (list | s
 
 ## Affected Areas
 
-| Area | Impact | Description |
-|------|--------|-------------|
-| `src/tui/{app,pages,widgets,features,entities,shared}/` | New | FSD TUI shell |
-| `src/cli/index.ts` | Modified | route bare `tako` to the Ink TUI |
-| `src/shared/lib/`, `src/shared/types/` | Modified | version constant, registry types |
+| Area                                                    | Impact   | Description                      |
+| ------------------------------------------------------- | -------- | -------------------------------- |
+| `src/tui/{app,pages,widgets,features,entities,shared}/` | New      | FSD TUI shell                    |
+| `src/cli/index.ts`                                      | Modified | route bare `tako` to the Ink TUI |
+| `src/shared/lib/`, `src/shared/types/`                  | Modified | version constant, registry types |
 
 ## Risks
 
-| Risk | Likelihood | Mitigation |
-|------|------------|------------|
-| Scope exceeds "one command" rule | Med | Ship shell + dispatch only; each command's behavior is a separate change |
-| Ink `useInput` keymap collisions (Esc vs. raw mode) | Low | Cover key handling with `ink-testing-library` unit tests |
-| Version drift between `package.json` and build-time constant | Low | Build script syncs version from package.json during build |
-| Hidden unimplemented actions feel like missing features | Low | Clear documentation that shell ships incrementally; each command is a separate change |
+| Risk                                                         | Likelihood | Mitigation                                                                            |
+| ------------------------------------------------------------ | ---------- | ------------------------------------------------------------------------------------- |
+| Scope exceeds "one command" rule                             | Med        | Ship shell + dispatch only; each command's behavior is a separate change              |
+| Ink `useInput` keymap collisions (Esc vs. raw mode)          | Low        | Cover key handling with `ink-testing-library` unit tests                              |
+| Version drift between `package.json` and build-time constant | Low        | Build script syncs version from package.json during build                             |
+| Hidden unimplemented actions feel like missing features      | Low        | Clear documentation that shell ships incrementally; each command is a separate change |
 
 ## Rollback Plan
 

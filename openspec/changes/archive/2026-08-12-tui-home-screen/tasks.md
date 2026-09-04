@@ -2,12 +2,12 @@
 
 ## Review Workload Forecast
 
-| Field | Value |
-|-------|-------|
+| Field                   | Value                         |
+| ----------------------- | ----------------------------- |
 | Estimated changed lines | ~1,400 (new) + ~50 (modified) |
-| 400-line budget risk | High |
-| Chained PRs recommended | Yes |
-| Suggested split | PR 1 → PR 2 → PR 3 |
+| 400-line budget risk    | High                          |
+| Chained PRs recommended | Yes                           |
+| Suggested split         | PR 1 → PR 2 → PR 3            |
 
 Decision needed before apply: Yes
 Chained PRs recommended: Yes
@@ -16,11 +16,11 @@ Chain strategy: pending
 
 ### Suggested Work Units
 
-| Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
-|------|------|-----------|----------------------|-----------------|-------------------|
-| 1 | Foundation: version codegen + composition root + CLI export | PR 1 | `bun run typecheck` | `bun src/index.ts` (no args → TUI, `tako doctor` → CLI) | Delete `src/index.ts`, restore `package.json` bin, restore `cli/index.ts` |
-| 2 | TUI infra: theme, types, pure navigation + registry + dispatch | PR 2 | `bun run test -- src/tui/features/menu/` | `bun src/index.ts` | Delete `src/tui/features/` and `src/tui/shared/` |
-| 3 | UI: widgets, pages, App hook, integration tests | PR 3 | `bun run test -- src/tui/` | `bun src/index.ts` | Delete `src/tui/app/` and `src/tui/widgets/` and `src/tui/pages/` |
+| Unit | Goal                                                           | Likely PR | Focused test command                     | Runtime harness                                         | Rollback boundary                                                         |
+| ---- | -------------------------------------------------------------- | --------- | ---------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1    | Foundation: version codegen + composition root + CLI export    | PR 1      | `bun run typecheck`                      | `bun src/index.ts` (no args → TUI, `tako doctor` → CLI) | Delete `src/index.ts`, restore `package.json` bin, restore `cli/index.ts` |
+| 2    | TUI infra: theme, types, pure navigation + registry + dispatch | PR 2      | `bun run test -- src/tui/features/menu/` | `bun src/index.ts`                                      | Delete `src/tui/features/` and `src/tui/shared/`                          |
+| 3    | UI: widgets, pages, App hook, integration tests                | PR 3      | `bun run test -- src/tui/`               | `bun src/index.ts`                                      | Delete `src/tui/app/` and `src/tui/widgets/` and `src/tui/pages/`         |
 
 ## Phase 1: Foundation (Composition Root + Codegen)
 

@@ -2,13 +2,13 @@
 
 ## Review Workload Forecast
 
-| Field | Value |
-|-------|-------|
-| Estimated changed lines | ~150–180 |
-| 400-line budget risk | Low |
-| Chained PRs recommended | No |
-| Delivery strategy | single-pr |
-| Suggested split | Single PR |
+| Field                   | Value     |
+| ----------------------- | --------- |
+| Estimated changed lines | ~150–180  |
+| 400-line budget risk    | Low       |
+| Chained PRs recommended | No        |
+| Delivery strategy       | single-pr |
+| Suggested split         | Single PR |
 
 Decision needed before apply: No
 Chained PRs recommended: No
@@ -17,9 +17,9 @@ Chain strategy: pending
 
 ### Suggested Work Units
 
-| Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
-|------|------|-----------|----------------------|-----------------|-------------------|
-| 1 | Full implementation | PR 1 | `bun test` | `bun run tako doctor` | Delete `src/domains/system/`, `src/cli/commands/doctor.ts` |
+| Unit | Goal                | Likely PR | Focused test command | Runtime harness       | Rollback boundary                                          |
+| ---- | ------------------- | --------- | -------------------- | --------------------- | ---------------------------------------------------------- |
+| 1    | Full implementation | PR 1      | `bun test`           | `bun run tako doctor` | Delete `src/domains/system/`, `src/cli/commands/doctor.ts` |
 
 ## Phase 1: Domain Types (Foundation)
 

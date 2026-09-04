@@ -2,14 +2,14 @@
 
 ## Review Workload Forecast
 
-| Field | Value |
-|-------|-------|
-| Estimated changed lines | ~500–600 |
-| 400-line budget risk | High |
-| Chained PRs recommended | Yes |
-| Suggested split | PR 1 (router-infra + page-stubs) → PR 2 (feature-modifications + app-wiring + tests) |
-| Delivery strategy | ask-on-risk |
-| Chain strategy | stacked-to-main |
+| Field                   | Value                                                                                |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| Estimated changed lines | ~500–600                                                                             |
+| 400-line budget risk    | High                                                                                 |
+| Chained PRs recommended | Yes                                                                                  |
+| Suggested split         | PR 1 (router-infra + page-stubs) → PR 2 (feature-modifications + app-wiring + tests) |
+| Delivery strategy       | ask-on-risk                                                                          |
+| Chain strategy          | stacked-to-main                                                                      |
 
 Decision needed before apply: Yes
 Chained PRs recommended: Yes
@@ -22,10 +22,10 @@ El equipo confirmó mantener el submenu de remotes: la ruta `remotes` padre exis
 
 ## Suggested Work Units
 
-| Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
-|------|------|-----------|----------------------|-----------------|-------------------|
-| 1 | Router infra + page stubs | PR 1 | `vitest src/tui/app/router` | N/A (pure unit) | Delete `src/tui/app/router/` + 9 page stubs |
-| 2 | Feature modifications + app wiring + tests | PR 2 | `vitest src/tui` | `npm run tui` smoke | Revert 7 modified files |
+| Unit | Goal                                       | Likely PR | Focused test command        | Runtime harness     | Rollback boundary                           |
+| ---- | ------------------------------------------ | --------- | --------------------------- | ------------------- | ------------------------------------------- |
+| 1    | Router infra + page stubs                  | PR 1      | `vitest src/tui/app/router` | N/A (pure unit)     | Delete `src/tui/app/router/` + 9 page stubs |
+| 2    | Feature modifications + app wiring + tests | PR 2      | `vitest src/tui`            | `npm run tui` smoke | Revert 7 modified files                     |
 
 ## Phase 1: Router Infrastructure
 

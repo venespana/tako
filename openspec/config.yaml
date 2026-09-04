@@ -26,23 +26,23 @@ rules:
     guidelines:
       - Follow existing code patterns and the FSD/Clean-Arch layer split.
       - Unit tests are co-located next to the code they test (*.test.ts(x)).
-    tdd: true                # strict_tdd resolved: test runner present, no opt-out marker.
-    test_command: "bun run test"
-    typecheck_command: "bun run typecheck"
-    lint_command: "bun run lint"
-    format_command: "bun run format:check"
+    tdd: true # strict_tdd resolved: test runner present, no opt-out marker.
+    test_command: 'bun run test'
+    typecheck_command: 'bun run typecheck'
+    lint_command: 'bun run lint:changed'
+    format_command: 'bun run format:changed'
   verify:
-    test_command: "bun run test"
-    build_command: "bun run build"
-    typecheck_command: "bun run typecheck"
-    lint_command: "bun run lint"
-    coverage_threshold: 0    # no threshold enforced yet; set once the first command lands tests.
+    test_command: 'bun run test'
+    build_command: 'bun run build'
+    typecheck_command: 'bun run typecheck'
+    lint_command: 'bun run lint'
+    coverage_threshold: 0 # no threshold enforced yet; set once the first command lands tests.
   archive:
     - Warn before merging destructive deltas (REMOVED/RENAMED).
     - Preserve archived change folders as an audit trail; never delete or modify them.
 
 sdd:
-  pace: auto                 # automatic with pause at apply for summary.
-  artifact_store: hybrid     # engram + openspec.
+  pace: auto # automatic with pause at apply for summary.
+  artifact_store: hybrid # engram + openspec.
   delivery_strategy: ask-on-risk
   review_budget_lines: 800
