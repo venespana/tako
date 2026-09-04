@@ -1,12 +1,6 @@
 // application/AddRemote.test.ts — STRICT TDD RED phase
 import { describe, it, expect, vi } from 'vitest';
-import type {
-  AddRemoteResult,
-  DuplicateResult,
-  Remote,
-  RemoteDraft,
-  SshValidationOutcome,
-} from '../domain/types.js';
+import type { AddRemoteResult, DuplicateResult, Remote, RemoteDraft, SshValidationOutcome } from '../domain/types.js';
 import type { RemoteRepository } from './RemoteRepository.js';
 import type { SecretVault } from './SecretVault.js';
 import type { SshConnectionTester } from './SshConnectionTester.js';
@@ -26,11 +20,7 @@ type AddRemoteDeps = {
   vaultObfuscate?: string;
 };
 
-function buildFakes({
-  duplicateResult,
-  validateOutcome,
-  vaultObfuscate = 'obfuscated',
-}: AddRemoteDeps): {
+function buildFakes({ duplicateResult, validateOutcome, vaultObfuscate = 'obfuscated' }: AddRemoteDeps): {
   checkDuplicate: CheckDuplicateRemote;
   validateConnection: ValidateSshConnection;
   vault: SecretVault;
@@ -45,6 +35,7 @@ function buildFakes({
     existsByName: vi.fn(async () => duplicateResult.isDuplicate),
     existsByEndpoint: vi.fn(async () => duplicateResult.isDuplicate),
     save: vi.fn(async () => {}),
+    list: vi.fn(async () => []),
   };
 
   const validateConnection: ValidateSshConnection = {

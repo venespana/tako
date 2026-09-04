@@ -3,8 +3,6 @@
 
 import { Command } from 'commander';
 
-import { runDoctor } from './commands/doctor.js';
-
 const program = new Command();
 
 program.name('tako').description('TUI for managing docker-compose-based homelabs over SSH').version('0.0.0');
@@ -14,6 +12,8 @@ program
   .description('Check host dependencies (ssh, ssl, git, docker, docker-compose)')
   .action(async () => {
     try {
+      // Lazy import to defer TUI/Ink loading (required for compile)
+      const { runDoctor } = await import('./commands/doctor.js');
       const exitCode = await runDoctor();
       process.exit(exitCode);
     } catch (err) {

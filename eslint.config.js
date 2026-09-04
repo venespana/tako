@@ -98,7 +98,9 @@ export default defineConfig(
             {
               target: ['src/cli/**/*'],
               from: ['src/tui/**/*'],
-              message: 'Architecture rule: src/cli/ may not import from src/tui/',
+              except: ['**/src/tui/features/remotes/add-remote-wizard/**', '**/src/tui/features/doctor/**'],
+              message:
+                'Architecture rule: src/cli/ may not import from src/tui/ (ADR-0014 exceptions: add-remote-wizard and doctor feature slices)',
             },
           ],
         },

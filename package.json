@@ -12,13 +12,16 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "format:changed": "bash -c 'FILES=${UVU_FILES:-$(git diff --cached --name-only | tr \"\\n\" \" \")} && prettier --write $FILES'",
+    "lint:changed": "bash -c 'FILES=${UVU_FILES:-$(git diff --cached --name-only | tr \"\\n\" \" \")} && eslint $FILES'",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run unit",
-    "test:watch": "vitest unit",
-    "test:integration": "vitest run integration",
-    "test:e2e": "vitest run e2e",
+    "generate:routes": "bun scripts/generate-routes.ts",
+    "test": "vitest run --project=unit",
+    "test:watch": "vitest --project=unit",
+    "test:integration": "vitest run --project=integration",
+    "test:e2e": "vitest run --project=e2e --passWithNoTests",
     "test:all": "vitest run",
-    "test:coverage": "vitest run unit --coverage",
+    "test:coverage": "vitest run --project=unit --coverage",
     "dev": "bun --watch src/cli/index.ts",
     "prebuild": "bun scripts/generate-version.ts",
     "build": "bun build src/cli/index.ts --compile --target=bun-linux-x64-modern --outfile dist/tako-linux-x64"
@@ -33,6 +36,7 @@
     "react": "^19.2.8",
     "react-devtools-core": "^7.0.1",
     "react-dom": "^19.2.8",
+    "react-router": "8.3.1",
     "ssh2": "^1.17.0",
     "zustand": "^5.0.14"
   },
@@ -56,6 +60,7 @@
     "eslint-plugin-unused-imports": "^4.4.1",
     "globals": "^17.9.0",
     "ink-testing-library": "^4.0.0",
+    "lint-staged": "^17.4.1",
     "prettier": "^3.9.6",
     "testcontainers": "^12.1.0",
     "typescript": "^6.0.3",
@@ -69,5 +74,10 @@
   "trustedDependencies": [
     "protobufjs",
     "unrs-resolver"
-  ]
+  ],
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown",
+    "*.{ts,tsx,js,jsx}": ["eslint --fix", "tsc --noEmit --pretty"],
+    "*.{json,yml,yaml}": "prettier --write"
+  }
 }

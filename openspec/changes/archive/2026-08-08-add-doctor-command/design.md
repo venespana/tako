@@ -8,13 +8,13 @@ This maps directly to the proposal's approach: `system` replicates `docker`'s th
 
 ## Architecture Decisions
 
-| Decision | Choice | Rejected | Rationale |
-|---|---|---|---|
-| Domain name | `system` | `host`, `preflight`, `environment` | `doctor` will later check remote server readiness (docker daemon, compose v2). `system` covers both local + remote iterations. `host` misleading for remote; `preflight` couples to command name. |
-| Spawn API | `Bun.spawn` (spec-mandated) | `child_process` | Spec explicitly mandates `Bun.spawn`. Build compiles to Bun binary. Port/adapter means adapter is swappable if Node compat is ever needed. **Tension with `docs/stack.md` — see Open Questions.** |
-| stderr quirk | Capture stdout + stderr; prefer stdout, fall back to stderr | Per-tool stream config, SSH-specific branch | `ssh -V` writes to stderr; `git`/`docker` write to stdout. `stdout.trim() \|\| stderr.trim()` handles all tools in one code path. |
-| Testability | Port injected via constructor; formatting as pure function | Mock globals only, integration-only | Use case takes `HostToolChecker` in ctor → fake in unit tests. `formatToolLine` is pure (input→string, zero I/O). Adapter unit-tested via `vi.stubGlobal`. |
-| Presence + version | Single `Bun.spawn([tool, flag])`; ENOENT→not-found, exit≠0→found+null | Separate `Bun.which` then spawn | Fewer syscalls, simpler. Edge case (binary exists but `--version` fails) → found with null version, acceptable for MVP. |
+| Decision           | Choice                                                                | Rejected                                    | Rationale                                                                                                                                                                                         |
+| ------------------ | --------------------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain name        | `system`                                                              | `host`, `preflight`, `environment`          | `doctor` will later check remote server readiness (docker daemon, compose v2). `system` covers both local + remote iterations. `host` misleading for remote; `preflight` couples to command name. |
+| Spawn API          | `Bun.spawn` (spec-mandated)                                           | `child_process`                             | Spec explicitly mandates `Bun.spawn`. Build compiles to Bun binary. Port/adapter means adapter is swappable if Node compat is ever needed. **Tension with `docs/stack.md` — see Open Questions.** |
+| stderr quirk       | Capture stdout + stderr; prefer stdout, fall back to stderr           | Per-tool stream config, SSH-specific branch | `ssh -V` writes to stderr; `git`/`docker` write to stdout. `stdout.trim() \|\| stderr.trim()` handles all tools in one code path.                                                                 |
+| Testability        | Port injected via constructor; formatting as pure function            | Mock globals only, integration-only         | Use case takes `HostToolChecker` in ctor → fake in unit tests. `formatToolLine` is pure (input→string, zero I/O). Adapter unit-tested via `vi.stubGlobal`.                                        |
+| Presence + version | Single `Bun.spawn([tool, flag])`; ENOENT→not-found, exit≠0→found+null | Separate `Bun.which` then spawn             | Fewer syscalls, simpler. Edge case (binary exists but `--version` fails) → found with null version, acceptable for MVP.                                                                           |
 
 ## Data Flow
 
@@ -52,17 +52,17 @@ This maps directly to the proposal's approach: `system` replicates `docker`'s th
 
 ## File Changes
 
-| File | Action | Description |
-|---|---|---|
-| `src/domains/system/domain/types.ts` | Create | `HostTool`, `CheckStatus`, `ToolCheckResult`, `SystemCheckResult` |
-| `src/domains/system/domain/required-tools.ts` | Create | `REQUIRED_HOST_TOOLS` constant: `['ssh','git','docker']` |
-| `src/domains/system/application/HostToolChecker.ts` | Create | Port: `check(tool: HostTool): Promise<ToolCheckResult>` |
-| `src/domains/system/application/CheckHostDependencies.ts` | Create | Use case: iterate tools via port, aggregate results + allPresent |
-| `src/domains/system/infrastructure/LocalHostToolChecker.ts` | Create | Adapter: `Bun.spawn` per tool, capture stdout+stderr, stderr fallback |
-| `src/cli/commands/doctor-report.ts` | Create | Pure formatter: `formatToolLine(result) → string` via picocolors |
-| `src/cli/commands/doctor.ts` | Create | Handler: wire adapter→use case→format→print→exit code |
-| `src/cli/index.ts` | Modify | Replace stub with argv switch routing `doctor` |
-| `src/domains/system/{domain,application,infrastructure}/.gitkeep` | Delete | Remove placeholders as real files land |
+| File                                                              | Action | Description                                                           |
+| ----------------------------------------------------------------- | ------ | --------------------------------------------------------------------- |
+| `src/domains/system/domain/types.ts`                              | Create | `HostTool`, `CheckStatus`, `ToolCheckResult`, `SystemCheckResult`     |
+| `src/domains/system/domain/required-tools.ts`                     | Create | `REQUIRED_HOST_TOOLS` constant: `['ssh','git','docker']`              |
+| `src/domains/system/application/HostToolChecker.ts`               | Create | Port: `check(tool: HostTool): Promise<ToolCheckResult>`               |
+| `src/domains/system/application/CheckHostDependencies.ts`         | Create | Use case: iterate tools via port, aggregate results + allPresent      |
+| `src/domains/system/infrastructure/LocalHostToolChecker.ts`       | Create | Adapter: `Bun.spawn` per tool, capture stdout+stderr, stderr fallback |
+| `src/cli/commands/doctor-report.ts`                               | Create | Pure formatter: `formatToolLine(result) → string` via picocolors      |
+| `src/cli/commands/doctor.ts`                                      | Create | Handler: wire adapter→use case→format→print→exit code                 |
+| `src/cli/index.ts`                                                | Modify | Replace stub with argv switch routing `doctor`                        |
+| `src/domains/system/{domain,application,infrastructure}/.gitkeep` | Delete | Remove placeholders as real files land                                |
 
 ## Interfaces / Contracts
 
@@ -95,24 +95,24 @@ interface HostToolChecker {
 
 ## Testing Strategy
 
-| Layer | What to test | Approach |
-|---|---|---|
-| Unit | Use case: all-present, partial-missing, all-missing | Fake `HostToolChecker` injected; assert results + `allPresent` |
-| Unit | Report formatting: found line, missing line | Pure `formatToolLine()` — direct input→output, no I/O mocking |
-| Unit | Domain constant: exactly 3 tools, correct order | Direct assertion on `REQUIRED_HOST_TOOLS` |
-| Unit | Adapter: stderr fallback (ssh), ENOENT handling | `vi.stubGlobal('Bun', { spawn: ... })` mock; assert stream merge |
-| Integration | Adapter against real `git` on PATH | `tests/integration/` — spawns actual `git --version` |
+| Layer       | What to test                                        | Approach                                                         |
+| ----------- | --------------------------------------------------- | ---------------------------------------------------------------- |
+| Unit        | Use case: all-present, partial-missing, all-missing | Fake `HostToolChecker` injected; assert results + `allPresent`   |
+| Unit        | Report formatting: found line, missing line         | Pure `formatToolLine()` — direct input→output, no I/O mocking    |
+| Unit        | Domain constant: exactly 3 tools, correct order     | Direct assertion on `REQUIRED_HOST_TOOLS`                        |
+| Unit        | Adapter: stderr fallback (ssh), ENOENT handling     | `vi.stubGlobal('Bun', { spawn: ... })` mock; assert stream merge |
+| Integration | Adapter against real `git` on PATH                  | `tests/integration/` — spawns actual `git --version`             |
 
 Strict TDD: RED tests written first for every unit above (use case, formatter, constant, adapter mock). Implementation follows GREEN→REFACTOR.
 
 ## Error Handling
 
-| Condition | Detection | Result |
-|---|---|---|
-| Binary not on PATH | `Bun.spawn` throws (ENOENT) | `status: 'not-found'`, `version: null` |
-| Binary present, `--version` exits non-zero | `proc.exited !== 0` | `status: 'found'`, `version: null` |
+| Condition                                               | Detection                          | Result                                         |
+| ------------------------------------------------------- | ---------------------------------- | ---------------------------------------------- |
+| Binary not on PATH                                      | `Bun.spawn` throws (ENOENT)        | `status: 'not-found'`, `version: null`         |
+| Binary present, `--version` exits non-zero              | `proc.exited !== 0`                | `status: 'found'`, `version: null`             |
 | Binary present, stdout empty + stderr has content (ssh) | `stdout.trim() \|\| stderr.trim()` | `status: 'found'`, `version: <stderr content>` |
-| Spawn succeeds, both streams empty | Exit 0 + empty output | `status: 'found'`, `version: null` |
+| Spawn succeeds, both streams empty                      | Exit 0 + empty output              | `status: 'found'`, `version: null`             |
 
 All failures are caught and returned as structured results — the use case never throws. The CLI handler reads `allPresent` to derive exit code (0 or 1).
 

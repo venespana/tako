@@ -4,13 +4,13 @@
 
 ## Review Workload Forecast
 
-| Field | Value |
-|-------|-------|
-| Estimated changed lines | ~1550 total (prod ~766, test ~790) |
-| 800-line budget risk | **HIGH** — total diff ~2× budget |
-| Chained PRs recommended | **Yes** (3 slices) |
-| Delivery strategy | ask-on-risk — **FLAGGED** |
-| Chain strategy | vertical: contract → I/O → presentation |
+| Field                   | Value                                   |
+| ----------------------- | --------------------------------------- |
+| Estimated changed lines | ~1550 total (prod ~766, test ~790)      |
+| 800-line budget risk    | **HIGH** — total diff ~2× budget        |
+| Chained PRs recommended | **Yes** (3 slices)                      |
+| Delivery strategy       | ask-on-risk — **FLAGGED**               |
+| Chain strategy          | vertical: contract → I/O → presentation |
 
 Decision needed before apply: **Yes** — D7 cli→tui import (managed exception vs wizard-in-cli).
 Chained PRs recommended: Yes
@@ -18,11 +18,11 @@ Chained PRs recommended: Yes
 
 ### Suggested Work Units
 
-| Unit | Goal | Likely PR | Focused test command | Runtime harness | Rollback boundary |
-|------|------|-----------|----------------------|-----------------|-------------------|
-| 1 | Domain contracts (types, ports, use cases) | PR 1 | `bun run test` | none (pure logic) | Delete `src/domains/remotes/` |
-| 2 | Infrastructure adapters (conf + ssh2) | PR 2 | `bun run test` | none (mocked) | Delete `src/domains/remotes/infrastructure/` |
-| 3 | CLI command + TUI wizard + ADR + docs | PR 3 | `bun run test` + manual `tako remote add` | local sshd | Delete `src/cli/commands/remote-add.ts`, wizard dir, revert `cli/index.ts`, `@inkjs/ui` |
+| Unit | Goal                                       | Likely PR | Focused test command                      | Runtime harness   | Rollback boundary                                                                       |
+| ---- | ------------------------------------------ | --------- | ----------------------------------------- | ----------------- | --------------------------------------------------------------------------------------- |
+| 1    | Domain contracts (types, ports, use cases) | PR 1      | `bun run test`                            | none (pure logic) | Delete `src/domains/remotes/`                                                           |
+| 2    | Infrastructure adapters (conf + ssh2)      | PR 2      | `bun run test`                            | none (mocked)     | Delete `src/domains/remotes/infrastructure/`                                            |
+| 3    | CLI command + TUI wizard + ADR + docs      | PR 3      | `bun run test` + manual `tako remote add` | local sshd        | Delete `src/cli/commands/remote-add.ts`, wizard dir, revert `cli/index.ts`, `@inkjs/ui` |
 
 ## Phase 1: Domain Layer (types + endpoint helper)
 
@@ -78,13 +78,13 @@ Chained PRs recommended: Yes
 
 ## Coverage Map (spec requirement → task)
 
-| Spec requirement | Tasks |
-|------------------|-------|
-| Wizard invocation | 5.1, 5.3, 6.3, 6.4 |
-| Field & credential collection | 6.1–6.4 |
-| Pre-save SSH validation + error recovery | 3.3–3.4, 4.5–4.6, 6.3 (fail re-show) |
-| Mandatory hostkey verification | 4.5–4.6 (capture), 3.5–3.6 (accept gate), 6.3 (fingerprint UI) |
-| Duplicate detection (block) | 1.2–1.3, 3.1–3.2, 3.5–3.6, 6.3 |
-| Exit codes | 5.1–5.2 |
-| Password hygiene & persistence | 1.1, 2.3, 3.5–3.6, 4.1–4.2, 6.3 (never logged) |
-| Port/adapter isolation | 2.1–2.3, 4.x, 7.5 (gate) |
+| Spec requirement                         | Tasks                                                          |
+| ---------------------------------------- | -------------------------------------------------------------- |
+| Wizard invocation                        | 5.1, 5.3, 6.3, 6.4                                             |
+| Field & credential collection            | 6.1–6.4                                                        |
+| Pre-save SSH validation + error recovery | 3.3–3.4, 4.5–4.6, 6.3 (fail re-show)                           |
+| Mandatory hostkey verification           | 4.5–4.6 (capture), 3.5–3.6 (accept gate), 6.3 (fingerprint UI) |
+| Duplicate detection (block)              | 1.2–1.3, 3.1–3.2, 3.5–3.6, 6.3                                 |
+| Exit codes                               | 5.1–5.2                                                        |
+| Password hygiene & persistence           | 1.1, 2.3, 3.5–3.6, 4.1–4.2, 6.3 (never logged)                 |
+| Port/adapter isolation                   | 2.1–2.3, 4.x, 7.5 (gate)                                       |
