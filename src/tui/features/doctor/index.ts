@@ -8,3 +8,4 @@ export { runDoctorScreen } from './lib/run.js';
 export type { RunDoctorDeps } from './lib/run.js';
 export { DoctorScreen } from './ui/DoctorScreen.js';
 export type { DoctorScreenProps } from './ui/DoctorScreen.js';
+export { formatDoctorText } from './lib/format-text.js';
