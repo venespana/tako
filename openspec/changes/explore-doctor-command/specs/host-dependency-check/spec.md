@@ -67,7 +67,7 @@ attempted.
 
 When a tool is present the system SHOULD capture its version string in the check
 result. When a tool is absent the system MUST record "not found" in place of a
-version. Present-tool versions MAY be omitted from the missing-only report.
+version. Present-tool versions MUST be displayed in the report.
 (Previously: version string printed in each present tool's report line.)
 
 #### Scenario: Version captured for present tool
@@ -104,22 +104,39 @@ path MUST NOT derive an exit code.
 
 ### Requirement: Report Output Format
 
-The system MUST render a missing-only report: only tools NOT found appear, each
-showing the tool name and a "not found" indication. When every required tool is
-present the report MUST show an all-requirements-satisfied state with no
-per-tool entries. Structured output remains out of scope.
-(Previously: one plain-text stdout line per tool with pass/fail marker and version.)
+The system MUST render a report that shows ALL required tools with their status
+and version when present, or "not found" when absent. Each tool is displayed
+with a pass/fail marker (✓/✖), tool name, and version or not-found indication.
+A summary line and overall status (Ok/Failed/Degraded) MUST also be shown.
+(Previously: missing-only report with no per-tool entries.)
 
-#### Scenario: Missing-only rendering
+#### Scenario: All tools shown with status
 
-- GIVEN `docker-compose` is missing and the other four tools are present
-- WHEN the doctor screen renders
-- THEN only `docker-compose` appears, marked not found
-- AND no entries are shown for present tools
+- GIVEN `tako doctor` is invoked
+- WHEN the check completes
+- THEN every required tool is listed with its status:
+  - Present tools: ✓ marker, tool name, and version
+  - Missing tools: ✖ marker, tool name, and "not found"
+- AND a summary line shows: "Summary: X passed, X failed, X warnings"
+- AND an overall status line shows: "Status: Ok|Failed|Degraded"
 
 #### Scenario: All-present satisfied state
 
 - GIVEN all five required tools are present
 - WHEN the doctor screen renders
-- THEN the all-requirements-satisfied state is shown
-- AND no per-tool entries appear
+- THEN all five tools are shown with ✓ markers and versions
+- AND the status is "Ok"
+
+#### Scenario: All-missing degraded state
+
+- GIVEN all five required tools are missing
+- WHEN the doctor screen renders
+- THEN all five tools are shown with ✖ markers
+- AND the status is "Failed"
+
+#### Scenario: Partial failure degraded state
+
+- GIVEN some tools are present and some missing
+- WHEN the doctor screen renders
+- THEN all tools are shown with appropriate markers
+- AND the status is "Degraded"
