@@ -40,6 +40,28 @@ vi.mock('./remotes-stack.js', () => ({
   }),
 }));
 
+// Mock Bun globally so LocalHostToolChecker doesn't fail in tests
+const { fakeDoctorResult } = vi.hoisted(() => ({
+  fakeDoctorResult: {
+    results: [
+      { tool: 'ssh', status: 'found', version: 'OpenSSH_10.4p1' },
+      { tool: 'ssl', status: 'found', version: '3.6.3' },
+      { tool: 'git', status: 'found', version: '2.55.0' },
+      { tool: 'docker', status: 'found', version: '29.7.2' },
+      { tool: 'docker-compose', status: 'found', version: 'v2.24.0' },
+    ],
+    allPresent: true,
+  },
+}));
+
+vi.stubGlobal('Bun', {
+  spawn: vi.fn(() => ({
+    exited: 0,
+    stdout: { text: async () => 'OpenSSH_10.4p1' },
+    stderr: { text: async () => '' },
+  })),
+});
+
 beforeEach(() => {
   exitMock.mockReset();
   // One configured remote by default: entering /remotes shows the selection
@@ -209,11 +231,12 @@ describe('App', () => {
       const { stdin, lastFrame, unmount } = render(<App />);
 
       await settle(lastFrame, f => f.includes('❯ doctor'), 1000);
-      // 'doctor' alone matches the home menu too — require the menu to be gone
-      const frame = await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('doctor') && !f.includes('Local'));
+      // DoctorScreen shows tools with status — match 'ssh' to detect the page
+      const frame = await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('ssh') && !f.includes('Local'));
 
       // Command page: logo PERSISTENT, home menu gone, back/quit hints only
-      expect(frame).toContain('doctor');
+      // DoctorScreen shows tool list with status (e.g. "ssh", "tools found")
+      expect(frame).toContain('tools found');
       expect(frame).toContain('███╗');
       expect(frame).not.toContain('Local');
       expect(frame).not.toContain('❯');
@@ -251,19 +274,24 @@ describe('App', () => {
       const { stdin, lastFrame, unmount } = render(<App />);
 
       await settle(lastFrame, f => f.includes('❯ doctor'), 1000);
+      // DoctorScreen shows tools — match 'ssh' to detect the page
       const doctorFrame = await pressAndSettle(
         stdin,
         lastFrame,
         '\r',
-        f => f.includes('doctor') && !f.includes('Local')
+        f => f.includes('ssh') && !f.includes('Local')
       );
       expect(doctorFrame).toContain('███╗');
 
-      // Arrow keys and Enter must be ignored: the frame does not change
+      // Wait for the async check to complete (frame may change from checking → done)
+      await wait(200);
+      const doneFrame = lastFrame();
+
+      // Arrow keys and Enter must be ignored: the frame does not change after stabilization
       stdin.write('j');
       stdin.write('\r');
       await wait(50);
-      expect(lastFrame()).toBe(doctorFrame);
+      expect(lastFrame()).toBe(doneFrame);
       unmount();
     });
   });

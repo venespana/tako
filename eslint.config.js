@@ -91,9 +91,9 @@ export default defineConfig(
         {
           basePath: tsconfigRootDir,
           zones: [
-            // cli ↔ tui isolation. ADR-0014 exception: the add-remote-wizard
-            // feature is the one sanctioned tui import reachable from cli/
-            // (`tako remote add` launches the wizard).
+            // cli ↔ tui isolation. ADR-0014 exceptions: the add-remote-wizard
+            // and doctor feature slices are sanctioned tui imports reachable from cli/
+            // (`tako remote add` launches the wizard; `tako doctor` launches the screen).
             {
               target: ['src/tui/**/*'],
               from: ['src/cli/**/*'],
@@ -102,9 +102,12 @@ export default defineConfig(
             {
               target: ['src/cli/**/*'],
               from: ['src/tui/**/*'],
-              except: [`${tsconfigRootDir}src/tui/features/remotes/add-remote-wizard/**`],
+              except: [
+                `${tsconfigRootDir}src/tui/features/remotes/add-remote-wizard/**`,
+                `${tsconfigRootDir}src/tui/features/doctor/**`,
+              ],
               message:
-                'Architecture rule: src/cli/ may not import from src/tui/ (ADR-0014 exception: the add-remote-wizard feature is the only sanctioned import)',
+                'Architecture rule: src/cli/ may not import from src/tui/ (ADR-0014 exceptions: the add-remote-wizard and doctor feature slices are the only sanctioned imports)',
             },
             // FSD layer direction (app > pages > widgets > features > entities > shared):
             // each layer may only import from layers strictly below it.
@@ -151,6 +154,7 @@ export default defineConfig(
                 'src/tui/entities/**/*',
                 'src/tui/shared/**/*',
                 'src/tui/features/remotes/**/*',
+                'src/tui/features/doctor/**/*',
                 'src/cli/**/*',
               ],
               from: ['src/tui/features/menu/**/*'],
@@ -165,11 +169,27 @@ export default defineConfig(
                 'src/tui/entities/**/*',
                 'src/tui/shared/**/*',
                 'src/tui/features/menu/**/*',
+                'src/tui/features/doctor/**/*',
                 'src/cli/**/*',
               ],
               from: ['src/tui/features/remotes/**/*'],
               except: [`${tsconfigRootDir}src/tui/features/remotes/add-remote-wizard/index.{ts,tsx}`],
               message: 'FSD rule 4-2: import the add-remote-wizard feature only through its index.ts public API',
+            },
+            {
+              target: [
+                'src/tui/app/**/*',
+                'src/tui/pages/**/*',
+                'src/tui/widgets/**/*',
+                'src/tui/entities/**/*',
+                'src/tui/shared/**/*',
+                'src/tui/features/menu/**/*',
+                'src/tui/features/remotes/**/*',
+                'src/cli/**/*',
+              ],
+              from: ['src/tui/features/doctor/**/*'],
+              except: [`${tsconfigRootDir}src/tui/features/doctor/index.{ts,tsx}`],
+              message: 'FSD rule 4-2: import the doctor feature only through its index.ts public API',
             },
           ],
         },

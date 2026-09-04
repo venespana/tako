@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 // index.tsx — Composition root: bare `tako` → TUI, args → commander CLI.
 // This file sits above both layers and may import `cli/` and `tui/` freely.
-// The one sanctioned cli→tui exception is the add-remote-wizard feature
-// (ADR-0014, enforced with a carve-out in eslint.config.js); every other
-// cli↔tui import remains forbidden.
+// The sanctioned cli→tui exceptions are the add-remote-wizard and doctor
+// feature slices (ADR-0014, enforced with carve-outs in eslint.config.js);
+// every other cli↔tui import remains forbidden.
 
 import { runCli } from './cli/index.js';
 
