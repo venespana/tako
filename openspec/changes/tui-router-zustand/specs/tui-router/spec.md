@@ -6,7 +6,7 @@ A Zustand-backed router for the TUI. It owns `currentRoute`, `params`, and a bou
 `history` stack, exposing `navigate(route, params)` and `goBack()`. A declarative
 route registry maps each route to a screen component and a `showLogo` flag. This
 replaces the former ad-hoc `useState` view state so any screen can navigate to any
-other and `goBack` returns to the _previous_ screen.
+other and `goBack` returns to the *previous* screen.
 
 ## Requirements
 
