@@ -1,5 +1,5 @@
 // App.tsx — Root TUI component: discriminated-union state machine + useInput.
-// Renders HomePage and dispatches to domain use cases via injected ports.
+// Renders HomePage or page components and dispatches to domain use cases via injected ports.
 import { useState } from 'react';
 
 import { useInput, useApp } from 'ink';
@@ -8,6 +8,7 @@ import type { Key } from 'ink';
 import { getSelectable, moveCursor, enterSubmenu, exitSubmenu } from '../features/menu/navigation.js';
 import { getRegistry } from '../features/menu/registry.js';
 import type { DispatchMap, ViewState } from '../features/menu/types.js';
+import { DoctorPage } from '../pages/doctor/index.js';
 import { HomePage } from '../pages/HomePage.js';
 
 export interface AppProps {
@@ -21,6 +22,7 @@ export default function App({ dispatch = {}, hasActiveRemote = false }: AppProps
   const groups = getRegistry();
   const [view, setView] = useState<ViewState>({ view: 'list' });
   const [cursor, setCursor] = useState(0);
+  const [currentPage, setCurrentPage] = useState<string>('home');
   const { exit } = useApp();
 
   const selectable = getSelectable(groups, view, hasActiveRemote);
@@ -54,9 +56,16 @@ export default function App({ dispatch = {}, hasActiveRemote = false }: AppProps
       }
 
       if (focused.kind === 'action' && focused.handlerKey) {
-        const handler = dispatch[focused.handlerKey];
-        if (handler) {
-          await handler();
+        // Navigate to route-based page if available, otherwise call legacy handler
+        if ('route' in focused && (focused as { route?: string }).route) {
+          setCurrentPage((focused as { route: string }).route);
+          setView({ view: 'list' });
+          setCursor(0);
+        } else {
+          const handler = dispatch[focused.handlerKey];
+          if (handler) {
+            await handler();
+          }
         }
         return;
       }
@@ -70,16 +79,20 @@ export default function App({ dispatch = {}, hasActiveRemote = false }: AppProps
       return;
     }
 
-    // Back
+    // Back — Escape / h / backspace
     if (key.escape || key.backspace || input === 'h') {
+      // If on a submenu, exit the submenu
       if (view.view === 'submenu') {
         const nextView = exitSubmenu(view);
         setView(nextView);
-        // Restore cursor position stored in the submenu view
         if (nextView.view === 'list') {
-          // restoreCursor is in the old view
           setCursor((view as { restoreCursor: number }).restoreCursor);
         }
+        return;
+      }
+      // If not on home page, return to home
+      if (currentPage !== 'home') {
+        setCurrentPage('home');
         return;
       }
       return;
@@ -87,6 +100,11 @@ export default function App({ dispatch = {}, hasActiveRemote = false }: AppProps
   };
 
   useInput(handleKey);
+
+  // Route to the appropriate page component
+  if (currentPage === '/doctor') {
+    return <DoctorPage />;
+  }
 
   return <HomePage groups={groups} selectable={selectable} cursor={cursor} view={view} />;
 }
