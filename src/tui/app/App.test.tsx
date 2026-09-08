@@ -39,19 +39,33 @@ describe('App', () => {
     });
   });
 
-  describe('doctor dispatch', () => {
-    it('calls dispatch.doctor when Enter is pressed on doctor', async () => {
+  describe('doctor navigation', () => {
+    it('navigates to doctor page when Enter is pressed on doctor', async () => {
+      const dispatch: DispatchMap = { doctor: vi.fn() };
+      const { stdin, lastFrame } = render(<App dispatch={dispatch} hasActiveRemote={false} />);
+
+      // Press Enter to select doctor (cursor starts on first item = doctor)
+      stdin.write('\r');
+
+      // Wait for the render to update
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Doctor page should render (shows "Checking host dependencies..." while running)
+      expect(lastFrame()).toContain('Checking host dependencies');
+    });
+
+    it('does not call dispatch handler for route-based items', async () => {
       const doctorFn = vi.fn().mockResolvedValue(undefined);
       const dispatch: DispatchMap = { doctor: doctorFn };
       const { stdin } = render(<App dispatch={dispatch} hasActiveRemote={false} />);
 
-      // Press Enter to select doctor
+      // Press Enter to select doctor (has route: '/doctor')
       stdin.write('\r');
 
-      // Wait for the dispatch to be called
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-      expect(doctorFn).toHaveBeenCalled();
+      // Handler should NOT be called since navigation takes precedence
+      expect(doctorFn).not.toHaveBeenCalled();
     });
   });
 });

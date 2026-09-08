@@ -31,6 +31,8 @@ export interface ActionItem {
   enabledWhen?: EnableCondition;
   /** Key looked up in the DispatchMap at runtime */
   handlerKey?: string;
+  /** Target path for route-based navigation */
+  route?: string;
 }
 
 /** A named group of ActionItems rendered together */
