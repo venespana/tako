@@ -1,6 +1,5 @@
 // menu-registry.ts — Declarative action registry for the home menu.
 // Only implemented commands appear; unimplemented ones are excluded entirely.
-// Submenu items (remotes) live in the router registry; home shows remotes as a single submenu entry.
 // The registry is a module-level frozen constant so consumers can memoize on
 // its identity (a fresh array per call would defeat React memo deps).
 
@@ -37,41 +36,31 @@ const REGISTRY: ActionGroup[] = deepFreeze([
     label: 'Remote',
     items: [
       {
-        id: 'remotes',
-        label: 'remotes',
-        command: 'remotes',
-        kind: 'submenu',
-        submenu: ['select', 'add', 'delete'],
+        id: 'remote-select',
+        label: 'Select',
+        command: 'select',
+        kind: 'action',
         enabledWhen: 'always',
-        handlerKey: 'remotes',
+        handlerKey: 'remotes.select',
         route: '/remotes',
       },
       {
-        id: 'remote-logs',
-        label: 'logs',
-        command: 'logs',
+        id: 'remote-add',
+        label: 'Add',
+        command: 'add',
         kind: 'action',
-        enabledWhen: 'hasActiveRemote',
-        handlerKey: 'logs',
-        route: '/logs',
+        enabledWhen: 'always',
+        handlerKey: 'remotes.add',
+        route: '/remotes/add',
       },
       {
-        id: 'remote-status',
-        label: 'status',
-        command: 'status',
+        id: 'remote-delete',
+        label: 'Delete',
+        command: 'delete',
         kind: 'action',
-        enabledWhen: 'hasActiveRemote',
-        handlerKey: 'status',
-        route: '/status',
-      },
-      {
-        id: 'remote-cleanup',
-        label: 'cleanup',
-        command: 'cleanup',
-        kind: 'action',
-        enabledWhen: 'hasActiveRemote',
-        handlerKey: 'cleanup',
-        route: '/cleanup',
+        enabledWhen: 'always',
+        handlerKey: 'remotes.delete',
+        route: '/remotes/rm',
       },
     ],
   },

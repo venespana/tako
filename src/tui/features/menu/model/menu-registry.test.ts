@@ -26,27 +26,26 @@ describe('getRegistry', () => {
     expect(local.items[0]!.enabledWhen).toBe('always');
   });
 
-  it('Remote group contains remotes submenu plus disabled action items', () => {
+  it('Remote group contains Select, Add, Delete as direct action items', () => {
     const remote = getRegistry().find(g => g.id === 'remote')!;
-    const remotesItem = remote.items.find(i => i.id === 'remotes');
-    expect(remotesItem).toBeDefined();
-    expect(remotesItem!.kind).toBe('submenu');
-    expect(remotesItem!.submenu).toEqual(['select', 'add', 'delete']);
+    expect(remote.items.map(i => i.id)).toEqual(['remote-select', 'remote-add', 'remote-delete']);
+    expect(remote.items.every(i => i.kind === 'action')).toBe(true);
+    expect(remote.items.every(i => i.enabledWhen === 'always')).toBe(true);
+  });
 
-    // Other remote items should be disabled when no active remote
-    const disabledItems = remote.items.filter(i => i.enabledWhen === 'hasActiveRemote');
-    expect(disabledItems.length).toBeGreaterThan(0);
+  it('Remote items route correctly', () => {
+    const remote = getRegistry().find(g => g.id === 'remote')!;
+    const select = remote.items.find(i => i.id === 'remote-select')!;
+    const add = remote.items.find(i => i.id === 'remote-add')!;
+    const deleteItem = remote.items.find(i => i.id === 'remote-delete')!;
+    expect(select.route).toBe('/remotes');
+    expect(add.route).toBe('/remotes/add');
+    expect(deleteItem.route).toBe('/remotes/rm');
   });
 
   it('doctor action has handlerKey', () => {
     const local = getRegistry().find(g => g.id === 'local')!;
     expect(local.items[0]!.handlerKey).toBe('doctor');
-  });
-
-  it('remotes submenu has handlerKey', () => {
-    const remote = getRegistry().find(g => g.id === 'remote')!;
-    const remotesItem = remote.items.find(i => i.id === 'remotes')!;
-    expect(remotesItem.handlerKey).toBe('remotes');
   });
 
   it('no hidden unimplemented commands appear', () => {

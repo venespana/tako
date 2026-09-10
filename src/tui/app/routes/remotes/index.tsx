@@ -1,6 +1,5 @@
-// routes/remotes/index.tsx — Route shim for '/remotes': the remotes menu
-// page (menus are pages). Adapts the app runtime's session state into the
-// page's props, keeping the page free of app-layer imports (FSD).
+// routes/remotes/index.tsx — Route shim for '/remotes': the remotes selection
+// screen. Builds the domain stack and wires it into the page props.
 import Conf from 'conf';
 
 import { ValidateSshConnection } from '../../../../domains/remotes/application/ValidateSshConnection.js';
@@ -18,13 +17,12 @@ function buildStack() {
 }
 
 function RemotesRoute(): React.ReactElement {
-  const { activeRemote, activateRemote } = useAppRuntime();
+  const { activateRemote } = useAppRuntime();
   const { repository, validateConnection } = buildStack();
   return (
     <RemotesMenuPage
       repository={repository}
       validateConnection={validateConnection}
-      activeRemote={activeRemote}
       onActivateRemote={activateRemote}
     />
   );

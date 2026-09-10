@@ -143,18 +143,13 @@ const renderRemotes = (repository: RemoteRepository, initialActive?: string) =>
     expect(frame).toContain('❯ web');
   });
 
-  it('Enter selects the remote and transitions to the submenu', async () => {
-    // store-with-password → direct activation, no connect-time prompt
+  it('Enter activates the remote and keeps showing the selection list', async () => {
     const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, storeWithPassword));
     await settle(lastFrame, f => f.includes('❯ nas'), 1000);
 
-    // Enter over 'nas': selection screen → remotes submenu
-    const frame = await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('❯ add'));
-
-    expect(frame).toContain('❯ select');
-    expect(frame).toContain('add');
-    expect(frame).toContain('delete');
-    expect(frame).not.toContain('Select a remote');
+    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('❯ nas'));
+    // After activation, selection list is still visible
+    expect(lastFrame()).toContain('nas (ops@10.0.0.5:22)');
   });
 
   it('redirects to /remotes/add when no remotes are configured', async () => {
@@ -188,45 +183,6 @@ const renderRemotes = (repository: RemoteRepository, initialActive?: string) =>
   });
 });
 
-describe('RemotesMenuPage (submenu with an active remote)', () => {
-  it('renders the submenu list (select, add, delete)', async () => {
-    const { lastFrame } = renderRemotes(fakeRepository(REMOTES), 'nas');
-    const frame = await settle(lastFrame, f => f.includes('add'), 1000);
-
-    expect(frame).toContain('remotes');
-    expect(frame).toContain('select');
-    expect(frame).toContain('add');
-    expect(frame).toContain('delete');
-    // Selection screen never shows when a remote is already active
-    expect(frame).not.toContain('Select a remote');
-  });
-
-  it('starts the cursor on the first subcommand (select)', async () => {
-    const { lastFrame } = renderRemotes(fakeRepository(REMOTES), 'nas');
-    const frame = await settle(lastFrame, f => f.includes('select'), 1000);
-
-    expect(frame).toContain('❯ select');
-    expect(frame).not.toContain('❯ add');
-  });
-
-  it('moves the cursor with j', async () => {
-    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES), 'nas');
-    await settle(lastFrame, f => f.includes('❯ select'), 1000);
-
-    const frame = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ add'));
-    expect(frame).toContain('❯ add');
-  });
-
-  it('does not render shell chrome (logo, key hints, version)', async () => {
-    const { lastFrame } = renderRemotes(fakeRepository(REMOTES));
-    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 1000);
-
-    expect(frame).not.toContain('███╗');
-    expect(frame).not.toContain('quit');
-    expect(frame).not.toContain('v0.0.0');
-  });
-});
-
 describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => {
   const SECRET = 'S3cret!pw-xyz';
 
@@ -241,7 +197,7 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
     expect(frame).not.toContain('Select a remote');
   });
 
-  it('4.8 RED: correct password activates the remote (submenu shows), secret never rendered', async () => {
+  it('4.8 RED: correct password activates the remote, selection list remains visible', async () => {
     const { lastFrame, stdin } = render(
       <MemoryRouter initialEntries={['/remotes']}>
         <Harness repository={fakeRepository(REMOTES, interactiveRemote)} validateConnection={fakeValidator(SECRET)} />
@@ -252,8 +208,9 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
 
     await typePassword(stdin, lastFrame, SECRET);
 
-    const frame = await settle(lastFrame, f => f.includes('❯ add'), 2000);
-    expect(frame).toContain('active:nas');
+    // After activation, selection list is still shown (no submenu)
+    const frame = await settle(lastFrame, f => f.includes('nas (ops@10.0.0.5:22)'), 2000);
+    expect(frame).toContain('nas (ops@10.0.0.5:22)');
     expect(frame).not.toContain(SECRET);
   });
 

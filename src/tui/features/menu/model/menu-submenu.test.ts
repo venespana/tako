@@ -1,40 +1,23 @@
 // menu-submenu.test.ts — Unit tests for the remotes submenu model.
+// NOTE: with the new design, the Remote group has direct action items (Select, Add, Delete)
+// instead of a submenu. The submenu functions now return empty since there is no
+// submenu parent in the registry — this file tests that dead-code path.
 import { describe, it, expect } from 'vitest';
 
 import { buildRemotesSelectable, getRemotesGroups, getRemotesSelectable } from './menu-submenu.js';
 import type { ActionItem } from './menu-items.js';
-import { getRegistry } from './menu-registry.js';
-
-const REMOTES_CMDS = ['select', 'add', 'delete'];
 
 describe('buildRemotesSelectable', () => {
-  it('maps the submenu commands to routed action items', () => {
-    const remotesItem = getRegistry()
-      .flatMap(group => group.items)
-      .find(item => item.id === 'remotes');
-
-    const selectable = buildRemotesSelectable(remotesItem);
-
-    expect(selectable.map(i => i.label)).toEqual(REMOTES_CMDS);
-    expect(selectable.map(i => i.route)).toEqual([
-      '/remotes',     // select → /remotes
-      '/remotes/add', // add
-      '/remotes/rm',  // delete → /remotes/rm
-    ]);
-    for (const item of selectable) {
-      expect(item.kind).toBe('action');
-      expect(item.enabledWhen).toBe('always');
-      expect(item.handlerKey).toBe(`remotes.${item.label}`);
-      expect(item.id).toBe(`remotes-${item.label}`);
-    }
-  });
-
   it('returns [] for a missing parent', () => {
     expect(buildRemotesSelectable(undefined)).toEqual([]);
   });
 
-  it('returns [] for a malformed parent (not a submenu / submenu not an array)', () => {
+  it('returns [] for a non-submenu item', () => {
     const action = { id: 'x', label: 'x', command: 'x', kind: 'action' } as ActionItem;
+    expect(buildRemotesSelectable(action)).toEqual([]);
+  });
+
+  it('returns [] for a malformed submenu (submenu not an array)', () => {
     const badSubmenu = {
       id: 'x',
       label: 'x',
@@ -42,25 +25,21 @@ describe('buildRemotesSelectable', () => {
       kind: 'submenu',
       submenu: 'nope',
     } as unknown as ActionItem;
-
-    expect(buildRemotesSelectable(action)).toEqual([]);
     expect(buildRemotesSelectable(badSubmenu)).toEqual([]);
   });
 });
 
 describe('getRemotesSelectable', () => {
-  it('builds the submenu list from the registry', () => {
-    expect(getRemotesSelectable().map(i => i.label)).toEqual(REMOTES_CMDS);
+  it('returns [] since the registry has no submenu parent', () => {
+    // The registry now has direct action items (Select, Add, Delete) — no submenu.
+    expect(getRemotesSelectable()).toEqual([]);
   });
 });
 
 describe('getRemotesGroups', () => {
-  it('renders one synthesized group whose items mirror the selectable list', () => {
+  it('returns one empty group since selectable is empty', () => {
     const groups = getRemotesGroups();
-
     expect(groups).toHaveLength(1);
-    expect(groups[0]!.id).toBe('remotes-submenu');
-    expect(groups[0]!.label).toBe('remotes');
-    expect(groups[0]!.items.map(i => i.id)).toEqual(getRemotesSelectable().map(i => i.id));
+    expect(groups[0]!.items).toHaveLength(0);
   });
 });
