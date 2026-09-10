@@ -129,14 +129,16 @@ describe('AddRemoteWizard type step', () => {
     unmount();
   });
 
-  it('3.6 RED: PasswordStep shows validate-only copy for interactive', () => {
+  it('3.6 RED: shows validate-only copy for interactive in password field label', () => {
     driveToTypeStep();
     useWizardStore.getState().setType('interactive');
 
     const { lastFrame, unmount } = renderInk(<AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />);
     const frame = lastFrame() ?? '';
 
-    expect(frame).toContain('used only to validate');
+    // In progressive form, credential type is always visible and password field shows the label
+    expect(frame).toContain('SSH password');
+    expect(frame).toContain('validation only');
     expect(frame).toContain('never saved');
     unmount();
   });
