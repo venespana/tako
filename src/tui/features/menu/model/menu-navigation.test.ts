@@ -44,7 +44,7 @@ describe('getSelectable', () => {
       label: 'remotes',
       command: 'remotes',
       kind: 'submenu' as const,
-      submenu: ['add', 'list', 'rm', 'use', 'test'],
+      submenu: ['select', 'add', 'delete'],
     };
     const groups: ActionGroup[] = [group([action, submenu])];
 

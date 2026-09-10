@@ -10,6 +10,13 @@ const REMOTES_ID = 'remotes';
 /** The single group a remotes submenu page renders as its screen. */
 const REMOTES_SUBMENU_GROUP_ID = 'remotes-submenu';
 
+/** Route for each submenu command. */
+function routeFor(cmd: string): string {
+  if (cmd === 'select') return '/remotes';
+  if (cmd === 'delete') return '/remotes/rm';
+  return `/remotes/${cmd}`;
+}
+
 /** Build ActionItems for the remotes submenu from the parent's submenu array.
  * Guards against a missing or malformed entry (returns []). */
 export function buildRemotesSelectable(remotesItem: ActionItem | undefined): ActionItem[] {
@@ -23,7 +30,7 @@ export function buildRemotesSelectable(remotesItem: ActionItem | undefined): Act
     kind: 'action' as const,
     enabledWhen: 'always' as const,
     handlerKey: `remotes.${cmd}`,
-    route: `/remotes/${cmd}`,
+    route: routeFor(cmd),
   }));
 }
 

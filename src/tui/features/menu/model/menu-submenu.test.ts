@@ -5,7 +5,7 @@ import { buildRemotesSelectable, getRemotesGroups, getRemotesSelectable } from '
 import type { ActionItem } from './menu-items.js';
 import { getRegistry } from './menu-registry.js';
 
-const REMOTES_CMDS = ['add', 'list', 'rm', 'use', 'test'];
+const REMOTES_CMDS = ['select', 'add', 'delete'];
 
 describe('buildRemotesSelectable', () => {
   it('maps the submenu commands to routed action items', () => {
@@ -16,7 +16,11 @@ describe('buildRemotesSelectable', () => {
     const selectable = buildRemotesSelectable(remotesItem);
 
     expect(selectable.map(i => i.label)).toEqual(REMOTES_CMDS);
-    expect(selectable.map(i => i.route)).toEqual(REMOTES_CMDS.map(cmd => `/remotes/${cmd}`));
+    expect(selectable.map(i => i.route)).toEqual([
+      '/remotes',     // select → /remotes
+      '/remotes/add', // add
+      '/remotes/rm',  // delete → /remotes/rm
+    ]);
     for (const item of selectable) {
       expect(item.kind).toBe('action');
       expect(item.enabledWhen).toBe('always');

@@ -151,11 +151,9 @@ const renderRemotes = (repository: RemoteRepository, initialActive?: string) =>
     // Enter over 'nas': selection screen → remotes submenu
     const frame = await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('❯ add'));
 
-    expect(frame).toContain('❯ add');
-    expect(frame).toContain('list');
-    expect(frame).toContain('rm');
-    expect(frame).toContain('use');
-    expect(frame).toContain('test');
+    expect(frame).toContain('❯ select');
+    expect(frame).toContain('add');
+    expect(frame).toContain('delete');
     expect(frame).not.toContain('Select a remote');
   });
 
@@ -191,34 +189,32 @@ const renderRemotes = (repository: RemoteRepository, initialActive?: string) =>
 });
 
 describe('RemotesMenuPage (submenu with an active remote)', () => {
-  it('renders the submenu list (all five subcommands)', async () => {
+  it('renders the submenu list (select, add, delete)', async () => {
     const { lastFrame } = renderRemotes(fakeRepository(REMOTES), 'nas');
     const frame = await settle(lastFrame, f => f.includes('add'), 1000);
 
     expect(frame).toContain('remotes');
+    expect(frame).toContain('select');
     expect(frame).toContain('add');
-    expect(frame).toContain('list');
-    expect(frame).toContain('rm');
-    expect(frame).toContain('use');
-    expect(frame).toContain('test');
+    expect(frame).toContain('delete');
     // Selection screen never shows when a remote is already active
     expect(frame).not.toContain('Select a remote');
   });
 
-  it('starts the cursor on the first subcommand (add)', async () => {
+  it('starts the cursor on the first subcommand (select)', async () => {
     const { lastFrame } = renderRemotes(fakeRepository(REMOTES), 'nas');
-    const frame = await settle(lastFrame, f => f.includes('add'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('select'), 1000);
 
-    expect(frame).toContain('❯ add');
-    expect(frame).not.toContain('❯ list');
+    expect(frame).toContain('❯ select');
+    expect(frame).not.toContain('❯ add');
   });
 
   it('moves the cursor with j', async () => {
     const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES), 'nas');
-    await settle(lastFrame, f => f.includes('❯ add'), 1000);
+    await settle(lastFrame, f => f.includes('❯ select'), 1000);
 
-    const frame = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ list'));
-    expect(frame).toContain('❯ list');
+    const frame = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ add'));
+    expect(frame).toContain('❯ add');
   });
 
   it('does not render shell chrome (logo, key hints, version)', async () => {

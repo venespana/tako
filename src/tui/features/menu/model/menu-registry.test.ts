@@ -31,7 +31,7 @@ describe('getRegistry', () => {
     const remotesItem = remote.items.find(i => i.id === 'remotes');
     expect(remotesItem).toBeDefined();
     expect(remotesItem!.kind).toBe('submenu');
-    expect(remotesItem!.submenu).toEqual(['add', 'list', 'rm', 'use', 'test']);
+    expect(remotesItem!.submenu).toEqual(['select', 'add', 'delete']);
 
     // Other remote items should be disabled when no active remote
     const disabledItems = remote.items.filter(i => i.enabledWhen === 'hasActiveRemote');
@@ -52,7 +52,7 @@ describe('getRegistry', () => {
   it('no hidden unimplemented commands appear', () => {
     const allItems = getRegistry().flatMap(g => g.items);
     const ids = allItems.map(i => i.id);
-    const hidden = ['install', 'update', 'status', 'logs', 'cleanup', 'rollback'];
+    const hidden = ['install', 'update', 'status', 'logs', 'cleanup', 'rollback', 'list', 'use', 'test'];
     hidden.forEach(id => {
       expect(ids).not.toContain(id);
     });

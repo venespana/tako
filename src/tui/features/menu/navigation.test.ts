@@ -38,7 +38,7 @@ describe('getSelectable', () => {
   });
 
   it('filters to submenu items when in submenu view', () => {
-    const item = { id: 'remotes', label: 'remotes', command: 'remotes', kind: 'submenu' as const, submenu: ['add', 'list', 'rm', 'use', 'test'] };
+    const item = { id: 'remotes', label: 'remotes', command: 'remotes', kind: 'submenu' as const, submenu: ['select', 'add', 'delete'] };
     const groups: ActionGroup[] = [group([item])];
     const result = getSelectable(groups, { view: 'submenu', parentId: 'remotes', restoreCursor: 0 }, false);
     expect(result.map(i => i.id)).toEqual(['remotes']);

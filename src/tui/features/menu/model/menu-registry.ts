@@ -41,7 +41,7 @@ const REGISTRY: ActionGroup[] = deepFreeze([
         label: 'remotes',
         command: 'remotes',
         kind: 'submenu',
-        submenu: ['add', 'list', 'rm', 'use', 'test'],
+        submenu: ['select', 'add', 'delete'],
         enabledWhen: 'always',
         handlerKey: 'remotes',
         route: '/remotes',
