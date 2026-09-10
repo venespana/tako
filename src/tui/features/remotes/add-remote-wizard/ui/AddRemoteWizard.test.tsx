@@ -15,6 +15,7 @@ import type { AddRemoteResult } from '../../../../../domains/remotes/domain/type
 function createFakeAddRemote(executeResult: AddRemoteResult) {
   return {
     execute: vi.fn(async () => executeResult),
+    save: vi.fn(async () => undefined),
   } as unknown as import('../../../../../domains/remotes/application/AddRemote.js').AddRemote;
 }
 
@@ -117,29 +118,101 @@ describe('AddRemoteWizard type step', () => {
     unmount();
   });
 
-  it('3.6 RED: no save-password screen — store routes straight to password step', () => {
+  it('3.6 RED: store type advances to password step — no intermediate screen', () => {
     driveToTypeStep();
     useWizardStore.getState().setType('store');
 
     const { lastFrame, unmount } = renderInk(<AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />);
     const frame = lastFrame() ?? '';
 
+    // No "Save password for future sessions?" intermediate screen
     expect(frame).not.toContain('Save password for future sessions?');
+    // With progressive disclosure, credential type is visible (step advanced)
+    expect(frame).toContain('Credential type:');
+    // Password field is visible because type step is complete (step='password')
     expect(frame).toContain('SSH password');
     unmount();
   });
 
-  it('3.6 RED: shows validate-only copy for interactive in password field label', () => {
+  it('3.6 RED: interactive type shows validate-only copy at password step', () => {
     driveToTypeStep();
     useWizardStore.getState().setType('interactive');
 
     const { lastFrame, unmount } = renderInk(<AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />);
     const frame = lastFrame() ?? '';
 
-    // In progressive form, credential type is always visible and password field shows the label
+    // Progressive disclosure: type step complete, password field visible
+    expect(frame).toContain('Credential type:');
     expect(frame).toContain('SSH password');
     expect(frame).toContain('validation only');
     expect(frame).toContain('never saved');
     unmount();
   });
+
+  it('3.6 regression: Enter on Select commits the type and reveals password (no double-commit)', async () => {
+    driveToTypeStep();
+
+    const { lastFrame, stdin, unmount } = renderInk(
+      <AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />
+    );
+
+    // The Select is active at the type step; Enter selects the focused option
+    // ('store'). Regression guard: Enter must be processed ONCE — a global
+    // Enter handler used to double-commit and corrupt credentialType to ''.
+    stdin.write('\r');
+    await delay(50);
+
+    const frame = lastFrame() ?? '';
+    expect(useWizardStore.getState().data.credentialType).toBe('store');
+    expect(useWizardStore.getState().step).toBe('password');
+    expect(frame).toContain('SSH password');
+    unmount();
+  });
+
+  it('3.6 regression: Esc aborts the wizard with { saved: false, reason: abort }', async () => {
+    driveToTypeStep();
+
+    const { stdin, unmount } = renderInk(<AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />);
+
+    // EditingGuard blocks the app-level Esc handler while the form is open,
+    // so the wizard itself must own Esc — it was a dead key before.
+    stdin.write('\x1b');
+    await delay(50);
+
+    expect(onComplete).toHaveBeenCalledWith({ saved: false, reason: 'abort' });
+    unmount();
+  });
+
+  it('3.6 regression: y at hostkey-confirm accepts and completes the wizard', async () => {
+    driveToTypeStep();
+    useWizardStore.getState().validationSuccess('AA:BB:CC', false);
+
+    const uc = fakeUc();
+    const { stdin, unmount } = renderInk(<AddRemoteWizard addRemoteUc={uc} onComplete={onComplete} />);
+
+    expect(useWizardStore.getState().step).toBe('hostkey-confirm');
+    stdin.write('y');
+    await delay(50);
+
+    expect(useWizardStore.getState().step).toBe('done');
+    expect(uc.save).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it('3.6 regression: n at hostkey-confirm declines and aborts', async () => {
+    driveToTypeStep();
+    useWizardStore.getState().validationSuccess('AA:BB:CC', false);
+
+    const { stdin, unmount } = renderInk(<AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />);
+
+    stdin.write('n');
+    await delay(50);
+
+    expect(onComplete).toHaveBeenCalledWith({ saved: false, reason: 'abort' });
+    unmount();
+  });
 });
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

@@ -1,8 +1,10 @@
 // tui/features/remotes/add-remote-wizard/ui/AddRemoteWizard.tsx — Progressive
-// disclosure: only the active field is visible and editable. Tab/Enter advances
-// to the next field; Shift+Tab goes back and clears the current field.
-// Esc restores normal navigation (leaves editing mode).
-import { useState, useCallback, useEffect } from 'react';
+// disclosure driven by the wizard store's step: fields up to the current step
+// are revealed (completed ones show their fixed value on one line), the field
+// at the current step is editable, later fields are hidden.
+// Enter is handled by each input (TextInput.onSubmit / Select.onChange) — the
+// global handler only manages Tab navigation so Enter is never processed twice.
+import { useState, useCallback } from 'react';
 
 import { Box, Text, useInput } from 'ink';
 import { TextInput, PasswordInput, Select } from '@inkjs/ui';
@@ -10,6 +12,7 @@ import type { Key } from 'ink';
 
 import type { AddRemote } from '../../../../../domains/remotes/application/AddRemote.js';
 import type { AddRemoteResult, SshCredentialType } from '../../../../../domains/remotes/domain/types.js';
+import type { WizardStep } from '../model/wizard-store.js';
 import { EditingGuard } from '../../../../shared/ui/EditingGuard.js';
 import { useAddRemoteWizard } from '../model/use-add-remote-wizard.js';
 
@@ -19,14 +22,17 @@ export type AddRemoteWizardProps = {
 };
 
 // ---------------------------------------------------------------------------
-// Field ordering and navigation
+// Field ordering, step mapping and navigation
 // ---------------------------------------------------------------------------
 
 type FieldId = 'name' | 'username' | 'host' | 'port' | 'type' | 'keyPath' | 'password';
 
 const FIELD_ORDER: FieldId[] = ['name', 'username', 'host', 'port', 'type', 'keyPath', 'password'];
 
-function getVisibleFields(credentialType: SshCredentialType): FieldId[] {
+// Navigation order for the active credential type (excludes the unused
+// credential-specific field). Used for Tab / Shift+Tab movement only —
+// VISIBILITY is decided by the step index, not by this list.
+function getNavFields(credentialType: SshCredentialType): FieldId[] {
   return FIELD_ORDER.filter(f => {
     if (f === 'keyPath') return credentialType === 'ssh-key';
     if (f === 'password') return credentialType === 'store' || credentialType === 'interactive';
@@ -34,15 +40,35 @@ function getVisibleFields(credentialType: SshCredentialType): FieldId[] {
   });
 }
 
-function nextField(current: FieldId, visible: FieldId[]): FieldId | null {
-  const idx = visible.indexOf(current);
-  return idx >= 0 && idx < visible.length - 1 ? visible[idx + 1]! : null;
-}
+// Index of the furthest field revealed by each wizard step. A field is visible
+// when its FIELD_ORDER index is <= this threshold (plus credential filters).
+const STEP_INDEX: Record<WizardStep, number> = {
+  name: 0,
+  user: 1,
+  host: 2,
+  port: 3,
+  type: 4,
+  'key-path': 5,
+  password: 6,
+  validating: 7,
+  'hostkey-confirm': 7,
+  done: 7,
+};
 
-function prevField(current: FieldId, visible: FieldId[]): FieldId | null {
-  const idx = visible.indexOf(current);
-  return idx > 0 ? visible[idx - 1]! : null;
-}
+// Which field the user is editing at each collection step (null for the
+// terminal steps where no field is being edited).
+const STEP_FIELD: Record<WizardStep, FieldId | null> = {
+  name: 'name',
+  user: 'username',
+  host: 'host',
+  port: 'port',
+  type: 'type',
+  'key-path': 'keyPath',
+  password: 'password',
+  validating: null,
+  'hostkey-confirm': null,
+  done: null,
+};
 
 // ---------------------------------------------------------------------------
 // AddRemoteWizard
@@ -52,87 +78,106 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
   const wizard = useAddRemoteWizard({ addRemoteUc, onComplete });
   const { data } = wizard;
 
-  const [activeField, setActiveField] = useState<FieldId | null>('name');
-  const [localValues, setLocalValues] = useState<Record<string, string>>({});
+  // The active field is DERIVED from the store's step (single source of truth).
+  // `backField` is the only local navigation state: Shift+Tab moves it behind
+  // the step field; submitting clears it so the step regains control.
+  const [backField, setBackField] = useState<FieldId | null>(null);
+  // Draft values while editing (the Select writes the store directly).
+  const [draft, setDraft] = useState<Partial<Record<FieldId, string>>>({});
 
-  const visible = getVisibleFields(data.credentialType);
+  const stepField = STEP_FIELD[wizard.step];
+  const activeField = backField ?? stepField;
   const isEditing = activeField !== null;
 
-  const getLocalValue = (field: FieldId, wizardData: typeof data): string => {
-    const local = localValues[field];
-    if (local !== undefined) return local;
+  const revealed = Math.max(
+    STEP_INDEX[wizard.step],
+    activeField ? FIELD_ORDER.indexOf(activeField) : 0
+  );
+
+  const isFieldVisible = (field: FieldId): boolean => {
+    if (FIELD_ORDER.indexOf(field) > revealed) return false;
+    if (field === 'keyPath' && data.credentialType !== 'ssh-key') return false;
+    if (field === 'password' && data.credentialType !== 'store' && data.credentialType !== 'interactive') return false;
+    return true;
+  };
+
+  // Fixed value shown for a revealed, non-active field
+  const getDisplayValue = (field: FieldId): string => {
     switch (field) {
-      case 'name': return wizardData.name;
-      case 'username': return wizardData.username;
-      case 'host': return wizardData.host;
-      case 'port': return String(wizardData.port);
-      case 'type': return wizardData.credentialType;
-      case 'keyPath': return wizardData.keyPath ?? '';
-      case 'password': return wizardData.password ?? '';
+      case 'name': return data.name;
+      case 'username': return data.username;
+      case 'host': return data.host;
+      case 'port': return String(data.port);
+      case 'type': return data.credentialType;
+      case 'keyPath': return data.keyPath ?? '~/.ssh/id_rsa';
+      case 'password': return '●●●●●●●●';
     }
   };
 
-  const getWizardSetter = (field: FieldId): (v: string) => void => {
-    switch (field) {
-      case 'name': return (v: string) => wizard.setName(v);
-      case 'username': return (v: string) => wizard.setUser(v);
-      case 'host': return (v: string) => wizard.setHost(v);
-      case 'port': return (v: string) => wizard.setPort(parseInt(v, 10) || 22);
-      case 'type': return (v: string) => wizard.setType(v as SshCredentialType);
-      case 'keyPath': return (v: string) => wizard.setKeyPath(v);
-      case 'password': return (v: string) => wizard.setPassword(v);
-    }
-  };
-
-  const advance = useCallback(() => {
+  // Commit the active field's draft to the store. Each setter also advances
+  // the store's step, which is what actually moves the form forward.
+  const submitField = useCallback(() => {
+    setBackField(null);
     if (activeField === null) return;
-    const next = nextField(activeField, visible);
-    if (next) {
-      setActiveField(next);
-    } else {
-      // Last visible field — trigger validation
-      if (activeField === 'type') {
-        if (data.credentialType === 'ssh-key') {
-          wizard.setKeyPath(localValues['keyPath'] ?? '~/.ssh/id_rsa');
-        } else {
-          wizard.setPassword(localValues['password'] ?? '');
-        }
-      } else if (activeField === 'keyPath') {
-        wizard.setKeyPath(localValues['keyPath'] ?? '~/.ssh/id_rsa');
-      } else if (activeField === 'password') {
-        wizard.setPassword(localValues['password'] ?? '');
-      }
+    const value = draft[activeField] ?? '';
+    switch (activeField) {
+      case 'name': wizard.setName(value); break;
+      case 'username': wizard.setUser(value); break;
+      case 'host': wizard.setHost(value); break;
+      case 'port': wizard.setPort(parseInt(value, 10) || 22); break;
+      // The Select writes the store on selection; never overwrite it with an
+      // empty draft when the user just Tabs through the field.
+      case 'type': if (value) wizard.setType(value as SshCredentialType); break;
+      case 'keyPath': wizard.setKeyPath(value); break;
+      case 'password': wizard.setPassword(value); break;
     }
-  }, [activeField, visible, wizard, data, localValues]);
+  }, [activeField, draft, wizard]);
 
+  // Tab: commit the active field. The store's step advancing is what moves
+  // the form to the next field (submitting the last field triggers
+  // validation via its store setter).
+  const advance = useCallback(() => {
+    submitField();
+  }, [submitField]);
+
+  // Shift+Tab: clear current draft and go back to the previous nav field
   const goBack = useCallback(() => {
     if (activeField === null) return;
-    // Clear current field
-    setLocalValues(prev => ({ ...prev, [activeField]: '' }));
-    const prev = prevField(activeField, visible);
-    if (prev) {
-      setActiveField(prev);
-    }
-  }, [activeField, visible]);
+    setDraft(v => ({ ...v, [activeField]: '' }));
+    const nav = getNavFields(data.credentialType);
+    const idx = nav.indexOf(activeField);
+    if (idx > 0) setBackField(nav[idx - 1]!);
+  }, [activeField, data.credentialType]);
 
-  // Global keyboard handler for Tab navigation and field advancement
+  // Global handler: Tab navigation while editing; Esc cancels the wizard from
+  // ANY state (EditingGuard blocks the app-level Esc, so the wizard owns it);
+  // hostkey-confirm resolves with y/N. Enter belongs to each input
+  // (TextInput.onSubmit / Select.onChange) — handling it here too would commit
+  // every keypress twice.
   useInput(
-    (_input: string, key: Key) => {
+    (input: string, key: Key) => {
+      if (wizard.step === 'hostkey-confirm') {
+        if (input === 'y' || input === 'Y') wizard.acceptHostkey();
+        else if (input === 'n' || input === 'N') wizard.declineHostkey();
+        return;
+      }
+      if (key.escape) {
+        if (wizard.step !== 'done') wizard.abort();
+        return;
+      }
       if (!isEditing) return;
       if (key.tab && !key.shift) { advance(); return; }
       if (key.tab && key.shift) { goBack(); return; }
-      if (key.return) { advance(); return; }
     },
-    { isActive: isEditing }
+    { isActive: true }
   );
 
-  const submitCurrentField = () => {
-    if (activeField === null) return;
-    const setter = getWizardSetter(activeField);
-    const value = getLocalValue(activeField, data);
-    setter(value);
-    advance();
-  };
+  // One-line row for a completed field
+  const DoneRow = ({ label, field }: { label: string; field: FieldId }) => (
+    <Text dimColor>
+      {label} {getDisplayValue(field)}
+    </Text>
+  );
 
   return (
     <EditingGuard isEditing={isEditing}>
@@ -146,123 +191,128 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
         )}
 
         {/* Connection name */}
-        {visible.includes('name') && (
-          <Box flexDirection='column'>
-            <Text>Connection name:</Text>
-            {activeField === 'name' ? (
+        {isFieldVisible('name') && (
+          activeField === 'name' ? (
+            <Box flexDirection='column'>
+              <Text>Connection name:</Text>
               <TextInput
-                defaultValue={getLocalValue('name', data)}
+                defaultValue={draft.name ?? data.name}
                 placeholder='e.g. nas-backup'
-                onChange={v => setLocalValues(prev => ({ ...prev, name: v }))}
-                onSubmit={submitCurrentField}
+                onChange={v => setDraft(prev => ({ ...prev, name: v }))}
+                onSubmit={advance}
               />
-            ) : (
-              <Text dimColor>  {data.name || '(not set)'} — Tab to edit</Text>
-            )}
-          </Box>
+            </Box>
+          ) : (
+            <DoneRow label='Connection name:' field='name' />
+          )
         )}
 
         {/* Username */}
-        {visible.includes('username') && (
-          <Box flexDirection='column'>
-            <Text>SSH username:</Text>
-            {activeField === 'username' ? (
+        {isFieldVisible('username') && (
+          activeField === 'username' ? (
+            <Box flexDirection='column'>
+              <Text>SSH username:</Text>
               <TextInput
-                defaultValue={getLocalValue('username', data)}
+                defaultValue={draft.username ?? data.username}
                 placeholder='e.g. ops'
-                onChange={v => setLocalValues(prev => ({ ...prev, username: v }))}
-                onSubmit={submitCurrentField}
+                onChange={v => setDraft(prev => ({ ...prev, username: v }))}
+                onSubmit={advance}
               />
-            ) : (
-              <Text dimColor>  {data.username || '(not set)'} — Tab to edit</Text>
-            )}
-          </Box>
+            </Box>
+          ) : (
+            <DoneRow label='SSH username:' field='username' />
+          )
         )}
 
         {/* Host */}
-        {visible.includes('host') && (
-          <Box flexDirection='column'>
-            <Text>Hostname or IP address:</Text>
-            {activeField === 'host' ? (
+        {isFieldVisible('host') && (
+          activeField === 'host' ? (
+            <Box flexDirection='column'>
+              <Text>Hostname or IP address:</Text>
               <TextInput
-                defaultValue={getLocalValue('host', data)}
+                defaultValue={draft.host ?? data.host}
                 placeholder='e.g. 10.0.0.5'
-                onChange={v => setLocalValues(prev => ({ ...prev, host: v }))}
-                onSubmit={submitCurrentField}
+                onChange={v => setDraft(prev => ({ ...prev, host: v }))}
+                onSubmit={advance}
               />
-            ) : (
-              <Text dimColor>  {data.host || '(not set)'} — Tab to edit</Text>
-            )}
-          </Box>
+            </Box>
+          ) : (
+            <DoneRow label='Host:' field='host' />
+          )
         )}
 
         {/* Port */}
-        {visible.includes('port') && (
-          <Box flexDirection='column'>
-            <Text>SSH port (default 22):</Text>
-            {activeField === 'port' ? (
+        {isFieldVisible('port') && (
+          activeField === 'port' ? (
+            <Box flexDirection='column'>
+              <Text>SSH port (default 22):</Text>
               <TextInput
-                defaultValue={getLocalValue('port', data)}
+                defaultValue={draft.port ?? String(data.port)}
                 placeholder='22'
-                onChange={v => setLocalValues(prev => ({ ...prev, port: v }))}
-                onSubmit={submitCurrentField}
+                onChange={v => setDraft(prev => ({ ...prev, port: v }))}
+                onSubmit={advance}
               />
-            ) : (
-              <Text dimColor>  {data.port} — Tab to edit</Text>
-            )}
-          </Box>
+            </Box>
+          ) : (
+            <DoneRow label='Port:' field='port' />
+          )
         )}
 
         {/* Credential type */}
-        {visible.includes('type') && (
-          <Box flexDirection='column'>
-            <Text>Credential type:</Text>
-            <Select
-              options={[
-                { label: 'Store password (obfuscated)', value: 'store' },
-                { label: 'SSH key', value: 'ssh-key' },
-                { label: 'Ask every session — never stored', value: 'interactive' },
-              ]}
-              onChange={v => wizard.setType(v as SshCredentialType)}
-            />
-          </Box>
+        {isFieldVisible('type') && (
+          activeField === 'type' ? (
+            <Box flexDirection='column'>
+              <Text>Credential type:</Text>
+              <Select
+                options={[
+                  { label: 'Store password (obfuscated)', value: 'store' },
+                  { label: 'SSH key', value: 'ssh-key' },
+                  { label: 'Ask every session — never stored', value: 'interactive' },
+                ]}
+                onChange={v => wizard.setType(v as SshCredentialType)}
+              />
+            </Box>
+          ) : (
+            <DoneRow label='Credential type:' field='type' />
+          )
         )}
 
         {/* Key path — ssh-key only */}
-        {visible.includes('keyPath') && (
-          <Box flexDirection='column'>
-            <Text>Path to private SSH key:</Text>
-            {activeField === 'keyPath' ? (
+        {isFieldVisible('keyPath') && (
+          activeField === 'keyPath' ? (
+            <Box flexDirection='column'>
+              <Text>Path to private SSH key:</Text>
               <TextInput
-                defaultValue={getLocalValue('keyPath', data)}
+                defaultValue={draft.keyPath ?? data.keyPath ?? ''}
                 placeholder='~/.ssh/id_rsa'
-                onChange={v => setLocalValues(prev => ({ ...prev, keyPath: v }))}
-                onSubmit={submitCurrentField}
+                onChange={v => setDraft(prev => ({ ...prev, keyPath: v }))}
+                onSubmit={advance}
               />
-            ) : (
-              <Text dimColor>  {data.keyPath || '(not set)'} — Tab to edit</Text>
-            )}
-          </Box>
+            </Box>
+          ) : (
+            <DoneRow label='Key path:' field='keyPath' />
+          )
         )}
 
         {/* Password — store / interactive */}
-        {visible.includes('password') && (
-          <Box flexDirection='column'>
-            <Text>
-              SSH password:
-              {data.credentialType === 'interactive' && (
-                <Text dimColor> (validation only — never saved)</Text>
-              )}
-            </Text>
-            {activeField === 'password' ? (
+        {isFieldVisible('password') && (
+          activeField === 'password' ? (
+            <Box flexDirection='column'>
+              <Text>
+                SSH password:
+                {data.credentialType === 'interactive' && (
+                  <Text dimColor> (validation only — never saved)</Text>
+                )}
+              </Text>
               <PasswordInput
                 placeholder='Enter password'
-                onSubmit={() => { wizard.setPassword(localValues['password'] ?? ''); advance(); }}
+                onChange={v => setDraft(prev => ({ ...prev, password: v }))}
+                onSubmit={value => wizard.setPassword(value)}
               />
-            ) : (
-              <Text dimColor>  ●●●●●●●● — Tab to edit</Text>
-            )}
-          </Box>
+            </Box>
+          ) : (
+            <DoneRow label='Password:' field='password' />
+          )
         )}
 
         {wizard.step === 'validating' && <Text dimColor>Validating SSH connection...</Text>}
@@ -283,8 +333,8 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
 
         <Text dimColor>
           {isEditing
-            ? `Editing: ${activeField} · Tab: next · Shift+Tab: back & clear · Esc: restore nav`
-            : 'Tab to start editing'}
+            ? `Editing: ${activeField} · Enter: confirm · Tab: next · Shift+Tab: back & clear · Esc: cancel`
+            : 'Tab to start editing · Esc: cancel'}
         </Text>
       </Box>
     </EditingGuard>
