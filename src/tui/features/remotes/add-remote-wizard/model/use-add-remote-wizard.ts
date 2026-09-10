@@ -35,6 +35,8 @@ export interface AddRemoteWizardModel {
   /** Hostkey prompt resolution. */
   acceptHostkey: () => void;
   declineHostkey: () => void;
+  /** Abort the wizard — completes with { saved: false, reason: 'abort' }. */
+  abort: () => void;
 }
 
 export function useAddRemoteWizard({ addRemoteUc, onComplete }: UseAddRemoteWizardOptions): AddRemoteWizardModel {
@@ -53,6 +55,7 @@ export function useAddRemoteWizard({ addRemoteUc, onComplete }: UseAddRemoteWiza
   const setPassword = useWizardStore(s => s.setPassword);
   const hostkeyAccept = useWizardStore(s => s.hostkeyAccept);
   const hostkeyDecline = useWizardStore(s => s.hostkeyDecline);
+  const abort = useWizardStore(s => s.abort);
 
   // Build draft from wizard data
   const buildDraft = useCallback((): RemoteDraft => {
@@ -133,5 +136,6 @@ export function useAddRemoteWizard({ addRemoteUc, onComplete }: UseAddRemoteWiza
     setPassword,
     acceptHostkey: hostkeyAccept,
     declineHostkey: hostkeyDecline,
+    abort,
   };
 }
