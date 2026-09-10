@@ -95,7 +95,6 @@ function Harness({
       <Text>{`active:${active?.name ?? 'none'}`}</Text>
       <RemotesMenuPage
         repository={repository}
-        activeRemote={active?.name}
         validateConnection={validateConnection}
         onActivateRemote={(name, password) => setActive({ name, password })}
       />
