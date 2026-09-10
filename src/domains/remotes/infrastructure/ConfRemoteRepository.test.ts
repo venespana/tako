@@ -194,6 +194,85 @@ describe('ConfRemoteRepository', () => {
     });
   });
 
+  describe('getByName', () => {
+    it('2.3 RED: found — returns the full persisted Remote record', async () => {
+      const mockConf = createMockConf({ remotes: { nas: baseRemote } });
+
+      const repo = new ConfRemoteRepository(mockConf as unknown as RemoteRepository);
+
+      const remote = await repo.getByName('nas');
+
+      expect(remote).toEqual(baseRemote);
+    });
+
+    it('2.3 RED: not found — returns null without throwing', async () => {
+      const mockConf = createMockConf({ remotes: { nas: baseRemote } });
+
+      const repo = new ConfRemoteRepository(mockConf as unknown as RemoteRepository);
+
+      await expect(repo.getByName('ghost')).resolves.toBeNull();
+    });
+
+    it('2.3 RED: not found when no remotes exist at all', async () => {
+      const mockConf = createMockConf({});
+
+      const repo = new ConfRemoteRepository(mockConf as unknown as RemoteRepository);
+
+      await expect(repo.getByName('nas')).resolves.toBeNull();
+    });
+
+    it('2.3 RED: legacy store-without-password normalizes to interactive on read', async () => {
+      const legacy: Remote = {
+        name: 'nas',
+        type: 'ssh',
+        username: 'ops',
+        host: '10.0.0.5',
+        port: 22,
+        credentialType: 'store',
+        obfuscatedPassword: undefined,
+      };
+      const mockConf = createMockConf({ remotes: { nas: legacy } });
+
+      const repo = new ConfRemoteRepository(mockConf as unknown as RemoteRepository);
+
+      const remote = await repo.getByName('nas');
+
+      expect(remote?.credentialType).toBe('interactive');
+    });
+
+    it('2.3 RED: persisted bytes unchanged — getByName does not rewrite the stored entry', async () => {
+      const legacy: Remote = {
+        name: 'nas',
+        type: 'ssh',
+        username: 'ops',
+        host: '10.0.0.5',
+        port: 22,
+        credentialType: 'store',
+        obfuscatedPassword: undefined,
+      };
+      const mockConf = createMockConf({ remotes: { nas: legacy } });
+
+      const repo = new ConfRemoteRepository(mockConf as unknown as RemoteRepository);
+
+      await repo.getByName('nas');
+
+      expect(mockConf.set).not.toHaveBeenCalled();
+      const storeRemotes = mockConf._getStore().remotes as Record<string, Remote>;
+      expect(storeRemotes['nas']?.credentialType).toBe('store');
+    });
+
+    it('2.3 RED: store-with-password is returned as-is (normalization no-op)', async () => {
+      const mockConf = createMockConf({ remotes: { nas: baseRemote } });
+
+      const repo = new ConfRemoteRepository(mockConf as unknown as RemoteRepository);
+
+      const remote = await repo.getByName('nas');
+
+      expect(remote?.credentialType).toBe('store');
+      expect(remote?.obfuscatedPassword).toBe('encrypted-hunter2');
+    });
+  });
+
   describe('list', () => {
     it('returns name + endpoint summaries sorted by name', async () => {
       const mockConf = createMockConf({

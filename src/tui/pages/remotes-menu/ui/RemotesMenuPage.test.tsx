@@ -12,23 +12,95 @@ import { Text } from 'ink';
 import { MemoryRouter, useLocation } from 'react-router';
 
 import type { RemoteRepository } from '../../../../domains/remotes/application/RemoteRepository.js';
-import type { RemoteSummary } from '../../../../domains/remotes/domain/types.js';
-import { pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
+import type { ValidateSshConnection } from '../../../../domains/remotes/application/ValidateSshConnection.js';
+import type { Remote, RemoteSummary, SshTestConfig } from '../../../../domains/remotes/domain/types.js';
+import { KEY_FLUSH_MS, pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
 import { RemotesMenuPage } from './RemotesMenuPage.js';
 
-function fakeRepository(summaries: RemoteSummary[]): RemoteRepository {
+function fakeRepository(summaries: RemoteSummary[], byName: Remote | null = null): RemoteRepository {
   return {
     existsByName: vi.fn(async () => false),
     existsByEndpoint: vi.fn(async () => false),
     save: vi.fn(async () => {}),
+    getByName: vi.fn(async () => byName),
     list: vi.fn(async () => summaries),
   };
 }
 
+/** Direct-activation remote: a store remote with a password on disk. */
+const storeWithPassword: Remote = {
+  name: 'nas',
+  type: 'ssh',
+  username: 'ops',
+  host: '10.0.0.5',
+  port: 22,
+  credentialType: 'store',
+  obfuscatedPassword: 'encrypted-hunter2',
+};
+
+/** Prompt-required remote: no secret on disk. */
+const interactiveRemote: Remote = { ...storeWithPassword, credentialType: 'interactive', obfuscatedPassword: undefined };
+
+/** Type a password into the focused PasswordInput. Writing chars one by one
+ * is not enough: a freshly mounted gate's Ink input pipeline (the readable
+ * listener and each useInput subscription) attaches in delayed React 19
+ * passive effects — the same window pressAndSettle's retry covers — and the
+ * mock stdin keeps a single data slot, so a char written before attach is
+ * dropped and then silently overwritten by the next write. Each char is
+ * therefore only sent after the previous one is ACKNOWLEDGED by the input's
+ * echo (PasswordInput renders one '*' per typed char), with one retry per
+ * char. The return key goes as its own write once the full echo is visible. */
+async function typePassword(
+  stdin: ReturnType<typeof render>['stdin'],
+  lastFrame: ReturnType<typeof render>['lastFrame'],
+  password: string
+): Promise<void> {
+  const stars = (frame: string): number => frame.split('*').length - 1;
+  for (let index = 0; index < password.length; index++) {
+    const echoed = (): boolean => stars(lastFrame() ?? '') > index;
+    for (let attempt = 0; attempt < 2 && !echoed(); attempt++) {
+      stdin.write(password[index]!);
+      await settle(lastFrame, echoed, KEY_FLUSH_MS);
+    }
+  }
+  stdin.write('\r');
+}
+
+/** SSH validator fake: only 'good-pw' authenticates. */
+function fakeValidator(okOn = 'good-pw'): ValidateSshConnection {
+  return {
+    validate: vi.fn(async (config: SshTestConfig) =>
+      config.auth.type === 'password' && config.auth.password === okOn
+        ? { ok: true, hostkeyFingerprint: 'SHA256:x' }
+        : { ok: false, category: 'auth', message: 'All configured authentication methods failed' }
+    ),
+  } as unknown as ValidateSshConnection;
+}
+
 /** Holds the session's active-remote state, mirroring App's ownership. */
-function Harness({ repository, initialActive }: { repository: RemoteRepository; initialActive?: string }) {
-  const [activeRemote, setActiveRemote] = useState<string | undefined>(initialActive);
-  return <RemotesMenuPage repository={repository} activeRemote={activeRemote} onSelectRemote={setActiveRemote} />;
+function Harness({
+  repository,
+  initialActive,
+  validateConnection = fakeValidator(),
+}: {
+  repository: RemoteRepository;
+  initialActive?: string;
+  validateConnection?: ValidateSshConnection;
+}) {
+  const [active, setActive] = useState<{ name: string; password?: string } | undefined>(
+    initialActive ? { name: initialActive } : undefined
+  );
+  return (
+    <>
+      <Text>{`active:${active?.name ?? 'none'}`}</Text>
+      <RemotesMenuPage
+        repository={repository}
+        activeRemote={active?.name}
+        validateConnection={validateConnection}
+        onActivateRemote={(name, password) => setActive({ name, password })}
+      />
+    </>
+  );
 }
 
 function LocationEcho() {
@@ -45,9 +117,7 @@ const renderRemotes = (repository: RemoteRepository, initialActive?: string) =>
     <MemoryRouter initialEntries={['/remotes']}>
       <Harness repository={repository} initialActive={initialActive} />
     </MemoryRouter>
-  );
-
-describe('RemotesMenuPage (selection screen)', () => {
+  );describe('RemotesMenuPage (selection screen)', () => {
   it('lists the configured remotes with name and endpoint', async () => {
     const { lastFrame } = renderRemotes(fakeRepository(REMOTES));
     const frame = await settle(lastFrame, f => f.includes('Select a remote'), 1000);
@@ -74,7 +144,8 @@ describe('RemotesMenuPage (selection screen)', () => {
   });
 
   it('Enter selects the remote and transitions to the submenu', async () => {
-    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES));
+    // store-with-password → direct activation, no connect-time prompt
+    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, storeWithPassword));
     await settle(lastFrame, f => f.includes('❯ nas'), 1000);
 
     // Enter over 'nas': selection screen → remotes submenu
@@ -105,6 +176,7 @@ describe('RemotesMenuPage (selection screen)', () => {
       existsByName: vi.fn(async () => false),
       existsByEndpoint: vi.fn(async () => false),
       save: vi.fn(async () => {}),
+      getByName: vi.fn(async () => null),
       list: vi.fn(async () => {
         throw new Error('conf unreadable');
       }),
@@ -156,5 +228,61 @@ describe('RemotesMenuPage (submenu with an active remote)', () => {
     expect(frame).not.toContain('███╗');
     expect(frame).not.toContain('quit');
     expect(frame).not.toContain('v0.0.0');
+  });
+});
+
+describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => {
+  const SECRET = 'S3cret!pw-xyz';
+
+  it('4.8 RED: prompt screen renders for an interactive selection', async () => {
+    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, interactiveRemote));
+    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+
+    const frame = await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
+
+    expect(frame).toContain('Connect to nas');
+    expect(frame).toContain('Password');
+    expect(frame).not.toContain('Select a remote');
+  });
+
+  it('4.8 RED: correct password activates the remote (submenu shows), secret never rendered', async () => {
+    const { lastFrame, stdin } = render(
+      <MemoryRouter initialEntries={['/remotes']}>
+        <Harness repository={fakeRepository(REMOTES, interactiveRemote)} validateConnection={fakeValidator(SECRET)} />
+      </MemoryRouter>
+    );
+    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
+
+    await typePassword(stdin, lastFrame, SECRET);
+
+    const frame = await settle(lastFrame, f => f.includes('❯ add'), 2000);
+    expect(frame).toContain('active:nas');
+    expect(frame).not.toContain(SECRET);
+  });
+
+  it('4.8 RED: wrong password re-prompts with an auth message, remote stays inactive', async () => {
+    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, interactiveRemote));
+    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
+
+    await typePassword(stdin, lastFrame, 'wrong-pw');
+
+    const frame = await settle(lastFrame, f => f.includes('Authentication failed'), 2000);
+    expect(frame).toContain('Connect to nas');
+    expect(frame).not.toContain('active:nas');
+    expect(frame).not.toContain('wrong-pw');
+  });
+
+  it('4.8 RED: Esc cancels the prompt and restores the selection list', async () => {
+    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, interactiveRemote));
+    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
+
+    stdin.write('\x1b');
+
+    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 2000);
+    expect(frame).toContain('Select a remote');
+    expect(frame).not.toContain('Connect to nas');
   });
 });

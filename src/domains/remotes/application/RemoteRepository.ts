@@ -9,6 +9,11 @@ export interface RemoteRepository {
   existsByEndpoint(endpoint: string): Promise<boolean>;
   /** Persist a remote (caller is responsible for ensuring no duplicates) */
   save(remote: Remote): Promise<void>;
+  /**
+   * Exact-name lookup returning the full persisted Remote (including credentialType).
+   * `null` is the distinct not-found outcome. Never throws.
+   */
+  getByName(name: string): Promise<Remote | null>;
   /** List all configured remotes (name + endpoint only, sorted by name) */
   list(): Promise<RemoteSummary[]>;
 }

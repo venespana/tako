@@ -30,7 +30,6 @@ export interface AddRemoteWizardModel {
   setHost: (host: string) => void;
   setPort: (port: number) => void;
   setType: (type: SshCredentialType) => void;
-  setSavePassword: (save: boolean) => void;
   setKeyPath: (path: string) => void;
   setPassword: (password: string) => void;
   /** Hostkey prompt resolution. */
@@ -50,7 +49,6 @@ export function useAddRemoteWizard({ addRemoteUc, onComplete }: UseAddRemoteWiza
   const setHost = useWizardStore(s => s.setHost);
   const setPort = useWizardStore(s => s.setPort);
   const setType = useWizardStore(s => s.setType);
-  const setSavePassword = useWizardStore(s => s.setSavePassword);
   const setKeyPath = useWizardStore(s => s.setKeyPath);
   const setPassword = useWizardStore(s => s.setPassword);
   const hostkeyAccept = useWizardStore(s => s.hostkeyAccept);
@@ -65,9 +63,8 @@ export function useAddRemoteWizard({ addRemoteUc, onComplete }: UseAddRemoteWiza
       host: data.host,
       port: data.port,
       credentialType: data.credentialType,
-      // Always include password for store type (needed for SSH test even if transient)
-      ...(data.credentialType === 'store' && {
-        savePassword: data.savePassword ?? false,
+      // store: persisted obfuscated; interactive: used only for pre-save validation
+      ...((data.credentialType === 'store' || data.credentialType === 'interactive') && {
         password: data.password,
       }),
       ...(data.credentialType === 'ssh-key' && { keyPath: data.keyPath }),
@@ -132,7 +129,6 @@ export function useAddRemoteWizard({ addRemoteUc, onComplete }: UseAddRemoteWiza
     setHost,
     setPort,
     setType,
-    setSavePassword,
     setKeyPath,
     setPassword,
     acceptHostkey: hostkeyAccept,

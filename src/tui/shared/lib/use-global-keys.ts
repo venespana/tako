@@ -3,17 +3,24 @@
 // selection live in the menu pages via useMenuList; nothing here knows about
 // menus. Consumed by AppShell; router state comes from the react-router data
 // router hooks.
+//
+// When `isActive` is false (e.g. during text input), this hook is a no-op so
+// that h/j/k/l characters reach the text input without being intercepted.
 import { useApp, useInput } from 'ink';
 import type { Key } from 'ink';
 
 import { useLocation, useNavigate } from 'react-router';
 
-export function useGlobalKeys(): void {
+import { useEditing } from './editing-context.js';
+
+export function useGlobalKeys(isActive: boolean = true): void {
   const { exit } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
+  const { isEditing } = useEditing();
 
-  // handleKey doesn't need memoization since useInput re-registers on each render
+  const active = isActive && !isEditing;
+
   const handleKey = (input: string, key: Key): void => {
     // Quit on q or Ctrl-C (only Ctrl-C — other ctrl combos must not exit)
     if (input === 'q' || (key.ctrl && input === 'c')) {
@@ -31,5 +38,5 @@ export function useGlobalKeys(): void {
     }
   };
 
-  useInput(handleKey);
+  useInput(handleKey, { isActive: active });
 }

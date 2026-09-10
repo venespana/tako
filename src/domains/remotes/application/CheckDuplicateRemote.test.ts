@@ -18,6 +18,7 @@ describe('CheckDuplicateRemote', () => {
         return opts.endpointExists ?? false;
       }),
       save: vi.fn(async () => {}),
+      getByName: vi.fn(async () => null),
       list: vi.fn(async () => []),
     };
   }

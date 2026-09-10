@@ -2,7 +2,7 @@
 // Tests the full keypress flow using ink-testing-library.
 import { describe, it, expect, vi } from 'vitest';
 import { render } from 'ink-testing-library';
-import App from './App.js';
+import { App } from './App.js';
 import type { DispatchMap } from '../features/menu/types.js';
 
 describe('App', () => {

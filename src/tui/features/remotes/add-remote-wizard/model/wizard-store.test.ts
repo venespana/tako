@@ -105,15 +105,23 @@ describe('useWizardStore', () => {
       store.setPort(22);
     });
 
-    it('setType store → transitions to save-password step', () => {
+    it('3.4 RED: setType store → transitions directly to password step (no save-password step)', () => {
       useWizardStore.getState().setType('store');
 
       const state = useWizardStore.getState();
-      expect(state.step).toBe('save-password');
+      expect(state.step).toBe('password');
       expect(state.data.credentialType).toBe('store');
     });
 
-    it('setType ssh-key → transitions to key-path step', () => {
+    it('3.4 RED: setType interactive → transitions to password step', () => {
+      useWizardStore.getState().setType('interactive');
+
+      const state = useWizardStore.getState();
+      expect(state.step).toBe('password');
+      expect(state.data.credentialType).toBe('interactive');
+    });
+
+    it('3.4 RED: setType ssh-key → transitions to key-path step', () => {
       useWizardStore.getState().setType('ssh-key');
 
       const state = useWizardStore.getState();
@@ -122,35 +130,7 @@ describe('useWizardStore', () => {
     });
   });
 
-  // Step 6a: save-password (store only)
-  describe('STEP: save-password', () => {
-    beforeEach(() => {
-      const store = useWizardStore.getState();
-      store.setName('nas-backup');
-      store.setUser('ops');
-      store.setHost('10.0.0.5');
-      store.setPort(22);
-      store.setType('store');
-    });
-
-    it('setSavePassword true → transitions to password step', () => {
-      useWizardStore.getState().setSavePassword(true);
-
-      const state = useWizardStore.getState();
-      expect(state.step).toBe('password');
-      expect(state.data.savePassword).toBe(true);
-    });
-
-    it('setSavePassword false → still goes to password step (transient: needed for session, not persisted)', () => {
-      useWizardStore.getState().setSavePassword(false);
-
-      const state = useWizardStore.getState();
-      expect(state.step).toBe('password');
-      expect(state.data.savePassword).toBe(false);
-    });
-  });
-
-  // Step 6b: key-path (ssh-key only)
+  // Step 6a: key-path (ssh-key only)
   describe('STEP: key-path', () => {
     beforeEach(() => {
       const store = useWizardStore.getState();
@@ -178,7 +158,7 @@ describe('useWizardStore', () => {
     });
   });
 
-  // Step 7: password (store + save-password only)
+  // Step 7: password (store + interactive)
   describe('STEP: password', () => {
     beforeEach(() => {
       const store = useWizardStore.getState();
@@ -187,7 +167,6 @@ describe('useWizardStore', () => {
       store.setHost('10.0.0.5');
       store.setPort(22);
       store.setType('store');
-      store.setSavePassword(true);
     });
 
     it('setPassword non-empty → transitions to validating', () => {
@@ -208,7 +187,6 @@ describe('useWizardStore', () => {
       store.setHost('10.0.0.5');
       store.setPort(22);
       store.setType('store');
-      store.setSavePassword(true);
       store.setPassword('hunter2');
     });
 
@@ -253,7 +231,6 @@ describe('useWizardStore', () => {
       store.setHost('10.0.0.5');
       store.setPort(22);
       store.setType('store');
-      store.setSavePassword(true);
       store.setPassword('hunter2');
       store.validationSuccess('SHA256:abc123', false);
     });
@@ -282,7 +259,6 @@ describe('useWizardStore', () => {
       store.setHost('10.0.0.5');
       store.setPort(22);
       store.setType('store');
-      store.setSavePassword(true);
       store.setPassword('hunter2');
       store.validationSuccess('SHA256:abc123', true);
 

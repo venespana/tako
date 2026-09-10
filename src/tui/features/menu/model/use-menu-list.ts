@@ -5,13 +5,17 @@
 // pattern disappears entirely. Consumed by menu pages together with
 // use-menu-navigation (route navigation used to be page-owned; the two
 // duplicated inline handlers were extracted into that hook).
-import { useState } from 'react';
+//
+// When `isActive` is false (e.g. during text input), this hook is a no-op so
+// that h/j/k/l characters reach the text input without being intercepted.
+import { useCallback, useRef, useState } from 'react';
 
 import { useInput } from 'ink';
 import type { Key } from 'ink';
 
 import type { ActionItem } from './menu-items.js';
 import { moveCursor } from './menu-navigation.js';
+import { useEditing } from '../../../shared/lib/editing-context.js';
 
 export interface UseMenuListOptions {
   /** The currently selectable items (pre-filtered by enablement). */
@@ -25,28 +29,43 @@ export interface MenuListController {
   cursor: number;
 }
 
-export function useMenuList({ selectable, onSelect }: UseMenuListOptions): MenuListController {
+export function useMenuList(
+  { selectable, onSelect }: UseMenuListOptions,
+  isActive: boolean = true
+): MenuListController {
   const [cursor, setCursor] = useState(0);
+  const { isEditing } = useEditing();
 
-  // handleKey doesn't need memoization since useInput re-registers on each render
-  const handleKey = (input: string, key: Key): void => {
-    if (key.upArrow || input === 'k') {
-      setCursor(prev => moveCursor(selectable, prev, -1));
-      return;
-    }
-    if (key.downArrow || input === 'j') {
-      setCursor(prev => moveCursor(selectable, prev, 1));
-      return;
-    }
-    // Select — focused item only; registry items always carry a route but the
-    // undefined-guard keeps the hook safe for non-routed lists too.
-    if (key.return || input === 'l') {
-      const focused = selectable[cursor];
-      if (focused !== undefined) onSelect(focused);
-    }
-  };
+  const active = isActive && !isEditing;
 
-  useInput(handleKey);
+  // Keep a ref to the current selectable so the keyboard handler always
+  // operates on the latest value, avoiding stale-closure issues when the
+  // list populates after the initial render (React 19 may delay passive
+  // effects, so useInput can register before the async fetch resolves).
+  const selectableRef = useRef(selectable);
+  selectableRef.current = selectable;
+
+  const handleKey = useCallback(
+    (input: string, key: Key): void => {
+      if (key.upArrow || input === 'k') {
+        setCursor(prev => moveCursor(selectableRef.current, prev, -1));
+        return;
+      }
+      if (key.downArrow || input === 'j') {
+        setCursor(prev => moveCursor(selectableRef.current, prev, 1));
+        return;
+      }
+      // Select — focused item only; registry items always carry a route but the
+      // undefined-guard keeps the hook safe for non-routed lists too.
+      if (key.return || input === 'l') {
+        const focused = selectableRef.current[cursor];
+        if (focused !== undefined) onSelect(focused);
+      }
+    },
+    [onSelect, cursor]
+  );
+
+  useInput(handleKey, { isActive: active });
 
   return { cursor };
 }

@@ -35,6 +35,7 @@ function buildFakes({ duplicateResult, validateOutcome, vaultObfuscate = 'obfusc
     existsByName: vi.fn(async () => duplicateResult.isDuplicate),
     existsByEndpoint: vi.fn(async () => duplicateResult.isDuplicate),
     save: vi.fn(async () => {}),
+    getByName: vi.fn(async () => null),
     list: vi.fn(async () => []),
   };
 
@@ -61,7 +62,17 @@ const storeDraft: RemoteDraft = {
   port: 22,
   credentialType: 'store',
   password: 'hunter2',
-  savePassword: true,
+};
+
+// store now ALWAYS persists (no save-password branch); interactive never does
+const interactiveDraft: RemoteDraft = {
+  name: 'nas',
+  type: 'ssh',
+  username: 'ops',
+  host: '10.0.0.5',
+  port: 22,
+  credentialType: 'interactive',
+  password: 'hunter2',
 };
 
 const keyDraft: RemoteDraft = {
@@ -106,8 +117,8 @@ describe('AddRemote', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
-  // (c) valid + accepted + store + savePassword → obfuscate called, save called
-  it('3.5 RED: (c) valid + accepted + store + save → obfuscate+pw, save with Remote', async () => {
+  // (c) valid + accepted + store → obfuscate called, save called
+  it('3.5 RED: (c) valid + accepted + store → obfuscate+pw, save with Remote', async () => {
     const { checkDuplicate, validateConnection, vault, repo } = buildFakes({
       duplicateResult: { isDuplicate: false },
       validateOutcome: { ok: true, hostkeyFingerprint: 'SHA256:fingerprint' },
@@ -141,24 +152,71 @@ describe('AddRemote', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
-  // (e) store-transient (no save-password) → password NOT persisted, obfuscate NOT called
-  it('3.5 RED: (e) store + savePassword=false → obfuscate NOT called, no obfuscatedPassword in saved remote', async () => {
-    const transientDraft: RemoteDraft = {
-      ...storeDraft,
-      savePassword: false,
-    };
-
+  // (e) interactive → password-auth validation, no secret persisted, vault never called
+  it('2.6 RED: (e) interactive → validates with password auth', async () => {
     const { checkDuplicate, validateConnection, vault, repo } = buildFakes({
       duplicateResult: { isDuplicate: false },
       validateOutcome: { ok: true, hostkeyFingerprint: 'SHA256:fingerprint' },
     });
 
     const uc = new AddRemote(checkDuplicate, validateConnection, vault, repo);
-    const result = await uc.execute(transientDraft, { hostkeyAccepted: true });
+    await uc.execute(interactiveDraft, { hostkeyAccepted: true });
+
+    expect(validateConnection.validate).toHaveBeenCalledWith({
+      host: '10.0.0.5',
+      port: 22,
+      username: 'ops',
+      auth: { type: 'password', password: 'hunter2' },
+    });
+  });
+
+  it('2.6 RED: (e2) interactive → persists no secret fields, vault never called', async () => {
+    const { checkDuplicate, validateConnection, vault, repo } = buildFakes({
+      duplicateResult: { isDuplicate: false },
+      validateOutcome: { ok: true, hostkeyFingerprint: 'SHA256:fingerprint' },
+    });
+
+    const uc = new AddRemote(checkDuplicate, validateConnection, vault, repo);
+    const result = await uc.execute(interactiveDraft, { hostkeyAccepted: true });
 
     expect(result.saved).toBe(true);
     expect(vault.obfuscate).not.toHaveBeenCalled();
     expect(repo.save).toHaveBeenCalledTimes(1);
+    const savedRemote = (repo.save as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Remote;
+    expect(savedRemote.credentialType).toBe('interactive');
+    expect(savedRemote.obfuscatedPassword).toBeUndefined();
+    expect(savedRemote.keyPath).toBeUndefined();
+  });
+
+  it('2.6 RED: (e3) save() with interactive → persists no secret fields, vault never called', async () => {
+    const { checkDuplicate, validateConnection, vault, repo } = buildFakes({
+      duplicateResult: { isDuplicate: false },
+      validateOutcome: { ok: true, hostkeyFingerprint: 'SHA256:fingerprint' },
+    });
+
+    const uc = new AddRemote(checkDuplicate, validateConnection, vault, repo);
+    const result = await uc.save(interactiveDraft);
+
+    expect(result.saved).toBe(true);
+    expect(vault.obfuscate).not.toHaveBeenCalled();
+    expect(repo.save).toHaveBeenCalledTimes(1);
+    const savedRemote = (repo.save as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Remote;
+    expect(savedRemote.credentialType).toBe('interactive');
+    expect(savedRemote.obfuscatedPassword).toBeUndefined();
+    expect(savedRemote.keyPath).toBeUndefined();
+  });
+
+  it('2.6 RED: (e4) store without password persists no obfuscatedPassword', async () => {
+    const { checkDuplicate, validateConnection, vault, repo } = buildFakes({
+      duplicateResult: { isDuplicate: false },
+      validateOutcome: { ok: true, hostkeyFingerprint: 'SHA256:fingerprint' },
+    });
+
+    const uc = new AddRemote(checkDuplicate, validateConnection, vault, repo);
+    const result = await uc.execute({ ...storeDraft, password: undefined }, { hostkeyAccepted: true });
+
+    expect(result.saved).toBe(true);
+    expect(vault.obfuscate).not.toHaveBeenCalled();
     const savedRemote = (repo.save as ReturnType<typeof vi.fn>).mock.calls[0]![0] as Remote;
     expect(savedRemote.obfuscatedPassword).toBeUndefined();
   });

@@ -23,7 +23,9 @@
     "test:all": "vitest run",
     "test:coverage": "vitest run --project=unit --coverage",
     "dev": "bun --watch src/cli/index.ts",
+    "start": "bun ./src/index.tsx",
     "prebuild": "bun scripts/generate-version.ts",
+    "prestart": "bun scripts/generate-routes.ts",
     "build": "bun build src/cli/index.ts --compile --target=bun-linux-x64-modern --outfile dist/tako-linux-x64"
   },
   "dependencies": {

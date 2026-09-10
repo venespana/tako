@@ -18,7 +18,7 @@ export class AddRemote {
    * 1. Check duplicate (block on collision)
    * 2. Validate SSH connection (block on failure)
    * 3. Require explicit hostkey accept (UI gate; use case trusts hostkeyAccepted flag)
-   * 4. Obfuscate password if store+savePassword
+   * 4. Obfuscate password for store type only (interactive persists no secret)
    * 5. Persist
    *
    * Never throws. Returns AddRemoteResult.
@@ -36,9 +36,9 @@ export class AddRemote {
       port: draft.port,
       username: draft.username,
       auth:
-        draft.credentialType === 'store'
-          ? { type: 'password', password: draft.password ?? '' }
-          : { type: 'key', keyPath: draft.keyPath ?? '' },
+        draft.credentialType === 'ssh-key'
+          ? { type: 'key', keyPath: draft.keyPath ?? '' }
+          : { type: 'password', password: draft.password ?? '' },
     });
 
     if (!sshResult.ok) {
@@ -50,9 +50,9 @@ export class AddRemote {
       return { saved: false, reason: 'hostkey', hostkeyFingerprint: sshResult.hostkeyFingerprint };
     }
 
-    // Step 4: build persisted remote
+    // Step 4: build persisted remote (obfuscate for store only — interactive never persists a secret)
     let obfuscatedPassword: string | undefined;
-    if (draft.credentialType === 'store' && draft.savePassword && draft.password !== undefined) {
+    if (draft.credentialType === 'store' && draft.password !== undefined) {
       obfuscatedPassword = this.vault.obfuscate(draft.password);
     }
 
@@ -92,9 +92,9 @@ export class AddRemote {
       return { saved: false, reason: 'duplicate', duplicateKind: dupResult.kind };
     }
 
-    // Obfuscate password if store+savePassword
+    // Obfuscate password for store only (interactive never persists a secret)
     let obfuscatedPassword: string | undefined;
-    if (draft.credentialType === 'store' && draft.savePassword && draft.password !== undefined) {
+    if (draft.credentialType === 'store' && draft.password !== undefined) {
       obfuscatedPassword = this.vault.obfuscate(draft.password);
     }
 

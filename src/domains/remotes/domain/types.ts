@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------------------
 
 export type RemoteType = 'ssh';
-export type SshCredentialType = 'store' | 'ssh-key';
+export type SshCredentialType = 'store' | 'ssh-key' | 'interactive';
 
 /** Persisted remote connection */
 export interface Remote {
@@ -15,7 +15,7 @@ export interface Remote {
   readonly host: string;
   readonly port: number;
   readonly credentialType: SshCredentialType;
-  /** Present only when credentialType is 'store' and user chose to save */
+  /** Present iff credentialType is 'store'; interactive remotes carry no secret fields */
   readonly obfuscatedPassword?: string;
   /** Present only when credentialType is 'ssh-key' */
   readonly keyPath?: string;
@@ -43,8 +43,6 @@ export interface RemoteDraft {
   readonly password?: string;
   /** Path to private key file */
   readonly keyPath?: string;
-  /** Whether the user wants the password saved (credentialType 'store' only) */
-  readonly savePassword?: boolean;
 }
 
 // ---------------------------------------------------------------------------

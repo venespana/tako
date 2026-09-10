@@ -12,10 +12,9 @@ export type WizardStep =
   | 'user' // Username
   | 'host' // Hostname/IP
   | 'port' // SSH port (default 22)
-  | 'type' // Credential type: store | ssh-key
-  | 'save-password' // (store only) Ask to save password
+  | 'type' // Credential type: store | ssh-key | interactive
   | 'key-path' // (ssh-key only) Path to private key
-  | 'password' // (store + save-password) The password itself
+  | 'password' // (store + interactive) The password itself
   | 'validating' // SSH validation in progress
   | 'hostkey-confirm' // Show fingerprint, require accept
   | 'done'; // Complete
@@ -30,8 +29,7 @@ export interface WizardData {
   host: string;
   port: number;
   credentialType: SshCredentialType;
-  // store credentials
-  savePassword?: boolean;
+  // password credentials (store: persisted obfuscated; interactive: validation-only)
   password?: string;
   // ssh-key credentials
   keyPath?: string;
@@ -57,7 +55,6 @@ export interface WizardActions {
   setHost: (host: string) => void;
   setPort: (port: number) => void;
   setType: (type: SshCredentialType) => void;
-  setSavePassword: (save: boolean) => void;
   setKeyPath: (path: string) => void;
   setPassword: (password: string) => void;
   validationSuccess: (hostkeyFingerprint: string, isKnownHost: boolean) => void;
@@ -131,16 +128,9 @@ export const useWizardStore = create<WizardStore>(set => ({
 
   setType: credentialType =>
     set(s => ({
-      step: credentialType === 'store' ? 'save-password' : 'key-path',
+      // store: save intent expressed by the type itself; interactive: validation-only password
+      step: credentialType === 'ssh-key' ? 'key-path' : 'password',
       data: { ...s.data, credentialType },
-      errorMessage: null,
-      errorCategory: null,
-    })),
-
-  setSavePassword: savePassword =>
-    set(s => ({
-      step: 'password',
-      data: { ...s.data, savePassword },
       errorMessage: null,
       errorCategory: null,
     })),

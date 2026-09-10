@@ -2,6 +2,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 
+import { render as renderInk } from 'ink-testing-library';
+
 import { AddRemoteWizard } from './AddRemoteWizard.js';
 import { useWizardStore } from '../model/wizard-store.js';
 import type { AddRemoteResult } from '../../../../../domains/remotes/domain/types.js';
@@ -78,3 +80,64 @@ function render(element: React.ReactElement): { unmount: () => void } {
     unmount: () => {},
   };
 }
+
+// ---------------------------------------------------------------------------
+// Type-step UI (task 3.6): exactly three options, no save-password screen,
+// validate-only copy for interactive
+// ---------------------------------------------------------------------------
+
+describe('AddRemoteWizard type step', () => {
+  const onComplete = vi.fn() as unknown as (result: AddRemoteResult) => void;
+  const fakeUc = () => createFakeAddRemote({ saved: true });
+
+  function driveToTypeStep() {
+    const store = useWizardStore.getState();
+    store.reset();
+    store.setName('nas');
+    store.setUser('ops');
+    store.setHost('10.0.0.5');
+    store.setPort(22);
+  }
+
+  beforeEach(() => {
+    useWizardStore.getState().reset();
+    (onComplete as ReturnType<typeof vi.fn>).mockClear();
+  });
+
+  it('3.6 RED: TypeStep renders exactly three credential options', () => {
+    driveToTypeStep();
+
+    const { lastFrame, unmount } = renderInk(<AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />);
+    const frame = lastFrame() ?? '';
+
+    expect(frame).toContain('Credential type:');
+    expect(frame).toContain('Store password (obfuscated)');
+    expect(frame).toContain('SSH key');
+    expect(frame).toContain('Ask every session — never stored');
+    unmount();
+  });
+
+  it('3.6 RED: no save-password screen — store routes straight to password step', () => {
+    driveToTypeStep();
+    useWizardStore.getState().setType('store');
+
+    const { lastFrame, unmount } = renderInk(<AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />);
+    const frame = lastFrame() ?? '';
+
+    expect(frame).not.toContain('Save password for future sessions?');
+    expect(frame).toContain('SSH password');
+    unmount();
+  });
+
+  it('3.6 RED: PasswordStep shows validate-only copy for interactive', () => {
+    driveToTypeStep();
+    useWizardStore.getState().setType('interactive');
+
+    const { lastFrame, unmount } = renderInk(<AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />);
+    const frame = lastFrame() ?? '';
+
+    expect(frame).toContain('used only to validate');
+    expect(frame).toContain('never saved');
+    unmount();
+  });
+});

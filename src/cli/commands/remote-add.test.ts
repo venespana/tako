@@ -37,7 +37,7 @@ describe('runRemoteAdd exit codes', () => {
         validate: vi.fn(),
       } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), getByName: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(0);
@@ -59,7 +59,7 @@ describe('runRemoteAdd exit codes', () => {
         validate: vi.fn(),
       } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), getByName: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(1);
@@ -81,7 +81,7 @@ describe('runRemoteAdd exit codes', () => {
         validate: vi.fn(),
       } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), getByName: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(1);
@@ -103,7 +103,7 @@ describe('runRemoteAdd exit codes', () => {
         validate: vi.fn(),
       } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), getByName: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(1);
@@ -125,7 +125,7 @@ describe('runRemoteAdd exit codes', () => {
         validate: vi.fn(),
       } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), getByName: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(1);
@@ -146,7 +146,7 @@ describe('runRemoteAdd exit codes', () => {
         validate: vi.fn(),
       } as unknown as import('../../domains/remotes/application/ValidateSshConnection.js').ValidateSshConnection,
       vault: { obfuscate: vi.fn(), reveal: vi.fn() },
-      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), list: vi.fn() },
+      repo: { existsByName: vi.fn(), existsByEndpoint: vi.fn(), save: vi.fn(), getByName: vi.fn(), list: vi.fn() },
     });
 
     expect(exitCode).toBe(2);

@@ -9,7 +9,8 @@ import { Box, Text } from 'ink';
 import { TextInput, Select, PasswordInput, ConfirmInput } from '@inkjs/ui';
 
 import type { AddRemote } from '../../../../../domains/remotes/application/AddRemote.js';
-import type { AddRemoteResult } from '../../../../../domains/remotes/domain/types.js';
+import type { AddRemoteResult, SshCredentialType } from '../../../../../domains/remotes/domain/types.js';
+import { EditingGuard } from '../../../../shared/ui/EditingGuard.js';
 import { useAddRemoteWizard } from '../model/use-add-remote-wizard.js';
 
 export type AddRemoteWizardProps = {
@@ -66,32 +67,17 @@ function PortStep({ onSubmit }: { onSubmit: (port: number) => void }) {
   );
 }
 
-function TypeStep({ onSubmit }: { onSubmit: (type: 'store' | 'ssh-key') => void }) {
+function TypeStep({ onSubmit }: { onSubmit: (type: SshCredentialType) => void }) {
   return (
     <Box flexDirection='column'>
       <Text>Credential type:</Text>
       <Select
         options={[
-          { label: 'Store password', value: 'store' },
+          { label: 'Store password (obfuscated)', value: 'store' },
           { label: 'SSH key', value: 'ssh-key' },
+          { label: 'Ask every session — never stored', value: 'interactive' },
         ]}
-        onChange={value => onSubmit(value as 'store' | 'ssh-key')}
-      />
-    </Box>
-  );
-}
-
-function SavePasswordStep({ onSubmit }: { onSubmit: (save: boolean) => void }) {
-  return (
-    <Box flexDirection='column'>
-      <Text>Save password for future sessions?</Text>
-      <Text dimColor>(Stored obfuscated — NOT encrypted. See ADR 0014.)</Text>
-      <Select
-        options={[
-          { label: 'Yes — save (obfuscated)', value: 'yes' },
-          { label: 'No — ask each session', value: 'no' },
-        ]}
-        onChange={value => onSubmit(value === 'yes')}
+        onChange={value => onSubmit(value as SshCredentialType)}
       />
     </Box>
   );
@@ -106,10 +92,11 @@ function KeyPathStep({ onSubmit }: { onSubmit: (path: string) => void }) {
   );
 }
 
-function PasswordStep({ onSubmit }: { onSubmit: (password: string) => void }) {
+function PasswordStep({ onSubmit, validateOnly }: { onSubmit: (password: string) => void; validateOnly: boolean }) {
   return (
     <Box flexDirection='column'>
       <Text>SSH password:</Text>
+      {validateOnly && <Text dimColor>(Password used only to validate — never saved)</Text>}
       <PasswordInput placeholder='Enter password' onSubmit={onSubmit} />
     </Box>
   );
@@ -172,28 +159,35 @@ function ErrorDisplay({ message, category }: { message: string | null; category:
 export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProps) {
   const wizard = useAddRemoteWizard({ addRemoteUc, onComplete });
 
-  return (
-    <Box flexDirection='column' padding={1}>
-      <Text bold>Add Remote</Text>
-      <ErrorDisplay message={wizard.errorMessage} category={wizard.errorCategory} />
+  // Steps that render a text input (TextInput or PasswordInput).
+  const editingSteps = new Set(['name', 'user', 'host', 'port', 'key-path', 'password']);
+  const isEditing = editingSteps.has(wizard.step);
 
-      {wizard.step === 'name' && <NameStep onSubmit={wizard.setName} />}
-      {wizard.step === 'user' && <UserStep onSubmit={wizard.setUser} />}
-      {wizard.step === 'host' && <HostStep onSubmit={wizard.setHost} />}
-      {wizard.step === 'port' && <PortStep onSubmit={wizard.setPort} />}
-      {wizard.step === 'type' && <TypeStep onSubmit={wizard.setType} />}
-      {wizard.step === 'save-password' && <SavePasswordStep onSubmit={wizard.setSavePassword} />}
-      {wizard.step === 'key-path' && <KeyPathStep onSubmit={wizard.setKeyPath} />}
-      {wizard.step === 'password' && <PasswordStep onSubmit={wizard.setPassword} />}
-      {wizard.step === 'validating' && <ValidatingStep />}
-      {wizard.step === 'hostkey-confirm' && (
-        <HostkeyConfirmStep
-          fingerprint={wizard.data.hostkeyFingerprint ?? 'unknown'}
-          onAccept={wizard.acceptHostkey}
-          onDecline={wizard.declineHostkey}
-        />
-      )}
-      {wizard.step === 'done' && <DoneStep name={wizard.data.name} />}
-    </Box>
+  return (
+    <EditingGuard isEditing={isEditing}>
+      <Box flexDirection='column' padding={1}>
+        <Text bold>Add Remote</Text>
+        <ErrorDisplay message={wizard.errorMessage} category={wizard.errorCategory} />
+
+        {wizard.step === 'name' && <NameStep onSubmit={wizard.setName} />}
+        {wizard.step === 'user' && <UserStep onSubmit={wizard.setUser} />}
+        {wizard.step === 'host' && <HostStep onSubmit={wizard.setHost} />}
+        {wizard.step === 'port' && <PortStep onSubmit={wizard.setPort} />}
+        {wizard.step === 'type' && <TypeStep onSubmit={wizard.setType} />}
+        {wizard.step === 'key-path' && <KeyPathStep onSubmit={wizard.setKeyPath} />}
+        {wizard.step === 'password' && (
+          <PasswordStep onSubmit={wizard.setPassword} validateOnly={wizard.data.credentialType === 'interactive'} />
+        )}
+        {wizard.step === 'validating' && <ValidatingStep />}
+        {wizard.step === 'hostkey-confirm' && (
+          <HostkeyConfirmStep
+            fingerprint={wizard.data.hostkeyFingerprint ?? 'unknown'}
+            onAccept={wizard.acceptHostkey}
+            onDecline={wizard.declineHostkey}
+          />
+        )}
+        {wizard.step === 'done' && <DoneStep name={wizard.data.name} />}
+      </Box>
+    </EditingGuard>
   );
 }

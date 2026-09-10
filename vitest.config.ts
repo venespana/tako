@@ -7,7 +7,7 @@ export default defineConfig({
         test: {
           name: 'unit',
           include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-          exclude: ['**/*.integ.*', '**/*.e2e.*'],
+          exclude: ['**/*.integ.*', '**/*.e2e.*', '**/*.generated.*'],
         },
       },
       {
@@ -25,5 +25,8 @@ export default defineConfig({
         },
       },
     ],
+  },
+  coverage: {
+    exclude: ['**/*.generated.*', '**/*.test.*', '**/*.integ.*', '**/*.e2e.*'],
   },
 });

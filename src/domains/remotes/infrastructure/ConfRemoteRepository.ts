@@ -1,5 +1,6 @@
 // ConfRemoteRepository.ts — INFRASTRUCTURE adapter (sole conf consumer for remotes)
 import type { RemoteRepository } from '../application/RemoteRepository.js';
+import { normalizeRemote } from '../domain/normalize.js';
 import type { Remote, RemoteSummary } from '../domain/types.js';
 
 const NAMESPACE = 'remotes';
@@ -41,6 +42,17 @@ export class ConfRemoteRepository implements RemoteRepository {
   async save(remote: Remote): Promise<void> {
     const conf = this.getConf();
     conf.set(`${NAMESPACE}.${remote.name}`, remote);
+  }
+
+  /**
+   * Exact-name lookup. `null` is the distinct not-found outcome.
+   * Read boundary for legacy entries: store-without-password is surfaced as
+   * interactive. Never rewrites persisted bytes.
+   */
+  async getByName(name: string): Promise<Remote | null> {
+    const conf = this.getConf();
+    const remote = conf.get(`${NAMESPACE}.${name}`) as Remote | undefined;
+    return remote ? normalizeRemote(remote) : null;
   }
 
   async list(): Promise<RemoteSummary[]> {

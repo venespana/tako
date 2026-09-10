@@ -21,12 +21,12 @@ describe('getRegistry', () => {
     expect(local.items[0]!.enabledWhen).toBe('always');
   });
 
-  it('Remote group contains remotes submenu plus disabled action items', () => {
+  it('Remote group contains remotes action plus disabled action items', () => {
     const remote = getRegistry().find(g => g.id === 'remote')!;
     const remotesItem = remote.items.find(i => i.id === 'remotes');
     expect(remotesItem).toBeDefined();
-    expect(remotesItem!.kind).toBe('submenu');
-    expect(remotesItem!.submenu).toEqual(['add', 'list', 'rm', 'use', 'test']);
+    expect(remotesItem!.kind).toBe('action');
+    expect(remotesItem!.route).toBe('/remotes');
 
     // Other remote items should be disabled when no active remote
     const disabledItems = remote.items.filter(i => i.enabledWhen === 'hasActiveRemote');
