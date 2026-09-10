@@ -89,10 +89,9 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
   const activeField = backField ?? stepField;
   const isEditing = activeField !== null;
 
-  const revealed = Math.max(
-    STEP_INDEX[wizard.step],
-    activeField ? FIELD_ORDER.indexOf(activeField) : 0
-  );
+  // Back-navigation conceals everything after the field being edited; without
+  // it, the store's step decides what is revealed.
+  const revealed = backField ? FIELD_ORDER.indexOf(backField) : STEP_INDEX[wizard.step];
 
   const isFieldVisible = (field: FieldId): boolean => {
     if (FIELD_ORDER.indexOf(field) > revealed) return false;
@@ -140,14 +139,25 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
     submitField();
   }, [submitField]);
 
-  // Shift+Tab: clear current draft and go back to the previous nav field
+  // Shift+Tab: discard the current field (draft + committed value) and go
+  // back to the previous nav field in edit mode. The setters advance the
+  // store's step, but backField suppresses the reveal threshold so the
+  // cleared field stays hidden until it is re-submitted. type has no empty
+  // state, and keyPath/password setters fire validation — their kept values
+  // are simply replaced on resubmit.
   const goBack = useCallback(() => {
     if (activeField === null) return;
     setDraft(v => ({ ...v, [activeField]: '' }));
+    switch (activeField) {
+      case 'username': wizard.setUser(''); break;
+      case 'host': wizard.setHost(''); break;
+      case 'port': wizard.setPort(22); break;
+      case 'name': case 'type': case 'keyPath': case 'password': break;
+    }
     const nav = getNavFields(data.credentialType);
     const idx = nav.indexOf(activeField);
     if (idx > 0) setBackField(nav[idx - 1]!);
-  }, [activeField, data.credentialType]);
+  }, [activeField, data.credentialType, wizard]);
 
   // Global handler: Tab navigation while editing; Esc cancels the wizard from
   // ANY state (EditingGuard blocks the app-level Esc, so the wizard owns it);

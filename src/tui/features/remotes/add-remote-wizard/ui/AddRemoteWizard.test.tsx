@@ -211,6 +211,44 @@ describe('AddRemoteWizard type step', () => {
     expect(onComplete).toHaveBeenCalledWith({ saved: false, reason: 'abort' });
     unmount();
   });
+
+  it('3.6 regression: Shift+Tab conceals the current field and edits the previous one', async () => {
+    driveToTypeStep(); // step 'type' → Select active
+
+    const { lastFrame, stdin, unmount } = renderInk(<AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />);
+
+    stdin.write('\x1b[Z'); // Shift+Tab
+    await delay(50);
+
+    const frame = lastFrame() ?? '';
+    expect(frame).not.toContain('Credential type:');
+    expect(frame).toContain('SSH port');
+    unmount();
+  });
+
+  it('3.6 regression: Shift+Tab discards the committed value of the field being left', async () => {
+    useWizardStore.getState().reset();
+    useWizardStore.getState().setName('nas');
+    useWizardStore.getState().setUser('ops');
+    useWizardStore.getState().setHost('10.0.0.5');
+    useWizardStore.getState().setPort(2222); // step 'type'
+
+    const { lastFrame, stdin, unmount } = renderInk(<AddRemoteWizard addRemoteUc={fakeUc()} onComplete={onComplete} />);
+
+    // Back to port, then back again: leaving port must clear it (default 22)
+    // and conceal the row — the stale 2222 must not survive back-navigation.
+    stdin.write('\x1b[Z');
+    await delay(50);
+    stdin.write('\x1b[Z');
+    await delay(50);
+
+    const frame = lastFrame() ?? '';
+    expect(useWizardStore.getState().data.port).toBe(22);
+    expect(frame).not.toContain('SSH port');
+    expect(frame).not.toContain('2222');
+    expect(frame).toContain('Hostname or IP address');
+    unmount();
+  });
 });
 
 function delay(ms: number): Promise<void> {
