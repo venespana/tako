@@ -3,11 +3,9 @@
 import { useState } from 'react';
 import { RouterProvider, createMemoryRouter } from 'react-router';
 
-import { createAppRouter } from './app-router.js';
 import { AppRuntimeContext } from './providers/app-runtime.js';
 import { EditingContext } from '../shared/lib/editing-context.js';
 import { routeTree } from './routes.generated.js';
-
 
 const router = createMemoryRouter(routeTree, { initialEntries: ['/'] });
 
