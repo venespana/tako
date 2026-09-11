@@ -106,4 +106,11 @@ describe('LocalHostToolChecker', () => {
     expect(result.tool).toBe('ssl');
     expect(result.version).toBe('3.0.0beta2');
   });
+
+  it('constructs without an injected spawn without touching the Bun global', () => {
+    // Regression: the Bun.spawn default used to evaluate at construction,
+    // throwing "Bun is not defined" under node/vitest. The default now
+    // resolves lazily at spawn-call time (production runs under bun).
+    expect(() => new LocalHostToolChecker()).not.toThrow();
+  });
 });

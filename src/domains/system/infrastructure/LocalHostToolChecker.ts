@@ -55,7 +55,19 @@ function normalizeVersion(tool: HostTool, version: string): string {
 }
 
 export class LocalHostToolChecker implements HostToolChecker {
-  constructor(private readonly spawn: typeof Bun.spawn = Bun.spawn.bind(Bun)) {}
+  // The Bun global must NOT be referenced at construction time — under
+  // node/vitest it is undefined and instantiating the checker would throw.
+  // The default resolves lazily in the getter below, at spawn-call time;
+  // production runs under bun (src/index.tsx shebang) where it is Bun.spawn.
+  private readonly injectedSpawn?: typeof Bun.spawn;
+
+  constructor(spawn?: typeof Bun.spawn) {
+    this.injectedSpawn = spawn;
+  }
+
+  private get spawnFn(): typeof Bun.spawn {
+    return this.injectedSpawn ?? Bun.spawn.bind(Bun);
+  }
 
   // Returns raw output string from spawn, or null on error/enoent
   // ssl uses this to extract SSL version from ssh raw output
@@ -66,13 +78,13 @@ export class LocalHostToolChecker implements HostToolChecker {
     try {
       let proc;
       if (cmd.length === 1) {
-        proc = this.spawn([cmd[0]!, flag]);
+        proc = this.spawnFn([cmd[0]!, flag]);
       } else if (tool === 'ssh') {
-        proc = this.spawn([cmd[0]!, cmd[1]!, cmd[2]!, cmd[3]!]);
+        proc = this.spawnFn([cmd[0]!, cmd[1]!, cmd[2]!, cmd[3]!]);
       } else if (cmd.length === 2) {
-        proc = this.spawn([cmd[0]!, cmd[1]!, flag]);
+        proc = this.spawnFn([cmd[0]!, cmd[1]!, flag]);
       } else {
-        proc = this.spawn([cmd[0]!, flag]);
+        proc = this.spawnFn([cmd[0]!, flag]);
       }
 
       const [exited, stdout, stderr] = await Promise.all([
