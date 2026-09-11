@@ -82,3 +82,31 @@ jobs:
           name: tako-linux-x64
           path: dist/tako-linux-x64
           if-no-files-found: error
+
+  version-check:
+    name: Version bump
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read base version
+        id: base-version
+        run: echo "version=$(git show "origin/${{ github.base_ref }}:package.json" | node -e
+          "process.stdout.write(JSON.parse(require('fs').readFileSync(0,'utf8')).version)")" >>
+          "$GITHUB_OUTPUT"
+
+      - name: Read head version
+        id: head-version
+        run: echo "version=$(cat package.json | node -e
+          "process.stdout.write(JSON.parse(require('fs').readFileSync(0,'utf8')).version)")" >>
+          "$GITHUB_OUTPUT"
+
+      - name: Compare versions
+        run: |
+          if [ "${{ steps.base-version.outputs.version }}" = "${{ steps.head-version.outputs.version }}" ]; then
+            echo "::error::The version field in package.json was not bumped. Every PR must bump it: patch for fixes, minor for features, major for breaking changes."
+            exit 1
+          fi
