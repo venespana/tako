@@ -3,8 +3,7 @@
 // arrives as a prop from the route shim (composition lives in app/). The
 // wizard store is a process singleton by design, so the page resets it on
 // mount/unmount — every page entry starts a fresh wizard run. Completing or
-// aborting navigates back to '/remotes', where the fresh remote shows up in
-// the selection list.
+// aborting navigates back to the main menu ('/').
 import { useEffect } from 'react';
 
 import { Box } from 'ink';
@@ -40,9 +39,8 @@ export function RemotesAddPage({ addRemoteUc }: RemotesAddPageProps): React.Reac
       <AddRemoteWizard
         addRemoteUc={addRemoteUc}
         onComplete={() => {
-          // Done (saved) or aborted — either way back to the selection list,
-          // where a freshly saved remote is immediately selectable.
-          navigate('/remotes');
+          // Done (saved) or aborted — either way back to the main menu.
+          navigate('/');
         }}
       />
     </Box>

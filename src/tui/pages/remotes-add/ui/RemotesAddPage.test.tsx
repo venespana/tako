@@ -65,4 +65,17 @@ describe('RemotesAddPage', () => {
     expect(useWizardStore.getState().step).toBe('name');
     expect(useWizardStore.getState().data.name).toBe('');
   });
+
+  it('navigates to the main menu (/) when the wizard completes', async () => {
+    const { lastFrame, unmount } = renderAdd();
+    await settle(lastFrame, f => f.includes('Connection name:'), 1000);
+
+    // Complete the wizard: done step fires the save effect, then onComplete
+    // navigates to the main menu.
+    useWizardStore.getState().validationSuccess('AA:BB:CC', true);
+    const frame = await settle(lastFrame, f => f.includes('at:/'), 1000);
+
+    expect(frame).toContain('at:/');
+    unmount();
+  });
 });
