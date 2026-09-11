@@ -7,14 +7,15 @@
 import { useState, useCallback } from 'react';
 
 import { Box, Text, useInput } from 'ink';
-import { TextInput, PasswordInput, Select } from '@inkjs/ui';
 import type { Key } from 'ink';
+
+import { TextInput, PasswordInput, Select } from '@inkjs/ui';
 
 import type { AddRemote } from '../../../../../domains/remotes/application/AddRemote.js';
 import type { AddRemoteResult, SshCredentialType } from '../../../../../domains/remotes/domain/types.js';
-import type { WizardStep } from '../model/wizard-store.js';
 import { EditingGuard } from '../../../../shared/ui/EditingGuard.js';
 import { useAddRemoteWizard } from '../model/use-add-remote-wizard.js';
+import type { WizardStep } from '../model/wizard-store.js';
 
 export type AddRemoteWizardProps = {
   addRemoteUc: AddRemote;
@@ -70,6 +71,16 @@ const STEP_FIELD: Record<WizardStep, FieldId | null> = {
   done: null,
 };
 
+// One-line row for a completed field; `value` is resolved at the call site so
+// the component can live at module level instead of being recreated per render.
+function DoneRow({ label, value }: { label: string; value: string }) {
+  return (
+    <Text dimColor>
+      {label} {value}
+    </Text>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // AddRemoteWizard
 // ---------------------------------------------------------------------------
@@ -103,13 +114,20 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
   // Fixed value shown for a revealed, non-active field
   const getDisplayValue = (field: FieldId): string => {
     switch (field) {
-      case 'name': return data.name;
-      case 'username': return data.username;
-      case 'host': return data.host;
-      case 'port': return String(data.port);
-      case 'type': return data.credentialType;
-      case 'keyPath': return data.keyPath ?? '~/.ssh/id_rsa';
-      case 'password': return '●●●●●●●●';
+      case 'name':
+        return data.name;
+      case 'username':
+        return data.username;
+      case 'host':
+        return data.host;
+      case 'port':
+        return String(data.port);
+      case 'type':
+        return data.credentialType;
+      case 'keyPath':
+        return data.keyPath ?? '~/.ssh/id_rsa';
+      case 'password':
+        return '●●●●●●●●';
     }
   };
 
@@ -120,15 +138,29 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
     if (activeField === null) return;
     const value = draft[activeField] ?? '';
     switch (activeField) {
-      case 'name': wizard.setName(value); break;
-      case 'username': wizard.setUser(value); break;
-      case 'host': wizard.setHost(value); break;
-      case 'port': wizard.setPort(parseInt(value, 10) || 22); break;
+      case 'name':
+        wizard.setName(value);
+        break;
+      case 'username':
+        wizard.setUser(value);
+        break;
+      case 'host':
+        wizard.setHost(value);
+        break;
+      case 'port':
+        wizard.setPort(parseInt(value, 10) || 22);
+        break;
       // The Select writes the store on selection; never overwrite it with an
       // empty draft when the user just Tabs through the field.
-      case 'type': if (value) wizard.setType(value as SshCredentialType); break;
-      case 'keyPath': wizard.setKeyPath(value); break;
-      case 'password': wizard.setPassword(value); break;
+      case 'type':
+        if (value) wizard.setType(value as SshCredentialType);
+        break;
+      case 'keyPath':
+        wizard.setKeyPath(value);
+        break;
+      case 'password':
+        wizard.setPassword(value);
+        break;
     }
   }, [activeField, draft, wizard]);
 
@@ -149,10 +181,20 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
     if (activeField === null) return;
     setDraft(v => ({ ...v, [activeField]: '' }));
     switch (activeField) {
-      case 'username': wizard.setUser(''); break;
-      case 'host': wizard.setHost(''); break;
-      case 'port': wizard.setPort(22); break;
-      case 'name': case 'type': case 'keyPath': case 'password': break;
+      case 'username':
+        wizard.setUser('');
+        break;
+      case 'host':
+        wizard.setHost('');
+        break;
+      case 'port':
+        wizard.setPort(22);
+        break;
+      case 'name':
+      case 'type':
+      case 'keyPath':
+      case 'password':
+        break;
     }
     const nav = getNavFields(data.credentialType);
     const idx = nav.indexOf(activeField);
@@ -176,17 +218,16 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
         return;
       }
       if (!isEditing) return;
-      if (key.tab && !key.shift) { advance(); return; }
-      if (key.tab && key.shift) { goBack(); return; }
+      if (key.tab && !key.shift) {
+        advance();
+        return;
+      }
+      if (key.tab && key.shift) {
+        goBack();
+        return;
+      }
     },
     { isActive: true }
-  );
-
-  // One-line row for a completed field
-  const DoneRow = ({ label, field }: { label: string; field: FieldId }) => (
-    <Text dimColor>
-      {label} {getDisplayValue(field)}
-    </Text>
   );
 
   return (
@@ -196,13 +237,14 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
 
         {wizard.errorMessage && (
           <Text color='red'>
-            {wizard.errorCategory ? `[${wizard.errorCategory}] ` : ''}{wizard.errorMessage}
+            {wizard.errorCategory ? `[${wizard.errorCategory}] ` : ''}
+            {wizard.errorMessage}
           </Text>
         )}
 
         {/* Connection name */}
-        {isFieldVisible('name') && (
-          activeField === 'name' ? (
+        {isFieldVisible('name') &&
+          (activeField === 'name' ? (
             <Box flexDirection='column'>
               <Text>Connection name:</Text>
               <TextInput
@@ -213,13 +255,12 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               />
             </Box>
           ) : (
-            <DoneRow label='Connection name:' field='name' />
-          )
-        )}
+            <DoneRow label='Connection name:' value={getDisplayValue('name')} />
+          ))}
 
         {/* Username */}
-        {isFieldVisible('username') && (
-          activeField === 'username' ? (
+        {isFieldVisible('username') &&
+          (activeField === 'username' ? (
             <Box flexDirection='column'>
               <Text>SSH username:</Text>
               <TextInput
@@ -230,13 +271,12 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               />
             </Box>
           ) : (
-            <DoneRow label='SSH username:' field='username' />
-          )
-        )}
+            <DoneRow label='SSH username:' value={getDisplayValue('username')} />
+          ))}
 
         {/* Host */}
-        {isFieldVisible('host') && (
-          activeField === 'host' ? (
+        {isFieldVisible('host') &&
+          (activeField === 'host' ? (
             <Box flexDirection='column'>
               <Text>Hostname or IP address:</Text>
               <TextInput
@@ -247,13 +287,12 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               />
             </Box>
           ) : (
-            <DoneRow label='Host:' field='host' />
-          )
-        )}
+            <DoneRow label='Host:' value={getDisplayValue('host')} />
+          ))}
 
         {/* Port */}
-        {isFieldVisible('port') && (
-          activeField === 'port' ? (
+        {isFieldVisible('port') &&
+          (activeField === 'port' ? (
             <Box flexDirection='column'>
               <Text>SSH port (default 22):</Text>
               <TextInput
@@ -264,13 +303,12 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               />
             </Box>
           ) : (
-            <DoneRow label='Port:' field='port' />
-          )
-        )}
+            <DoneRow label='Port:' value={getDisplayValue('port')} />
+          ))}
 
         {/* Credential type */}
-        {isFieldVisible('type') && (
-          activeField === 'type' ? (
+        {isFieldVisible('type') &&
+          (activeField === 'type' ? (
             <Box flexDirection='column'>
               <Text>Credential type:</Text>
               <Select
@@ -283,13 +321,12 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               />
             </Box>
           ) : (
-            <DoneRow label='Credential type:' field='type' />
-          )
-        )}
+            <DoneRow label='Credential type:' value={getDisplayValue('type')} />
+          ))}
 
         {/* Key path — ssh-key only */}
-        {isFieldVisible('keyPath') && (
-          activeField === 'keyPath' ? (
+        {isFieldVisible('keyPath') &&
+          (activeField === 'keyPath' ? (
             <Box flexDirection='column'>
               <Text>Path to private SSH key:</Text>
               <TextInput
@@ -300,19 +337,16 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               />
             </Box>
           ) : (
-            <DoneRow label='Key path:' field='keyPath' />
-          )
-        )}
+            <DoneRow label='Key path:' value={getDisplayValue('keyPath')} />
+          ))}
 
         {/* Password — store / interactive */}
-        {isFieldVisible('password') && (
-          activeField === 'password' ? (
+        {isFieldVisible('password') &&
+          (activeField === 'password' ? (
             <Box flexDirection='column'>
               <Text>
                 SSH password:
-                {data.credentialType === 'interactive' && (
-                  <Text dimColor> (validation only — never saved)</Text>
-                )}
+                {data.credentialType === 'interactive' && <Text dimColor> (validation only — never saved)</Text>}
               </Text>
               <PasswordInput
                 placeholder='Enter password'
@@ -321,15 +355,16 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               />
             </Box>
           ) : (
-            <DoneRow label='Password:' field='password' />
-          )
-        )}
+            <DoneRow label='Password:' value={getDisplayValue('password')} />
+          ))}
 
         {wizard.step === 'validating' && <Text dimColor>Validating SSH connection...</Text>}
 
         {wizard.step === 'hostkey-confirm' && (
           <Box flexDirection='column'>
-            <Text bold color='yellow'>Unknown host — verify fingerprint:</Text>
+            <Text bold color='yellow'>
+              Unknown host — verify fingerprint:
+            </Text>
             <Text>Fingerprint: {data.hostkeyFingerprint}</Text>
             <Text>Do you accept this hostkey? [y/N]</Text>
           </Box>

@@ -14,8 +14,8 @@ import { useNavigate } from 'react-router';
 import type { RemoteRepository } from '../../../../domains/remotes/application/RemoteRepository.js';
 import type { ValidateSshConnection } from '../../../../domains/remotes/application/ValidateSshConnection.js';
 import { withEnablement } from '../../../features/menu/index.js';
-import { ActionMenu } from '../../../widgets/action-menu/index.js';
 import { EditingGuard } from '../../../shared/ui/EditingGuard.js';
+import { ActionMenu } from '../../../widgets/action-menu/index.js';
 import { useRemotesSelection } from '../model/remotes-selection.js';
 
 export interface RemotesMenuPageProps {

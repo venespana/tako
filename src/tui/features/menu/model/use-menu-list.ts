@@ -8,7 +8,7 @@
 //
 // When `isActive` is false (e.g. during text input), this hook is a no-op so
 // that h/j/k/l characters reach the text input without being intercepted.
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useInput } from 'ink';
 import type { Key } from 'ink';
@@ -38,31 +38,28 @@ export function useMenuList(
 
   const active = isActive && !isEditing;
 
-  // Keep a ref to the current selectable so the keyboard handler always
-  // operates on the latest value, avoiding stale-closure issues when the
-  // list populates after the initial render (React 19 may delay passive
-  // effects, so useInput can register before the async fetch resolves).
-  const selectableRef = useRef(selectable);
-  selectableRef.current = selectable;
-
+  // ink's useInput wraps the handler in useEffectEvent, which always invokes
+  // the handler from the latest committed render — so reading `selectable`
+  // directly (with it in the deps) is safe even when the list populates after
+  // the initial render.
   const handleKey = useCallback(
     (input: string, key: Key): void => {
       if (key.upArrow || input === 'k') {
-        setCursor(prev => moveCursor(selectableRef.current, prev, -1));
+        setCursor(prev => moveCursor(selectable, prev, -1));
         return;
       }
       if (key.downArrow || input === 'j') {
-        setCursor(prev => moveCursor(selectableRef.current, prev, 1));
+        setCursor(prev => moveCursor(selectable, prev, 1));
         return;
       }
       // Select — focused item only; registry items always carry a route but the
       // undefined-guard keeps the hook safe for non-routed lists too.
       if (key.return || input === 'l') {
-        const focused = selectableRef.current[cursor];
+        const focused = selectable[cursor];
         if (focused !== undefined) onSelect(focused);
       }
     },
-    [onSelect, cursor]
+    [onSelect, cursor, selectable]
   );
 
   useInput(handleKey, { isActive: active });
