@@ -26,11 +26,17 @@ export function AppShell({ activeRemote }: AppShellProps): React.ReactElement {
   const matches = useMatches();
 
   return (
-    // Root owns the vertical budget: exactly one viewport tall. Header takes
-    // its natural height, the Outlet fills the remainder via flexGrow (so the
-    // footer sits at the bottom), and the footer takes its natural height.
-    <Box flexDirection='column' height={process.stdout.rows ?? 40}>
-      <Box flexDirection='row' alignItems='flex-end'>
+    // Root owns the vertical budget: exactly one viewport tall. Header and
+    // footer keep their natural height (flexShrink 0), and the Outlet wrapper
+    // crops its content instead of letting yoga shrink it: with a fixed
+    // root height, yoga proportionally shrinks every descendant box, and
+    // text elements whose shrunk height rounds to zero vanish line by line
+    // (logo lines and menu group headers disappearing on short terminals).
+    // The inner flexShrink-0 box keeps the page at its natural height while
+    // the wrapper clips the overflow, so the top of the screen stays
+    // anchored and only the bottom of the middle content is cropped.
+    <Box flexDirection='column' height={process.stdout.rows ?? 40} overflow='hidden'>
+      <Box flexDirection='row' alignItems='flex-end' flexShrink={0}>
         <Logo />
         {/* Subtle chrome: the active server name rides beside the logo so it
          * stays visible on every screen of the session. */}
@@ -41,10 +47,12 @@ export function AppShell({ activeRemote }: AppShellProps): React.ReactElement {
           </Text>
         )}
       </Box>
-      <Box flexDirection='column' flexGrow={1}>
-        <Outlet />
+      <Box flexDirection='column' flexGrow={1} overflow='hidden'>
+        <Box flexDirection='column' flexShrink={0}>
+          <Outlet />
+        </Box>
       </Box>
-      <Box flexDirection='column' paddingLeft={2}>
+      <Box flexDirection='column' paddingLeft={2} flexShrink={0}>
         <KeyHints selectableItems={hasMenuHandle(matches)} />
         <VersionBar />
       </Box>
