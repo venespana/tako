@@ -49,37 +49,37 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 - [x] 2.6 Create `src/domains/remotes/infrastructure/SftpRemoteFileTransfer.ts` — implements `RemoteFileTransfer` via sftp; sha256 verify
 - [x] 2.7 Create `src/domains/remotes/infrastructure/StreamLocalAgentChannel.ts` — implements `AgentChannel` via `openssh_forwardOutStreamLocal`; LDJSON codec
 - [x] 2.8 Add unit tests for SshConnectionManager concurrent channel handling (`*.test.ts`)
-- [ ] 2.9 RED test: hostile job ID metacharacters rejected at domain guard (`Slug` charset) — `agent-jobs#Safe-Prune-Jobs` (deferred to WU3 — pairs with 3.12, guard lands with agent/domain/job.ts)
+- [x] 2.9 RED test: hostile job ID metacharacters rejected at domain guard (`Slug` charset) — `agent-jobs#Safe-Prune-Jobs` (done in WU3 — pairs with 3.12, guard landed with agent/domain/job.ts)
 
 ## Phase 3: Agent Domain — Core Types, Protocol, Schedule, Run, Use Cases
 
-- [ ] 3.1 Create `src/domains/agent/domain/types.ts` — Slug, Schedule, JobDefinition union (stack-lifecycle/prune/server-config), JobView, RunView
-- [ ] 3.2 Create `src/domains/agent/domain/job.ts` — taxonomy guards; idempotency check by `id`
-- [ ] 3.3 Create `src/domains/agent/domain/schedule.ts` — pure-TS 5-field cron matcher (`matches`, `nextAfter`); unit test coverage
-- [ ] 3.4 Create `src/domains/agent/domain/run.ts` — run state machine: pending→running→succeeded|failed|unsupported; illegal-transition guard
-- [ ] 3.5 Create `src/domains/agent/domain/protocol.ts` — `AgentFrame`, `PROTOCOL_VERSION = 1`, frame kinds, codec (`encodeFrame`/`decodeFrame`), handshake types
-- [ ] 3.6 Create `src/domains/agent/application/AgentTransport.ts` port (client side, design §Domain Architecture)
-- [ ] 3.7 Create `src/domains/agent/application/JobStore.ts` port
-- [ ] 3.8 Create `src/domains/agent/application/Clock.ts` port
-- [ ] 3.9 Create `src/domains/agent/application/JobHandler.ts` port (server side — maps job type → docker use cases)
-- [ ] 3.10 Create `src/domains/agent/application/use-cases/` — InstallAgent · UninstallAgent · GetAgentStatus · ConnectAgent · ListJobs · UpsertJob · DeleteJob · TriggerJob · GetJobHistory · ReconcileState (10 total)
-- [ ] 3.11 Unit tests: protocol codec roundtrip, frame validation, unknown frame types; cron matches/nextAfter; missed-once decision (3 missed → 1 run, watermark advance); state-machine illegal transitions; jobs.upsert idempotency (duplicate nas-prune); linger decision (pre-existing vs Tako-enabled); uname-m→asset mapping
-- [ ] 3.12 RED test: remote shell metacharacters in job IDs/paths reach exec — domain guard rejects `;`, `$()`, quotes (`agent-jobs#Remote-shell-construction`)
-- [ ] 3.13 RED test: pre-existing `~/.tako/tako` non-Tako file — HybridBinaryProvisioner refuses to overwrite if sha256 mismatches (`agent-jobs#Executable-placement`)
-- [ ] 3.14 RED test: polkit linger denial — SystemdRemoteController surfaces actionable error (`remote-agent-install#polkit-denial`)
-- [ ] 3.15 RED test: corrupted Releases asset / missing sha256 — HybridBinaryProvisioner fails explicitly (`remote-agent-install#Releases-download-fallback`)
+- [x] 3.1 Create `src/domains/agent/domain/types.ts` — Slug, Schedule, JobDefinition union (stack-lifecycle/prune/server-config), JobView, RunView
+- [x] 3.2 Create `src/domains/agent/domain/job.ts` — taxonomy guards; idempotency check by `id`
+- [x] 3.3 Create `src/domains/agent/domain/schedule.ts` — pure-TS 5-field cron matcher (`matches`, `nextAfter`); unit test coverage
+- [x] 3.4 Create `src/domains/agent/domain/run.ts` — run state machine: pending→running→succeeded|failed|unsupported; illegal-transition guard
+- [x] 3.5 Create `src/domains/agent/domain/protocol.ts` — `AgentFrame`, `PROTOCOL_VERSION = 1`, frame kinds, codec (`encodeFrame`/`decodeFrame`), handshake types
+- [x] 3.6 Create `src/domains/agent/application/AgentTransport.ts` port (client side, design §Domain Architecture)
+- [x] 3.7 Create `src/domains/agent/application/JobStore.ts` port
+- [x] 3.8 Create `src/domains/agent/application/Clock.ts` port
+- [x] 3.9 Create `src/domains/agent/application/JobHandler.ts` port (server side — maps job type → docker use cases)
+- [x] 3.10 Create `src/domains/agent/application/use-cases/` — InstallAgent · UninstallAgent · GetAgentStatus · ConnectAgent · ListJobs · UpsertJob · DeleteJob · TriggerJob · GetJobHistory · ReconcileState (10 total)
+- [x] 3.11 Unit tests: protocol codec roundtrip, frame validation, unknown frame types; cron matches/nextAfter; missed-once decision (3 missed → 1 run, watermark advance); state-machine illegal transitions; jobs.upsert idempotency (duplicate nas-prune); linger decision (pre-existing vs Tako-enabled); uname-m→asset mapping
+- [x] 3.12 RED test: remote shell metacharacters in job IDs/paths reach exec — domain guard rejects `;`, `$()`, quotes (`agent-jobs#Remote-shell-construction`)
+- [ ] 3.13 RED test: pre-existing `~/.tako/tako` non-Tako file — HybridBinaryProvisioner refuses to overwrite if sha256 mismatches (`agent-jobs#Executable-placement`) (deferred to WU4 — the provisioner/controller implementations land there; tests go RED→GREEN with them, matching WU2's per-component TDD)
+- [ ] 3.14 RED test: polkit linger denial — SystemdRemoteController surfaces actionable error (`remote-agent-install#polkit-denial`) (deferred to WU4 — the provisioner/controller implementations land there; tests go RED→GREEN with them, matching WU2's per-component TDD)
+- [ ] 3.15 RED test: corrupted Releases asset / missing sha256 — HybridBinaryProvisioner fails explicitly (`remote-agent-install#Releases-download-fallback`) (deferred to WU4 — the provisioner/controller implementations land there; tests go RED→GREEN with them, matching WU2's per-component TDD)
 
 ## Phase 4: Agent Infrastructure — SQLite Store, Socket Server, Transport, Provisioner, Probe
 
-- [ ] 4.1 Create `src/domains/agent/infrastructure/persistence/migrations.ts` — ordered MIGRATIONS: { version, sql }[]; schema_version tracking
-- [ ] 4.2 Create `src/domains/agent/infrastructure/persistence/SqliteJobStore.ts` — bun:sqlite, lazy import; crash-recovery: load pending/running runs → mark stale running as failed; spec_json re-validated on load
+- [ ] 4.1 Create `src/domains/agent/infrastructure/persistence/agent-meta.ts` — thin `bun:sqlite` table for `agent_meta` (linger_enabled_by_tako, installed_version, installed_at); bunqueue owns its own job/scheduler schema, no MIGRATIONS list for it
+- [ ] 4.2 Create `src/domains/agent/infrastructure/persistence/BunqueueJobStore.ts` — bunqueue embedded (`{ embedded: true, dataPath: <agent.db> }`) implementing the `JobStore` port; lazy import; upsert idempotency via scheduler name = Slug; FIRST verify bunqueue missed-cron-fire semantics — if it re-fires missed occurrences more than once, layer `decideCatchUp`/watermark on top (design D3 open question); crash-recovery semantics per bunqueue persistence
 - [ ] 4.3 Create `src/domains/agent/infrastructure/UnixSocketAgentServer.ts` — node:net server; serves protocol; crash-recovery pre-serve
 - [ ] 4.4 Create `src/domains/agent/infrastructure/StreamLocalAgentTransport.ts` — client-side Transport impl via streamLocal channel
 - [ ] 4.5 Create `src/domains/agent/infrastructure/SystemdRemoteController.ts` — unit file template, daemon-reload, enable/disable, linger check/enable/disable; KillUserProcesses detection
 - [ ] 4.6 Create `src/domains/agent/infrastructure/HybridBinaryProvisioner.ts` — arch match: SFTP copy + sha256; mismatch: curl Releases asset + .sha256 verify; atomic mv + chmod 700; pre-existing non-empty file refusal
 - [ ] 4.7 Create `src/domains/agent/infrastructure/SurviveDisconnectProber.ts` — connection A install steps → fully close A → wait 2 s → poll 3×1 s → connection B: systemctl is-active + protocol handshake; failure collects diagnostics
 - [ ] 4.8 Unit tests: SqliteJobStore CRUD + restart persistence; HybridBinaryProvisioner decision table; SurviveDisconnectProber failure path
-- [ ] 4.9 Integration tests: SqliteJobStore restart + migration (testcontainers, 60 s timeout)
+- [ ] 4.9 Integration tests: BunqueueJobStore restart persistence (embedded SQLite via testcontainers-style temp dataPath, 60 s timeout)
 
 ## Phase 5: Docker Domain — Lifecycle + Safe Prune
 
