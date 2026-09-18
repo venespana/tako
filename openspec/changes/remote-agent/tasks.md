@@ -41,15 +41,15 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 
 ## Phase 2: Remotes Infrastructure — Channel Ports + Adapters
 
-- [ ] 2.1 Create `src/domains/remotes/application/RemoteCommandRunner.ts` port (stdout/stderr/exit, design §Domain Architecture)
-- [ ] 2.2 Create `src/domains/remotes/application/RemoteFileTransfer.ts` port (upload + download, checksum-verified)
-- [ ] 2.3 Create `src/domains/remotes/application/AgentChannel.ts` port (framed duplex stream, design §Domain Architecture)
-- [ ] 2.4 Create `src/domains/remotes/infrastructure/SshConnectionManager.ts` — one ssh2 Client per host; factory for exec/sftp/streamLocal channels; concurrent in-flight ops
-- [ ] 2.5 Create `src/domains/remotes/infrastructure/SshRemoteCommandRunner.ts` — implements `RemoteCommandRunner` over ssh2 Client.exec
-- [ ] 2.6 Create `src/domains/remotes/infrastructure/SftpRemoteFileTransfer.ts` — implements `RemoteFileTransfer` via sftp; sha256 verify
-- [ ] 2.7 Create `src/domains/remotes/infrastructure/StreamLocalAgentChannel.ts` — implements `AgentChannel` via `openssh_forwardOutStreamLocal`; LDJSON codec
-- [ ] 2.8 Add unit tests for SshConnectionManager concurrent channel handling (`*.test.ts`)
-- [ ] 2.9 RED test: hostile job ID metacharacters rejected at domain guard (`Slug` charset) — `agent-jobs#Safe-Prune-Jobs`
+- [x] 2.1 Create `src/domains/remotes/application/RemoteCommandRunner.ts` port (stdout/stderr/exit, design §Domain Architecture)
+- [x] 2.2 Create `src/domains/remotes/application/RemoteFileTransfer.ts` port (upload + download, checksum-verified)
+- [x] 2.3 Create `src/domains/remotes/application/AgentChannel.ts` port (framed duplex stream, design §Domain Architecture)
+- [x] 2.4 Create `src/domains/remotes/infrastructure/SshConnectionManager.ts` — one ssh2 Client per host; factory for exec/sftp/streamLocal channels; concurrent in-flight ops
+- [x] 2.5 Create `src/domains/remotes/infrastructure/SshRemoteCommandRunner.ts` — implements `RemoteCommandRunner` over ssh2 Client.exec
+- [x] 2.6 Create `src/domains/remotes/infrastructure/SftpRemoteFileTransfer.ts` — implements `RemoteFileTransfer` via sftp; sha256 verify
+- [x] 2.7 Create `src/domains/remotes/infrastructure/StreamLocalAgentChannel.ts` — implements `AgentChannel` via `openssh_forwardOutStreamLocal`; LDJSON codec
+- [x] 2.8 Add unit tests for SshConnectionManager concurrent channel handling (`*.test.ts`)
+- [ ] 2.9 RED test: hostile job ID metacharacters rejected at domain guard (`Slug` charset) — `agent-jobs#Safe-Prune-Jobs` (deferred to WU3 — pairs with 3.12, guard lands with agent/domain/job.ts)
 
 ## Phase 3: Agent Domain — Core Types, Protocol, Schedule, Run, Use Cases
 
@@ -101,6 +101,8 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 - [ ] 6.5 Create `src/cli/commands/agent-status.ts` — text table: unit state, linger (+by-tako), agent/client version+protocol, jobs count, socket handshake result
 - [ ] 6.6 Unit tests: provisioner decision table (arch match/mismatch/fallback-fail); uninstall ordering logic (linger-by-tako read-first); KillUserProcesses detection path; polkit denial error message
 - [ ] 6.7 Integration tests: full install → probe → uninstall against privileged systemd+sshd container (jrei/systemd-ubuntu; testcontainers, 60 s timeout): copy path, probe pass, KillUserProcesses detection, residue checks
+- [ ] 6.8 Resolve `~` for SFTP remote paths in the install upload flow (sftp-server does not expand tilde): resolve home via exec before upload; document no-tilde-expansion on the `RemoteFileTransfer` port (WU2 verification finding)
+- [ ] 6.9 `SshRemoteCommandRunner`: reject as a transport failure when the connection closes without an `exit` event (avoid ambiguous partial stdout for probe commands like `systemctl is-active`) (WU2 verification finding)
 
 ## Phase 7: Job Engine — Scheduler Loop + ExecuteRun
 
@@ -135,3 +137,4 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 - [ ] 9.3 Run `bun run typecheck && bun run lint` — verify no type errors or lint violations introduced by new zones
 - [ ] 9.4 Run `bun run test` — full unit test suite passes
 - [ ] 9.5 Update `docs/decisions/README.md` ADR index — add entries for 0015, 0016, 0017 (index currently ends at 0014; found by WU1 verification)
+- [ ] 9.6 Extract pre-existing direct `conf` imports in `src/cli/commands/remote-add.ts` and `src/tui/app/routes/remotes/{index,add}.tsx` behind application ports — required by the MODIFIED Port/Adapter Isolation requirement before archive validation (WU2 verification finding)
