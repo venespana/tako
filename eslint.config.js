@@ -132,6 +132,15 @@ export default defineConfig(
       'no-undef': 'off',
     },
   },
+  {
+    // `bun:sqlite` is a Bun built-in that Node-based resolvers cannot resolve.
+    // Scoped to the ADR-0016 persistence zone and the Bun-run integration
+    // fixtures; nowhere else may import Bun-only modules.
+    files: ['src/domains/agent/infrastructure/persistence/**/*.ts', 'tests/integration/agent/**/*.ts'],
+    rules: {
+      'import-x/no-unresolved': ['error', { ignore: ['bun:.*'] }],
+    },
+  },
 
   // React (Ink 5 is React) — adapted from playvion packages/client.
   // react-refresh dropped (Vite-only, Ink has no HMR). globals: node (TUI runs in Node/Bun).

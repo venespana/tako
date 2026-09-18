@@ -65,21 +65,21 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 - [x] 3.10 Create `src/domains/agent/application/use-cases/` — InstallAgent · UninstallAgent · GetAgentStatus · ConnectAgent · ListJobs · UpsertJob · DeleteJob · TriggerJob · GetJobHistory · ReconcileState (10 total)
 - [x] 3.11 Unit tests: protocol codec roundtrip, frame validation, unknown frame types; cron matches/nextAfter; missed-once decision (3 missed → 1 run, watermark advance); state-machine illegal transitions; jobs.upsert idempotency (duplicate nas-prune); linger decision (pre-existing vs Tako-enabled); uname-m→asset mapping
 - [x] 3.12 RED test: remote shell metacharacters in job IDs/paths reach exec — domain guard rejects `;`, `$()`, quotes (`agent-jobs#Remote-shell-construction`)
-- [ ] 3.13 RED test: pre-existing `~/.tako/tako` non-Tako file — HybridBinaryProvisioner refuses to overwrite if sha256 mismatches (`agent-jobs#Executable-placement`) (deferred to WU4 — the provisioner/controller implementations land there; tests go RED→GREEN with them, matching WU2's per-component TDD)
-- [ ] 3.14 RED test: polkit linger denial — SystemdRemoteController surfaces actionable error (`remote-agent-install#polkit-denial`) (deferred to WU4 — the provisioner/controller implementations land there; tests go RED→GREEN with them, matching WU2's per-component TDD)
-- [ ] 3.15 RED test: corrupted Releases asset / missing sha256 — HybridBinaryProvisioner fails explicitly (`remote-agent-install#Releases-download-fallback`) (deferred to WU4 — the provisioner/controller implementations land there; tests go RED→GREEN with them, matching WU2's per-component TDD)
+- [x] 3.13 RED test: pre-existing `~/.tako/tako` non-Tako file — HybridBinaryProvisioner refuses to overwrite if sha256 mismatches (`agent-jobs#Executable-placement`) (done in WU4 — RED→GREEN with the provisioner, per-component TDD)
+- [x] 3.14 RED test: polkit linger denial — SystemdRemoteController surfaces actionable error (`remote-agent-install#polkit-denial`) (done in WU4 — RED→GREEN with the controller, per-component TDD)
+- [x] 3.15 RED test: corrupted Releases asset / missing sha256 — HybridBinaryProvisioner fails explicitly (`remote-agent-install#Releases-download-fallback`) (done in WU4 — RED→GREEN with the provisioner, per-component TDD)
 
 ## Phase 4: Agent Infrastructure — SQLite Store, Socket Server, Transport, Provisioner, Probe
 
-- [ ] 4.1 Create `src/domains/agent/infrastructure/persistence/agent-meta.ts` — thin `bun:sqlite` table for `agent_meta` (linger_enabled_by_tako, installed_version, installed_at); bunqueue owns its own job/scheduler schema, no MIGRATIONS list for it
-- [ ] 4.2 Create `src/domains/agent/infrastructure/persistence/BunqueueJobStore.ts` — bunqueue embedded (`{ embedded: true, dataPath: <agent.db> }`) implementing the `JobStore` port; lazy import; upsert idempotency via scheduler name = Slug; FIRST verify bunqueue missed-cron-fire semantics — if it re-fires missed occurrences more than once, layer `decideCatchUp`/watermark on top (design D3 open question); crash-recovery semantics per bunqueue persistence
-- [ ] 4.3 Create `src/domains/agent/infrastructure/UnixSocketAgentServer.ts` — node:net server; serves protocol; crash-recovery pre-serve
-- [ ] 4.4 Create `src/domains/agent/infrastructure/StreamLocalAgentTransport.ts` — client-side Transport impl via streamLocal channel
-- [ ] 4.5 Create `src/domains/agent/infrastructure/SystemdRemoteController.ts` — unit file template, daemon-reload, enable/disable, linger check/enable/disable; KillUserProcesses detection
-- [ ] 4.6 Create `src/domains/agent/infrastructure/HybridBinaryProvisioner.ts` — arch match: SFTP copy + sha256; mismatch: curl Releases asset + .sha256 verify; atomic mv + chmod 700; pre-existing non-empty file refusal
-- [ ] 4.7 Create `src/domains/agent/infrastructure/SurviveDisconnectProber.ts` — connection A install steps → fully close A → wait 2 s → poll 3×1 s → connection B: systemctl is-active + protocol handshake; failure collects diagnostics
-- [ ] 4.8 Unit tests: SqliteJobStore CRUD + restart persistence; HybridBinaryProvisioner decision table; SurviveDisconnectProber failure path
-- [ ] 4.9 Integration tests: BunqueueJobStore restart persistence (embedded SQLite via testcontainers-style temp dataPath, 60 s timeout)
+- [x] 4.1 Create `src/domains/agent/infrastructure/persistence/agent-meta.ts` — thin `bun:sqlite` table for `agent_meta` (linger_enabled_by_tako, installed_version, installed_at); bunqueue owns its own job/scheduler schema, no MIGRATIONS list for it
+- [x] 4.2 Create `src/domains/agent/infrastructure/persistence/BunqueueJobStore.ts` — bunqueue embedded (`{ embedded: true, dataPath: <agent.db> }`) implementing the `JobStore` port; lazy import; upsert idempotency via scheduler name = Slug; FIRST verify bunqueue missed-cron-fire semantics — if it re-fires missed occurrences more than once, layer `decideCatchUp`/watermark on top (design D3 open question); crash-recovery semantics per bunqueue persistence
+- [x] 4.3 Create `src/domains/agent/infrastructure/UnixSocketAgentServer.ts` — node:net server; serves protocol; crash-recovery pre-serve
+- [x] 4.4 Create `src/domains/agent/infrastructure/StreamLocalAgentTransport.ts` — client-side Transport impl via streamLocal channel
+- [x] 4.5 Create `src/domains/agent/infrastructure/SystemdRemoteController.ts` — unit file template, daemon-reload, enable/disable, linger check/enable/disable; KillUserProcesses detection
+- [x] 4.6 Create `src/domains/agent/infrastructure/HybridBinaryProvisioner.ts` — arch match: SFTP copy + sha256; mismatch: curl Releases asset + .sha256 verify; atomic mv + chmod 700; pre-existing non-empty file refusal
+- [x] 4.7 Create `src/domains/agent/infrastructure/SurviveDisconnectProber.ts` — connection A install steps → fully close A → wait 2 s → poll 3×1 s → connection B: systemctl is-active + protocol handshake; failure collects diagnostics
+- [x] 4.8 Unit tests: SqliteJobStore CRUD + restart persistence; HybridBinaryProvisioner decision table; SurviveDisconnectProber failure path (store CRUD/restart coverage moved to the integration layer — vitest workers run on Node, where `bun:sqlite` is unresolvable and bunqueue refuses non-Bun runtimes; pure mapping helpers stay co-located)
+- [x] 4.9 Integration tests: BunqueueJobStore restart persistence (embedded SQLite via testcontainers-style temp dataPath, 60 s timeout)
 
 ## Phase 5: Docker Domain — Lifecycle + Safe Prune
 
@@ -138,3 +138,4 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 - [ ] 9.4 Run `bun run test` — full unit test suite passes
 - [ ] 9.5 Update `docs/decisions/README.md` ADR index — add entries for 0015, 0016, 0017 (index currently ends at 0014; found by WU1 verification)
 - [ ] 9.6 Extract pre-existing direct `conf` imports in `src/cli/commands/remote-add.ts` and `src/tui/app/routes/remotes/{index,add}.tsx` behind application ports — required by the MODIFIED Port/Adapter Isolation requirement before archive validation (WU2 verification finding)
+- [ ] 9.7 Infrastructure hardening from WU4 verification: guard `result_json` JSON.parse in `store-mapping.ts` (tamper-tolerant load); append a remedy sentence to generic systemctl failures in `SystemdRemoteController` (threat matrix wording); disambiguate `sha256sum` missing-vs-failed in `HybridBinaryProvisioner.#remoteSha256`; document the tako↔bunqueue two-step mutation repair path in `BunqueueJobStore`
