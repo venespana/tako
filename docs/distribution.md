@@ -9,16 +9,20 @@
 ## Binary build
 
 ```bash
-# Bun compile (cross-platform)
-bun build src/cli/index.ts --compile --target=bun-linux-x64-modern --outfile dist/tako-linux-x64
-bun build src/cli/index.ts --compile --target=bun-darwin-x64 --outfile dist/tako-darwin-x64
-bun build src/cli/index.ts --compile --target=bun-darwin-arm64 --outfile dist/tako-darwin-arm64
-bun build src/cli/index.ts --compile --target=bun-windows-x64 --outfile dist/tako-windows-x64.exe
+# Bun compile (cross-platform). Release assets: tako-linux-x64, tako-linux-arm64.
+# (`-modern` on the x64 target is a compat alias for the canonical bun-linux-x64 target;
+# asset names never carry a suffix.)
+bun build src/index.tsx --compile --target=bun-linux-x64-modern --outfile dist/tako-linux-x64
+bun build src/index.tsx --compile --target=bun-linux-arm64 --outfile dist/tako-linux-arm64
+bun build src/index.tsx --compile --target=bun-darwin-x64 --outfile dist/tako-darwin-x64
+bun build src/index.tsx --compile --target=bun-darwin-arm64 --outfile dist/tako-darwin-arm64
+bun build src/index.tsx --compile --target=bun-windows-x64 --outfile dist/tako-windows-x64.exe
 ```
 
 Supported targets (initial):
 
 - Linux x64
+- Linux arm64
 - macOS x64
 - macOS arm64 (Apple Silicon)
 - Windows x64
@@ -29,9 +33,8 @@ Since it distributes via npm, the code **MUST work on Node 20+ in addition to Bu
 
 ## Release flow
 
-1. Tag `vX.Y.Z` on main.
-2. GitHub Actions workflow `release.yml` triggers.
-3. Build binaries for all targets.
-4. Publishes GitHub Release with binaries attached.
-5. Publishes on npm.
-6. Updates install.sh if needed.
+1. Merging to `main` runs CI only (test, lint, typecheck, build) — no release.
+2. Pushing a tag `vX.Y.Z` triggers the `release.yml` workflow (ADR-0017).
+3. It builds `tako-linux-x64` and `tako-linux-arm64` and generates a `.sha256` sidecar per binary.
+4. All binaries and sidecars are attached to the GitHub Release; `0.y.z` versions are marked prerelease.
+5. npm publish and install.sh updates are follow-up steps.
