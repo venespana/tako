@@ -152,11 +152,13 @@ export class InstallAgent {
           : undefined;
     }
 
-    const refusalReason = !systemd
-      ? 'target is not a systemd host — the agent requires systemd --user; nothing was modified'
-      : !composeV2
-        ? 'the docker compose v2 plugin is required (docker-compose v1 is EOL) — install the compose plugin and retry; nothing was modified'
-        : undefined;
+    let refusalReason: string | undefined;
+    if (!systemd) {
+      refusalReason = 'target is not a systemd host — the agent requires systemd --user; nothing was modified';
+    } else if (!composeV2) {
+      refusalReason =
+        'the docker compose v2 plugin is required (docker-compose v1 is EOL) — install the compose plugin and retry; nothing was modified';
+    }
 
     return {
       arch,
