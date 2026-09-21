@@ -83,20 +83,20 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 
 ## Phase 5: Docker Domain — Lifecycle + Safe Prune
 
-- [ ] 5.1 Create `src/domains/docker/domain/types.ts` — PruneScopes closed union ('stopped-containers' | 'dangling-images' | 'build-cache')
-- [ ] 5.2 Create `src/domains/docker/domain/prune-policy.ts` — scope validator; rejects volume prune / image prune -af structurally (ADR-0008)
-- [ ] 5.3 Create `src/domains/docker/application/RunStackLifecycle.ts` — op: up/down/pull/restart; dry-run supported
-- [ ] 5.4 Create `src/domains/docker/application/RunPrune.ts` — dry-run plan / apply; shared scope validator; result report shape
-- [ ] 5.5 Create `src/domains/docker/infrastructure/ComposeCliAdapter.ts` — spawn docker compose … up/down/pull/restart; argv no shell
-- [ ] 5.6 Create `src/domains/docker/infrastructure/DockerodePruneAdapter.ts` — scoped prune; filtered flags make -af unrepresentable
-- [ ] 5.7 Unit tests: prune scope guard rejects volume/-af; compose lifecycle op assembler; dry-run report shape
-- [ ] 5.8 Integration tests: docker jobs against docker:dind sidecar (compose lifecycle, scoped prune, dry-run report; 60 s timeout)
+- [x] 5.1 Create `src/domains/docker/domain/types.ts` — PruneScopes closed union ('stopped-containers' | 'dangling-images' | 'build-cache')
+- [x] 5.2 Create `src/domains/docker/domain/prune-policy.ts` — scope validator; rejects volume prune / image prune -af structurally (ADR-0008)
+- [x] 5.3 Create `src/domains/docker/application/RunStackLifecycle.ts` — op: up/down/pull/restart; dry-run supported
+- [x] 5.4 Create `src/domains/docker/application/RunPrune.ts` — dry-run plan / apply; shared scope validator; result report shape
+- [x] 5.5 Create `src/domains/docker/infrastructure/ComposeCliAdapter.ts` — spawn docker compose … up/down/pull/restart; argv no shell
+- [x] 5.6 Create `src/domains/docker/infrastructure/DockerodePruneAdapter.ts` — scoped prune; filtered flags make -af unrepresentable
+- [x] 5.7 Unit tests: prune scope guard rejects volume/-af; compose lifecycle op assembler; dry-run report shape
+- [x] 5.8 Integration tests: docker jobs against docker:dind sidecar (compose lifecycle, scoped prune, dry-run report; 60 s timeout)
 
 ## Phase 6: Provisioning — CLI Commands (install, uninstall, status, agent-run composition root)
 
 - [ ] 6.1 Create `src/cli/commands/agent-run.ts` — agent-mode composition root: DB open (migrations), socket server, scheduler tick (30 s), JobHandler wiring (maps job type → docker use cases); never imports Ink; lazy import for runCli
 - [ ] 6.2 Modify `src/cli/index.ts` — register `agent` family (lazy imports, no Ink); add `agent run | install | uninstall | status`
-- [ ] 6.3 Create `src/cli/commands/agent-install.ts` — pre-flight (arch, systemd, KillUserProcesses, linger state) → HybridBinaryProvisioner → SystemdRemoteController → SurviveDisconnectProber; plain console output
+- [ ] 6.3 Create `src/cli/commands/agent-install.ts` — pre-flight (arch, systemd, compose v2 REQUIRED per spec, KillUserProcesses, linger state) → HybridBinaryProvisioner → SystemdRemoteController → SurviveDisconnectProber; plain console output
 - [ ] 6.4 Create `src/cli/commands/agent-uninstall.ts` — read linger_by_tako via agent transport first → stop/disable unit → daemon-reload → disable linger iff by-tako → rm -rf ~/.tako/ → verify on second connection
 - [ ] 6.5 Create `src/cli/commands/agent-status.ts` — text table: unit state, linger (+by-tako), agent/client version+protocol, jobs count, socket handshake result
 - [ ] 6.6 Unit tests: provisioner decision table (arch match/mismatch/fallback-fail); uninstall ordering logic (linger-by-tako read-first); KillUserProcesses detection path; polkit denial error message
@@ -108,6 +108,7 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 
 - [ ] 7.1 Create `src/domains/agent/application/RunSchedulerLoop.ts` — 30 s tick; missed-once catch-up: if nextAfter(watermark) ≤ now → enqueue exactly one run (catchup: true if >1 firing missed) → advance watermark; last_fire_enqueued guard prevents double-enqueue
 - [ ] 7.2 Create `src/domains/agent/application/ExecuteRun.ts` — execute job: dry-run (report) or apply (mutate); call JobHandler; record run result; advance watermark
+- [ ] 7.5 Map docker reports to terminal run statuses in the JobHandler wiring: `StackLifecycleReport.status: 'planned'` → `succeeded` on apply; `PruneReport` with any per-scope `error` → `failed` (report still recorded); consider a watchdog timeout for wedged compose calls (WU5 verification findings)
 - [ ] 7.3 Wire `RunSchedulerLoop` + `ExecuteRun` into `agent-run.ts` composition root; serial execution (one run at a time)
 - [ ] 7.4 Unit tests: missed-once decision (3 missed → 1 run, watermark advances once); scheduler tick fire/no-fire logic; last_fire_enqueued crash guard; serial execution guard
 
@@ -138,4 +139,4 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 - [ ] 9.4 Run `bun run test` — full unit test suite passes
 - [ ] 9.5 Update `docs/decisions/README.md` ADR index — add entries for 0015, 0016, 0017 (index currently ends at 0014; found by WU1 verification)
 - [ ] 9.6 Extract pre-existing direct `conf` imports in `src/cli/commands/remote-add.ts` and `src/tui/app/routes/remotes/{index,add}.tsx` behind application ports — required by the MODIFIED Port/Adapter Isolation requirement before archive validation (WU2 verification finding)
-- [ ] 9.7 Infrastructure hardening from WU4 verification: guard `result_json` JSON.parse in `store-mapping.ts` (tamper-tolerant load); append a remedy sentence to generic systemctl failures in `SystemdRemoteController` (threat matrix wording); disambiguate `sha256sum` missing-vs-failed in `HybridBinaryProvisioner.#remoteSha256`; document the tako↔bunqueue two-step mutation repair path in `BunqueueJobStore`
+- [ ] 9.7 Infrastructure hardening from WU4/WU5 verification: guard `result_json` JSON.parse in `store-mapping.ts` (tamper-tolerant load); append a remedy sentence to generic systemctl failures in `SystemdRemoteController` (threat matrix wording); disambiguate `sha256sum` missing-vs-failed in `HybridBinaryProvisioner.#remoteSha256`; document the tako↔bunqueue two-step mutation repair path in `BunqueueJobStore`; add a mechanical parity test between `agent/domain` `PruneScopes` and `docker/domain` `PruneScope` (identical member-wise today, drift caught only at runtime)

@@ -33,6 +33,7 @@ class FakeRunner implements RemoteCommandRunner {
 
 const UNAME = 'uname -m';
 const INIT = 'ps -p 1 -o comm=';
+const COMPOSE = 'docker compose version';
 const LINGER = 'loginctl show-user "$USER" --property=Linger';
 const BUSCTL =
   'busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager KillUserProcesses';
@@ -102,10 +103,11 @@ describe('parsers', () => {
 });
 
 describe('InstallAgent.checkPreflight', () => {
-  it('3.10 RED: happy path reads arch, init system, linger and KillUserProcesses', async () => {
+  it('3.10 RED: happy path reads arch, init system, compose v2, linger and KillUserProcesses', async () => {
     const runner = new FakeRunner({
       [UNAME]: ok('x86_64\n'),
       [INIT]: ok('systemd\n'),
+      [COMPOSE]: ok('Docker Compose version v2.29.7\n'),
       [LINGER]: ok('Linger=no\n'),
       [BUSCTL]: ok('b false\n'),
     });
@@ -115,12 +117,43 @@ describe('InstallAgent.checkPreflight', () => {
     expect(preflight).toEqual({
       arch: 'x64',
       systemd: true,
+      composeV2: true,
       linger: false,
       killUserProcesses: false,
       ok: true,
       refusalReason: undefined,
     });
-    expect(runner.calls).toEqual([UNAME, INIT, LINGER, BUSCTL]); // read-only probes, in order
+    expect(runner.calls).toEqual([UNAME, INIT, COMPOSE, LINGER, BUSCTL]); // read-only probes, in order
+  });
+
+  it('3.10 fix: missing compose v2 plugin → refusal with actionable message, zero mutations', async () => {
+    const runner = new FakeRunner({
+      [UNAME]: ok('x86_64\n'),
+      [INIT]: ok('systemd\n'),
+      [COMPOSE]: { stdout: '', stderr: "docker: 'compose' is not a docker command", exitCode: 1 },
+      [LINGER]: ok('Linger=no\n'),
+    });
+
+    const preflight = await new InstallAgent(runner).checkPreflight();
+
+    expect(preflight.ok).toBe(false);
+    expect(preflight.composeV2).toBe(false);
+    expect(preflight.refusalReason).toMatch(/compose v2 plugin is required/);
+  });
+
+  it('3.10 fix: compose probe transport failure counts as NOT available (certainty required)', async () => {
+    const runner = new FakeRunner({
+      [UNAME]: ok('x86_64\n'),
+      [INIT]: ok('systemd\n'),
+      // COMPOSE missing from the script → runner throws → probe unknown
+      [LINGER]: ok('Linger=no\n'),
+    });
+
+    const preflight = await new InstallAgent(runner).checkPreflight();
+
+    expect(preflight.composeV2).toBe(false);
+    expect(preflight.ok).toBe(false);
+    expect(preflight.refusalReason).toMatch(/compose v2 plugin is required/);
   });
 
   it('3.10 RED: non-systemd host → refusal with zero mutations implied, arch still reported', async () => {
@@ -155,6 +188,7 @@ describe('InstallAgent.checkPreflight', () => {
     const runner = new FakeRunner({
       [UNAME]: ok('x86_64\n'),
       [INIT]: ok('systemd\n'),
+      [COMPOSE]: ok('Docker Compose version v2.29.7\n'),
       [LINGER]: ok('Linger=yes\n'),
       [BUSCTL]: { stdout: '', stderr: 'boom', exitCode: 1 },
       [LOGIND_CONF]: ok(''),

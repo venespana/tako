@@ -42,6 +42,22 @@ The release pipeline MUST publish per-arch Linux assets (x64, arm64). The releas
 - GIVEN the release workflow runs
 - THEN one documented trigger produces releases, per the resolving ADR
 
+### Requirement: Compose v2 Plugin Required
+
+Install MUST verify the target exposes the compose v2 plugin (`docker compose version`) and MUST refuse with an actionable message when it is absent or cannot be confirmed — docker-compose v1 is EOL and lifecycle jobs speak `docker compose` only. A refusal MUST leave the host unmodified.
+
+#### Scenario: compose v2 present
+
+- GIVEN the target answers `docker compose version` with exit 0
+- WHEN install runs
+- THEN the preflight reports compose v2 available and proceeds
+
+#### Scenario: compose v2 absent
+
+- GIVEN `docker compose version` exits non-zero (plugin missing)
+- WHEN install runs
+- THEN it refuses with a message naming the compose v2 requirement and nothing is modified
+
 ### Requirement: systemd User Unit and Linger
 
 Install MUST operate at user level (no root): install and start a `systemd --user` unit under `~/.config/systemd/user/`, enable linger, and record whether Tako enabled linger. It MUST detect `KillUserProcesses=yes`, refuse hosts without systemd, and report a polkit linger denial with an actionable message.

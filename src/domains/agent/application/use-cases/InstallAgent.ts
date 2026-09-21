@@ -85,6 +85,7 @@ export function parseKillUserProcessesConf(conf: string): boolean | undefined {
 
 const PROBE_ARCH = 'uname -m';
 const PROBE_INIT = 'ps -p 1 -o comm=';
+const PROBE_COMPOSE = 'docker compose version';
 const PROBE_LINGER = 'loginctl show-user "$USER" --property=Linger';
 const PROBE_KILL_USER_PROCESSES =
   'busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager KillUserProcesses';
@@ -94,6 +95,8 @@ export interface InstallPreflight {
   /** Always resolved before anything else: an unsupported arch ABORTS the preflight. */
   readonly arch: AgentArch;
   readonly systemd: boolean;
+  /** The compose v2 plugin is REQUIRED (docker-compose v1 is EOL) — refusal without it. */
+  readonly composeV2: boolean;
   readonly linger: boolean | 'unknown';
   /** Warning-only per spec: unknown NEVER blocks the install or the probe. */
   readonly killUserProcesses: boolean | 'unknown';
@@ -124,6 +127,12 @@ export class InstallAgent {
     const initResult = await this.tryRun(PROBE_INIT);
     const systemd = initResult !== undefined && initResult.exitCode === 0 && initResult.stdout.trim() === 'systemd';
 
+    // Compose v2 plugin REQUIRED (maintainer decision 2026-09-18): lifecycle
+    // jobs speak `docker compose …` only; docker-compose v1 is EOL and is
+    // refused with an actionable message instead of failing at job time.
+    const composeResult = await this.tryRun(PROBE_COMPOSE);
+    const composeV2 = composeResult !== undefined && composeResult.exitCode === 0;
+
     const lingerResult = await this.tryRun(PROBE_LINGER);
     const linger =
       lingerResult !== undefined && lingerResult.exitCode === 0
@@ -143,16 +152,19 @@ export class InstallAgent {
           : undefined;
     }
 
-    const refusalReason = systemd
-      ? undefined
-      : 'target is not a systemd host — the agent requires systemd --user; nothing was modified';
+    const refusalReason = !systemd
+      ? 'target is not a systemd host — the agent requires systemd --user; nothing was modified'
+      : !composeV2
+        ? 'the docker compose v2 plugin is required (docker-compose v1 is EOL) — install the compose plugin and retry; nothing was modified'
+        : undefined;
 
     return {
       arch,
       systemd,
+      composeV2,
       linger,
       killUserProcesses: killUserProcesses ?? 'unknown',
-      ok: systemd,
+      ok: systemd && composeV2,
       ...(refusalReason !== undefined && { refusalReason }),
     };
   }
