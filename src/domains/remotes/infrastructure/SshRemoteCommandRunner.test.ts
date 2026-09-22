@@ -119,6 +119,27 @@ describe('SshRemoteCommandRunner', () => {
     await expect(pending).rejects.toThrow('channel closed unexpectedly');
   });
 
+  it('6.9 RED: rejects as a transport failure when the channel closes without an exit event', async () => {
+    let channelRef: FakeChannel | undefined;
+    const runner = new SshRemoteCommandRunner(
+      createChannelSource(() => {
+        channelRef = createFakeChannel();
+        return Promise.resolve(channelRef);
+      })
+    );
+
+    const pending = runner.run('systemctl --user is-active tako-agent.service');
+    await flushAsync();
+
+    // The connection drops mid-command: ssh2 emits 'close' with NO prior
+    // 'exit'. Partial stdout must NOT be resolved as a result — for probes
+    // like is-active an exitCode-less stdout is ambiguous.
+    channelRef?.emit('data', Buffer.from('active\n'));
+    channelRef?.emit('close');
+
+    await expect(pending).rejects.toThrow(/closed without an exit status/);
+  });
+
   it('2.5 RED: decodes multibyte utf8 output split across data chunks', async () => {
     let channelRef: FakeChannel | undefined;
     const runner = new SshRemoteCommandRunner(

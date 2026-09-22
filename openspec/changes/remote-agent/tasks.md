@@ -94,15 +94,15 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 
 ## Phase 6: Provisioning — CLI Commands (install, uninstall, status, agent-run composition root)
 
-- [ ] 6.1 Create `src/cli/commands/agent-run.ts` — agent-mode composition root: DB open (migrations), socket server, scheduler tick (30 s), JobHandler wiring (maps job type → docker use cases); never imports Ink; lazy import for runCli
-- [ ] 6.2 Modify `src/cli/index.ts` — register `agent` family (lazy imports, no Ink); add `agent run | install | uninstall | status`
-- [ ] 6.3 Create `src/cli/commands/agent-install.ts` — pre-flight (arch, systemd, compose v2 REQUIRED per spec, KillUserProcesses, linger state) → HybridBinaryProvisioner → SystemdRemoteController → SurviveDisconnectProber; plain console output
-- [ ] 6.4 Create `src/cli/commands/agent-uninstall.ts` — read linger_by_tako via agent transport first → stop/disable unit → daemon-reload → disable linger iff by-tako → rm -rf ~/.tako/ → verify on second connection
-- [ ] 6.5 Create `src/cli/commands/agent-status.ts` — text table: unit state, linger (+by-tako), agent/client version+protocol, jobs count, socket handshake result
-- [ ] 6.6 Unit tests: provisioner decision table (arch match/mismatch/fallback-fail); uninstall ordering logic (linger-by-tako read-first); KillUserProcesses detection path; polkit denial error message
-- [ ] 6.7 Integration tests: full install → probe → uninstall against privileged systemd+sshd container (jrei/systemd-ubuntu; testcontainers, 60 s timeout): copy path, probe pass, KillUserProcesses detection, residue checks
-- [ ] 6.8 Resolve `~` for SFTP remote paths in the install upload flow (sftp-server does not expand tilde): resolve home via exec before upload; document no-tilde-expansion on the `RemoteFileTransfer` port (WU2 verification finding)
-- [ ] 6.9 `SshRemoteCommandRunner`: reject as a transport failure when the connection closes without an `exit` event (avoid ambiguous partial stdout for probe commands like `systemctl is-active`) (WU2 verification finding)
+- [x] 6.1 Create `src/cli/commands/agent-run.ts` — agent-mode composition root: DB open (migrations), socket server, scheduler tick (30 s), JobHandler wiring (maps job type → docker use cases); never imports Ink; lazy import for runCli
+- [x] 6.2 Modify `src/cli/index.ts` — register `agent` family (lazy imports, no Ink); add `agent run | install | uninstall | status`
+- [x] 6.3 Create `src/cli/commands/agent-install.ts` — pre-flight (arch, systemd, compose v2 REQUIRED per spec, KillUserProcesses, linger state) → HybridBinaryProvisioner → SystemdRemoteController → SurviveDisconnectProber; plain console output
+- [x] 6.4 Create `src/cli/commands/agent-uninstall.ts` — read linger_by_tako via agent transport first → stop/disable unit → daemon-reload → disable linger iff by-tako → rm -rf ~/.tako/ → verify on second connection
+- [x] 6.5 Create `src/cli/commands/agent-status.ts` — text table: unit state, linger (+by-tako), agent/client version+protocol, jobs count, socket handshake result
+- [x] 6.6 Unit tests: provisioner decision table (arch match/mismatch/fallback-fail); uninstall ordering logic (linger-by-tako read-first); KillUserProcesses detection path; polkit denial error message
+- [x] 6.7 Integration tests: full install → probe → uninstall against privileged systemd+sshd container (jrei/systemd-ubuntu; testcontainers, 60 s timeout): copy path, probe pass, KillUserProcesses detection, residue checks
+- [x] 6.8 Resolve `~` for SFTP remote paths in the install upload flow (sftp-server does not expand tilde): resolve home via exec before upload; document no-tilde-expansion on the `RemoteFileTransfer` port (WU2 verification finding)
+- [x] 6.9 `SshRemoteCommandRunner`: reject as a transport failure when the connection closes without an `exit` event (avoid ambiguous partial stdout for probe commands like `systemctl is-active`) (WU2 verification finding)
 
 ## Phase 7: Job Engine — Scheduler Loop + ExecuteRun
 
@@ -139,4 +139,4 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 - [ ] 9.4 Run `bun run test` — full unit test suite passes
 - [ ] 9.5 Update `docs/decisions/README.md` ADR index — add entries for 0015, 0016, 0017 (index currently ends at 0014; found by WU1 verification)
 - [ ] 9.6 Extract pre-existing direct `conf` imports in `src/cli/commands/remote-add.ts` and `src/tui/app/routes/remotes/{index,add}.tsx` behind application ports — required by the MODIFIED Port/Adapter Isolation requirement before archive validation (WU2 verification finding)
-- [ ] 9.7 Infrastructure hardening from WU4/WU5 verification: guard `result_json` JSON.parse in `store-mapping.ts` (tamper-tolerant load); append a remedy sentence to generic systemctl failures in `SystemdRemoteController` (threat matrix wording); disambiguate `sha256sum` missing-vs-failed in `HybridBinaryProvisioner.#remoteSha256`; document the tako↔bunqueue two-step mutation repair path in `BunqueueJobStore`; add a mechanical parity test between `agent/domain` `PruneScopes` and `docker/domain` `PruneScope` (identical member-wise today, drift caught only at runtime)
+- [ ] 9.7 Infrastructure hardening from WU4–WU6 verification: guard `result_json` JSON.parse in `store-mapping.ts` (tamper-tolerant load); append a remedy sentence to generic systemctl failures in `SystemdRemoteController` (threat matrix wording); disambiguate `sha256sum` missing-vs-failed in `HybridBinaryProvisioner.#remoteSha256`; document the tako↔bunqueue two-step mutation repair path in `BunqueueJobStore`; add a mechanical parity test between `agent/domain` `PruneScopes` and `docker/domain` `PruneScope` (identical member-wise today, drift caught only at runtime); review `decideLingerOnInstall` 'unknown'→enable+record semantics (false by-tako record risk, WU3 design); strengthen the uninstall read-before-teardown test with a shared event log across runner+channel fakes

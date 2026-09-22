@@ -31,6 +31,14 @@ export class TransferIntegrityError extends Error {
  * Port: upload/download files with an integrity check on the transferred
  * bytes — the remote file's sha256 is compared against the local file's
  * checksum. Download is unused by v0 flows but is part of the port contract.
+ *
+ * TILDE CAVEAT (WU2 verification finding, task 6.8): sftp-server does NOT
+ * expand `~`. Implementations hand `remotePath` straight to the SFTP layer,
+ * where it is resolved relative to the REMOTE user's home only when it is
+ * already absolute — a leading `~` is taken literally and fails. Callers
+ * MUST resolve `~` to an absolute path via a `RemoteCommandRunner` exec
+ * (e.g. `printf %s "$HOME"`) BEFORE calling upload/download; the agent
+ * install flow does exactly this (HybridBinaryProvisioner#remoteHome).
  */
 export interface RemoteFileTransfer {
   upload(request: RemoteUploadRequest): Promise<RemoteTransferResult>;
