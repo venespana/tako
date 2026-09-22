@@ -178,8 +178,14 @@ export class BunqueueJobStore implements JobStore {
     }
     // Mirror the schedule into bunqueue: the scheduler id IS the job Slug
     // (idempotent upsert). skipMissedOnRestart: false — see the verified
-    // finding in the module header. The template payload carries the
-    // definition so the WU7 Worker can execute it straight from job.data.
+    // finding in the module header.
+    //
+    // FIRING AUTHORITY (WU7, do not "helpfully" change): RunSchedulerLoop's
+    // watermark tick is the ONLY thing that fires runs — there is NO bunqueue
+    // Worker consuming these spawned jobs, by design (a Worker here would
+    // DOUBLE-FIRE against the tick and break missed-once exactly-once).
+    // Bunqueue schedulers are currently unconsumed mirrors; their spawned
+    // queue rows accumulate (task 9.7 tracks the cleanup decision).
     await this.#queue!.upsertJobScheduler(
       job.id,
       { pattern: job.schedule.expr, skipMissedOnRestart: false },

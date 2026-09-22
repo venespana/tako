@@ -1,19 +1,17 @@
-// cli/commands/agent-run.ts — AGENT-MODE composition root (task 6.1)
+// cli/commands/agent-run.ts — AGENT-MODE composition root (tasks 6.1 + 7.3)
 //
 // Entry point for `tako agent run`, the daemon the systemd --user unit
-// starts on the server (design §Data Flow). Wires the WU4/WU5 adapters
+// starts on the server (design §Data Flow). Wires the WU4/WU5/WU7 pieces
 // together: bunqueue-backed job store + agent_meta (both under
-// ~/.tako/agent.db), the unix-socket protocol server, and the JobHandler
-// that maps job definitions to the docker use cases (D4: the agent domain
-// never imports docker — this cli root does the runtime wiring).
+// ~/.tako/agent.db), the unix-socket protocol server, the watchdog-guarded
+// JobHandler mapping job definitions to the docker use cases (D4: the agent
+// domain never imports docker — this cli root does the runtime wiring), and
+// the RunSchedulerLoop + ExecuteRun engine that makes the queue live
+// autonomously (serial drain, missed-once catch-up, crash-guard watermarks).
 //
 // NEVER IMPORTS INK. Reached only through the lazy-imported CLI path; all
 // Bun-only modules (bun:sqlite, bunqueue) load via dynamic import() so
 // non-agent paths never touch them (ADR-0016).
-//
-// WU7 SEAM: the scheduler loop + serial run execution (RunSchedulerLoop +
-// ExecuteRun, tasks 7.1-7.5) plug in right after `server.start()` below —
-// the store, clock, and handler are already wired for it.
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -21,9 +19,12 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 import type { Clock } from '../../domains/agent/application/Clock.js';
+import { ExecuteRun } from '../../domains/agent/application/ExecuteRun.js';
 import type { JobExecutionOutcome, JobHandler } from '../../domains/agent/application/JobHandler.js';
 import { UNSUPPORTED_OUTCOME } from '../../domains/agent/application/JobHandler.js';
+import { DEFAULT_TICK_INTERVAL_MS, RunSchedulerLoop } from '../../domains/agent/application/RunSchedulerLoop.js';
 import { parseLingerShowUserOutput } from '../../domains/agent/application/use-cases/InstallAgent.js';
+import { eventFrame } from '../../domains/agent/domain/protocol.js';
 import type { JobDefinition, RunMode } from '../../domains/agent/domain/types.js';
 import type {
   UnixSocketAgentServer,
@@ -37,6 +38,13 @@ const SYSTEMD_UNIT = 'tako-agent.service';
 const LINGER_SHOW_USER = ['show-user', process.env['USER'] ?? process.env['LOGNAME'] ?? '', '--property=Linger'].filter(
   Boolean
 );
+
+/**
+ * Task 7.5: a wedged compose call (e.g. an unattended `pull` against a dead
+ * daemon) must not hang the serial queue forever. The budget is deliberately
+ * generous — real image pulls over slow links can take minutes.
+ */
+export const DEFAULT_WATCHDOG_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** Bun-only default DB location: ~/.tako/agent.db (design D3/D8). */
 export function defaultAgentDataPath(): string {
@@ -91,6 +99,44 @@ export class DockerJobHandler implements JobHandler {
   }
 }
 
+/** Thrown when a job execution exceeds the watchdog budget (7.5). */
+export class WatchdogTimeoutError extends Error {
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(
+      `job execution exceeded the ${(timeoutMs / 1000).toFixed(0)}s watchdog timeout — the underlying ` +
+        'process may still be running, but the run is recorded as failed so the serial queue keeps draining'
+    );
+    this.name = 'WatchdogTimeoutError';
+    this.timeoutMs = timeoutMs;
+  }
+}
+
+/**
+ * Task 7.5: bound one handler execution to a wall-clock budget. The engine
+ * (ExecuteRun) records the rejection as a failed run with the watchdog
+ * message, so the queue can never wedge on a compose call that will never
+ * answer. The underlying process is NOT killed — only the queue unblocks.
+ */
+export function withWatchdogTimeout(handler: JobHandler, timeoutMs: number): JobHandler {
+  return {
+    async execute(job: JobDefinition, mode: RunMode): Promise<JobExecutionOutcome> {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([
+          handler.execute(job, mode),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new WatchdogTimeoutError(timeoutMs)), timeoutMs);
+          }),
+        ]);
+      } finally {
+        if (timer !== undefined) clearTimeout(timer);
+      }
+    },
+  };
+}
+
 /** Local host facts for agent.status (systemd, linger, recorded by-tako flag). */
 export async function readHostStatus(): Promise<AgentHostStatus> {
   const lingerByTako = existsSync(join(homedir(), '.tako', 'linger.by-tako'));
@@ -129,6 +175,10 @@ export interface AgentRunOptions {
   readonly error?: (line: string) => void;
   /** Test seam: skip the blocking wait after start(). */
   readonly waitForSignals?: boolean;
+  /** Scheduler tick cadence (design: 30 s). */
+  readonly schedulerIntervalMs?: number;
+  /** Per-run watchdog budget for wedged compose calls (default 10 min). */
+  readonly watchdogTimeoutMs?: number;
 }
 
 export async function runAgentRun(options: AgentRunOptions = {}): Promise<number> {
@@ -171,18 +221,40 @@ export async function runAgentRun(options: AgentRunOptions = {}): Promise<number
   await server.start();
   log(`tako agent listening on ${socketPath}`);
   log(`job store: ${dataPath}`);
-  log('scheduler loop: not started (lands with the WU7 job engine)');
+
+  // Task 7.3: the job engine — watchdog-guarded handler, serial run
+  // execution, and the 30 s catch-up tick. Runs drain one at a time while
+  // the tick keeps ticking; run state changes broadcast to connected
+  // clients as protocol push events (job.state_changed / run.completed).
+  const schedulerIntervalMs = options.schedulerIntervalMs ?? DEFAULT_TICK_INTERVAL_MS;
+  const watchdogTimeoutMs = options.watchdogTimeoutMs ?? DEFAULT_WATCHDOG_TIMEOUT_MS;
+  const engine = new ExecuteRun({
+    store,
+    clock,
+    handler: withWatchdogTimeout(new DockerJobHandler(), watchdogTimeoutMs),
+    onEvent: event => server.broadcastEvent(eventFrame(event.type, event.payload)),
+  });
+  const scheduler = new RunSchedulerLoop({
+    store,
+    clock,
+    executeRun: engine,
+    intervalMs: schedulerIntervalMs,
+    log,
+    error,
+  });
+  await scheduler.start();
+  log(`scheduler loop: ticking every ${schedulerIntervalMs} ms (serial run queue, ${watchdogTimeoutMs} ms watchdog)`);
 
   const shutdown = async (): Promise<void> => {
+    // Order matters: stop the tick + finish the in-flight run (rolling back
+    // queued firings for the next start) BEFORE tearing down the store.
+    await scheduler.stop();
     await server.stop();
     await store.close();
     meta.close();
   };
   process.once('SIGTERM', () => void shutdown());
   process.once('SIGINT', () => void shutdown());
-
-  // WU7 SEAM: RunSchedulerLoop + ExecuteRun (serial, one run at a time)
-  // attach here with `store`, `clock`, and DockerJobHandler already wired.
 
   if (options.waitForSignals === false) {
     await shutdown();
