@@ -22,7 +22,7 @@ import { DeleteJob } from '../application/use-cases/DeleteJob.js';
 import { GetJobHistory } from '../application/use-cases/GetJobHistory.js';
 import { ListJobs } from '../application/use-cases/ListJobs.js';
 import { ReconcileState } from '../application/use-cases/ReconcileState.js';
-import { JobNotFoundError, TriggerJob } from '../application/use-cases/TriggerJob.js';
+import { JobNotFoundError } from '../application/use-cases/TriggerJob.js';
 import { UpsertJob } from '../application/use-cases/UpsertJob.js';
 import { JobValidationError } from '../domain/job.js';
 import {
@@ -37,6 +37,7 @@ import {
   type AgentFrame,
   type ProtocolErrorCode,
 } from '../domain/protocol.js';
+import type { RunMode, RunView, Slug } from '../domain/types.js';
 
 /** Host-side facts only the composition root can know (systemd/linger/meta). */
 export interface AgentHostStatus {
@@ -53,6 +54,13 @@ export interface UnixSocketAgentServerOptions {
   readonly clock: Clock;
   /** Host-side status fields for agent.status (systemd, linger, meta). */
   readonly status: () => Promise<AgentHostStatus>;
+  /**
+   * Task 8.0: create the triggered run and queue it on the engine's serial
+   * drain (RunSchedulerLoop.enqueueTriggered). The server NEVER creates or
+   * executes runs inline in the connection handler — the callback resolves
+   * with the queued (pending) run view that the response returns.
+   */
+  readonly trigger: (jobId: Slug, mode: RunMode) => Promise<RunView>;
 }
 
 interface ConnectionContext {
@@ -320,10 +328,9 @@ export class UnixSocketAgentServer {
         if (mode !== 'dry-run' && mode !== 'apply') {
           throw new JobValidationError(`mode must be 'dry-run' or 'apply', got ${JSON.stringify(mode)}`);
         }
-        const run = await new TriggerJob(this.#options.store, this.#options.clock).execute(
-          readField(payload, 'jobId'),
-          mode
-        );
+        // Task 8.0: the trigger callback IS the engine's serial queue — the
+        // response returns the queued (pending) run view.
+        const run = await this.#options.trigger(readField(payload, 'jobId'), mode);
         return { run };
       }
       case 'jobs.history': {

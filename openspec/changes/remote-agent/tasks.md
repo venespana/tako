@@ -114,23 +114,23 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 
 ## Phase 8: TUI Tasks — Routes, Features, Pages, Entities, Store
 
-- [ ] 8.1 Create `src/tui/app/routes/tasks.tsx` — route shim / composition root: SshConnectionManager → StreamLocalAgentChannel → agent use cases; reads activeRemote from useAppRuntime; never imports app/
-- [ ] 8.0 Give `RunSchedulerLoop` a public enqueue API and bridge `jobs.trigger` to it (UnixSocketAgentServerOptions callback): triggered runs flow through the SAME serial drain as scheduled fires (never inline in the socket handler) — unblocks the TUI trigger button and stops unbounded zombie-pending runs (WU7 verifier finding 1)
-- [ ] 8.2 Run `bun run generate:routes` — regenerate `src/tui/app/routes.generated.ts` to include /tasks
-- [ ] 8.3 Create `src/tui/features/tasks/job-list/model/tasks-store.ts` — Zustand store: status (idle|connecting|ready|warning|error), agent info, jobs[], selectedJobId, historyByJob, lastSeq; connect/refresh/upsert/remove/trigger/loadHistory actions; push event handlers
-- [ ] 8.4 Create `src/tui/features/tasks/job-list/ui/` — job list slice (mirrors add-remote-wizard pattern)
-- [ ] 8.5 Create `src/tui/features/tasks/job-form/model/` — form model (type, target stack, schedule)
-- [ ] 8.6 Create `src/tui/features/tasks/job-form/ui/` — create/edit job form slice
-- [ ] 8.7 Create `src/tui/features/tasks/job-history/model/` — history query model
-- [ ] 8.8 Create `src/tui/features/tasks/job-history/ui/` — history slice
-- [ ] 8.9 Create `src/tui/features/tasks/dry-run-preview/model/` — dry-run report model
-- [ ] 8.10 Create `src/tui/features/tasks/dry-run-preview/ui/` — dry-run preview slice + explicit Apply action
-- [ ] 8.11 Create `src/tui/pages/tasks/` — TasksPage (job list + detail pane layout; install-hint when not_installed)
-- [ ] 8.12 Create `src/tui/entities/job/` — JobRow view component (type from agent/domain)
-- [ ] 8.13 Modify `src/tui/widgets/menu` — add /tasks entry when remote is active
-- [ ] 8.14 Unit tests: tasks-store actions (connect, refresh, upsert, remove, trigger, loadHistory); form model validation; push event → store update
-- [ ] 8.15 E2E (gated, `TAKO_E2E_ARM64=1`): arm64 runner — install on systemd container → schedule job → kill client → job fires → reconnect → reconcile shows run (`agent-jobs#Disconnected-execution`, `agent-jobs#Reconcile-on-connect`)
-- [ ] 8.16 E2E (gated, releases-fallback only): download-fallback e2e against a published release (env-pinned version; only after first arm64 release exists) (`remote-agent-install#arch-mismatch-falls-back-to-Releases`)
+- [x] 8.1 Create `src/tui/app/routes/tasks.tsx` — route shim / composition root: SshConnectionManager → StreamLocalAgentChannel → agent use cases; reads activeRemote from useAppRuntime; never imports app/
+- [x] 8.0 Give `RunSchedulerLoop` a public enqueue API and bridge `jobs.trigger` to it (UnixSocketAgentServerOptions callback): triggered runs flow through the SAME serial drain as scheduled fires (never inline in the socket handler) — unblocks the TUI trigger button and stops unbounded zombie-pending runs (WU7 verifier finding 1)
+- [x] 8.2 Run `bun run generate:routes` — regenerate `src/tui/app/routes.generated.ts` to include /tasks
+- [x] 8.3 Create `src/tui/features/tasks/job-list/model/tasks-store.ts` — Zustand store: status (idle|connecting|ready|warning|error), agent info, jobs[], selectedJobId, historyByJob, lastSeq; connect/refresh/upsert/remove/trigger/loadHistory actions; push event handlers
+- [x] 8.4 Create `src/tui/features/tasks/job-list/ui/` — job list slice (mirrors add-remote-wizard pattern)
+- [x] 8.5 Create `src/tui/features/tasks/job-form/model/` — form model (type, target stack, schedule)
+- [x] 8.6 Create `src/tui/features/tasks/job-form/ui/` — create/edit job form slice
+- [x] 8.7 Create `src/tui/features/tasks/job-history/model/` — history query model
+- [x] 8.8 Create `src/tui/features/tasks/job-history/ui/` — history slice
+- [x] 8.9 Create `src/tui/features/tasks/dry-run-preview/model/` — dry-run report model
+- [x] 8.10 Create `src/tui/features/tasks/dry-run-preview/ui/` — dry-run preview slice + explicit Apply action
+- [x] 8.11 Create `src/tui/pages/tasks/` — TasksPage (job list + detail pane layout; install-hint when not_installed)
+- [x] 8.12 Create `src/tui/entities/job/` — JobRow view component (type from agent/domain)
+- [x] 8.13 Modify `src/tui/widgets/menu` — add /tasks entry when remote is active
+- [x] 8.14 Unit tests: tasks-store actions (connect, refresh, upsert, remove, trigger, loadHistory); form model validation; push event → store update
+- [ ] 8.15 (written; requires native arm64 runner — gated) E2E (gated, `TAKO_E2E_ARM64=1`): arm64 runner — install on systemd container → schedule job → kill client → job fires → reconnect → reconcile shows run (`agent-jobs#Disconnected-execution`, `agent-jobs#Reconcile-on-connect`)
+- [ ] 8.16 (written; requires first published arm64 release — gated) E2E (gated, releases-fallback only): download-fallback e2e against a published release (env-pinned version; only after first arm64 release exists) (`remote-agent-install#arch-mismatch-falls-back-to-Releases`)
 
 ## Phase 9: Meta — ESLint Zones, Version Bump, Final Verification
 
@@ -140,5 +140,5 @@ Decision needed before apply: **Resolved** — maintainer chose chained PRs (fea
 - [ ] 9.4 Run `bun run test` — full unit test suite passes
 - [ ] 9.5 Update `docs/decisions/README.md` ADR index — add entries for 0015, 0016, 0017 (index currently ends at 0014; found by WU1 verification)
 - [ ] 9.6 Extract pre-existing direct `conf` imports in `src/cli/commands/remote-add.ts` and `src/tui/app/routes/remotes/{index,add}.tsx` behind application ports — required by the MODIFIED Port/Adapter Isolation requirement before archive validation (WU2 verification finding)
-- [ ] 9.7 Infrastructure hardening from WU4–WU7 verification: guard `result_json` JSON.parse in `store-mapping.ts` (tamper-tolerant load); append a remedy sentence to generic systemctl failures in `SystemdRemoteController` (threat matrix wording); disambiguate `sha256sum` missing-vs-failed in `HybridBinaryProvisioner.#remoteSha256`; document the tako↔bunqueue two-step mutation repair path in `BunqueueJobStore`; add a mechanical parity test between `agent/domain` `PruneScopes` and `docker/domain` `PruneScope` (identical member-wise today, drift caught only at runtime); review `decideLingerOnInstall` 'unknown'→enable+record semantics (false by-tako record risk, WU3 design); strengthen the uninstall read-before-teardown test with a shared event log across runner+channel fakes; unit-test the composition-root shutdown sequence (SIGTERM ordering, `waitForSignals: false` teardown)
+- [ ] 9.7 Infrastructure hardening from WU4–WU8 verification: guard `result_json` JSON.parse in `store-mapping.ts` (tamper-tolerant load); append a remedy sentence to generic systemctl failures in `SystemdRemoteController` (threat matrix wording); disambiguate `sha256sum` missing-vs-failed in `HybridBinaryProvisioner.#remoteSha256`; document the tako↔bunqueue two-step mutation repair path in `BunqueueJobStore`; add a mechanical parity test between `agent/domain` `PruneScopes` and `docker/domain` `PruneScope` (identical member-wise today, drift caught only at runtime); review `decideLingerOnInstall` 'unknown'→enable+record semantics (false by-tako record risk, WU3 design); strengthen the uninstall read-before-teardown test with a shared event log across runner+channel fakes; unit-test the composition-root shutdown sequence (SIGTERM ordering, `waitForSignals: false` teardown); move `saveCursor` out of zustand `set()` updaters in tasks-store (purity, WU8 finding); add page-key regression tests for apply gating in TasksPage (`a` requires reviewed dry-run, `t` direct apply); export `resetTasksStoreForTests()` from the job-list slice public API (drop the test-only deep import); review the stale `features/menu/registry.ts` duplicate (not exported via index — remove or wire)
 - [ ] 9.8 Stop arming bunqueue schedulers (maintainer decision 2026-09-18): RunSchedulerLoop's watermark tick is the sole firing authority and bunqueue spawned rows are unconsumed dead weight (~8.8k/yr per hourly job) — remove the `upsertJobScheduler` mirror from `BunqueueJobStore` (bunqueue remains storage), amend D3 + ADR-0016 wording accordingly, and note the removal in the module header FIRING AUTHORITY comment

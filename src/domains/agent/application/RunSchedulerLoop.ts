@@ -34,8 +34,9 @@
 import type { Clock } from './Clock.js';
 import type { ExecuteRun } from './ExecuteRun.js';
 import type { JobStore } from './JobStore.js';
-import type { JobDefinition, RunMode } from '../domain/types.js';
+import type { JobDefinition, RunMode, RunView, Slug } from '../domain/types.js';
 import { decideCatchUp } from './use-cases/MissedOnceCatchUp.js';
+import { JobNotFoundError, TriggerJob } from './use-cases/TriggerJob.js';
 
 export const DEFAULT_TICK_INTERVAL_MS = 30_000;
 
@@ -58,7 +59,8 @@ export const defaultSchedulerTimer: SchedulerTimer = {
 };
 
 /** One due scheduled firing queued for serial execution. */
-interface QueuedFire {
+interface ScheduledFire {
+  readonly kind: 'scheduled';
   readonly job: JobDefinition;
   readonly catchup: boolean;
   /** Watermark ExecuteRun persists once this run settles. */
@@ -66,6 +68,23 @@ interface QueuedFire {
   /** Watermark before this firing was enqueued — restored when dropped at a clean stop. */
   readonly previousWatermark: string;
 }
+
+/**
+ * One trigger-requested run (task 8.0): TriggerJob already created the
+ * pending run; the drain drives it through ExecuteRun with the requested
+ * mode. Never catch-up, no watermark — a clean stop leaves the run pending
+ * (the next start's crash recovery marks it failed).
+ */
+interface TriggeredFire {
+  readonly kind: 'triggered';
+  readonly job: JobDefinition;
+  readonly mode: RunMode;
+  /** The pending run the trigger response already returned. */
+  readonly run: RunView;
+}
+
+/** Everything the serial drain executes — ONE queue for both origins. */
+type QueuedFire = ScheduledFire | TriggeredFire;
 
 export interface RunSchedulerLoopOptions {
   readonly store: JobStore;
@@ -137,6 +156,25 @@ export class RunSchedulerLoop {
   /** True while a scheduled fire for this job is queued or executing. */
   hasQueuedFire(jobId: string): boolean {
     return this.#currentFire?.job.id === jobId || this.#queue.some(fire => fire.job.id === jobId);
+  }
+
+  /**
+   * Public enqueue API (task 8.0): validate + create the pending run via the
+   * store, then queue it on the SAME serial drain as scheduled fires.
+   * Triggered runs are NEVER executed inline by protocol handlers — they
+   * drain one-at-a-time alongside cron fires, and their state changes reach
+   * clients through the same push events. Resolves with the queued (still
+   * pending) run view; a clean stop before the drain reaches it leaves the
+   * run pending for crash recovery to sweep.
+   */
+  async enqueueTriggered(jobId: Slug, mode: RunMode): Promise<RunView> {
+    const view = await this.#store.getJob(jobId);
+    if (view === undefined) throw new JobNotFoundError(jobId);
+    const run = await new TriggerJob(this.#store, this.#clock).execute(jobId, mode);
+    this.#queue.push({ kind: 'triggered', job: view.job, mode, run });
+    this.#log(`job ${jobId} triggered (${mode}) — queued serial run`);
+    void this.#drain();
+    return run;
   }
 
   #armTimer(): void {
@@ -219,6 +257,7 @@ export class RunSchedulerLoop {
       lastFireEnqueued: true,
     });
     this.#queue.push({
+      kind: 'scheduled',
       job,
       catchup: decision.catchup,
       nextWatermark: decision.nextWatermark,
@@ -255,6 +294,11 @@ export class RunSchedulerLoop {
 
   async #executeOne(fire: QueuedFire): Promise<void> {
     try {
+      if (fire.kind === 'triggered') {
+        // Triggered: the caller's mode, the pre-created run, no watermark.
+        await this.#executeRun.execute({ job: fire.job, mode: fire.mode, catchup: false, run: fire.run });
+        return;
+      }
       await this.#executeRun.execute({
         job: fire.job,
         mode: SCHEDULED_RUN_MODE,
@@ -270,6 +314,9 @@ export class RunSchedulerLoop {
 
   async #restoreQueuedFires(): Promise<void> {
     for (const fire of this.#queue) {
+      // Triggered fires carry no watermark — a clean stop leaves their runs
+      // pending; the next start's crash recovery marks them failed.
+      if (fire.kind !== 'scheduled') continue;
       try {
         await this.#store.saveScheduleState({
           jobId: fire.job.id,

@@ -62,6 +62,17 @@ const REGISTRY: ActionGroup[] = deepFreeze([
         handlerKey: 'remotes.delete',
         route: '/remotes/rm',
       },
+      {
+        id: 'remote-tasks',
+        label: 'Tasks',
+        command: 'tasks',
+        kind: 'action',
+        // Scheduled jobs live on the AGENT of the active remote — without a
+        // remote selected there is nothing to manage (design §TUI Layout).
+        enabledWhen: 'hasActiveRemote',
+        handlerKey: 'tasks',
+        route: '/tasks',
+      },
     ],
   },
   {

@@ -210,22 +210,12 @@ export async function runAgentRun(options: AgentRunOptions = {}): Promise<number
   meta.setInstalledVersion(VERSION);
   meta.setInstalledAt(new Date().toISOString());
 
-  const server: UnixSocketAgentServer = new Server({
-    socketPath,
-    agentVersion: VERSION,
-    store,
-    clock,
-    status: readHostStatus,
-  });
-
-  await server.start();
-  log(`tako agent listening on ${socketPath}`);
-  log(`job store: ${dataPath}`);
-
-  // Task 7.3: the job engine — watchdog-guarded handler, serial run
-  // execution, and the 30 s catch-up tick. Runs drain one at a time while
-  // the tick keeps ticking; run state changes broadcast to connected
-  // clients as protocol push events (job.state_changed / run.completed).
+  // Tasks 7.3 + 8.0: the job engine is built BEFORE the server so the socket
+  // handler can delegate jobs.trigger to the scheduler's serial queue —
+  // triggered runs never execute inline in the connection handler. Watchdog-
+  // guarded handler, serial run execution, and the 30 s catch-up tick; run
+  // state changes broadcast to connected clients as protocol push events
+  // (job.state_changed / run.completed).
   const schedulerIntervalMs = options.schedulerIntervalMs ?? DEFAULT_TICK_INTERVAL_MS;
   const watchdogTimeoutMs = options.watchdogTimeoutMs ?? DEFAULT_WATCHDOG_TIMEOUT_MS;
   const engine = new ExecuteRun({
@@ -242,6 +232,19 @@ export async function runAgentRun(options: AgentRunOptions = {}): Promise<number
     log,
     error,
   });
+  const server: UnixSocketAgentServer = new Server({
+    socketPath,
+    agentVersion: VERSION,
+    store,
+    clock,
+    status: readHostStatus,
+    // Task 8.0: triggers drain through the SAME serial queue as cron fires.
+    trigger: (jobId, mode) => scheduler.enqueueTriggered(jobId, mode),
+  });
+
+  await server.start();
+  log(`tako agent listening on ${socketPath}`);
+  log(`job store: ${dataPath}`);
   await scheduler.start();
   log(`scheduler loop: ticking every ${schedulerIntervalMs} ms (serial run queue, ${watchdogTimeoutMs} ms watchdog)`);
 

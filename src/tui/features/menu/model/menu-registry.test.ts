@@ -26,11 +26,18 @@ describe('getRegistry', () => {
     expect(local.items[0]!.enabledWhen).toBe('always');
   });
 
-  it('Remote group contains Select, Add, Delete as direct action items', () => {
+  it('Remote group contains Select, Add, Delete and the gated Tasks entry', () => {
     const remote = getRegistry().find(g => g.id === 'remote')!;
-    expect(remote.items.map(i => i.id)).toEqual(['remote-select', 'remote-add', 'remote-delete']);
+    expect(remote.items.map(i => i.id)).toEqual(['remote-select', 'remote-add', 'remote-delete', 'remote-tasks']);
     expect(remote.items.every(i => i.kind === 'action')).toBe(true);
-    expect(remote.items.every(i => i.enabledWhen === 'always')).toBe(true);
+    // Tasks needs an active remote; the other three are always selectable.
+    expect(remote.items.filter(i => i.enabledWhen === 'always').map(i => i.id)).toEqual([
+      'remote-select',
+      'remote-add',
+      'remote-delete',
+    ]);
+    const tasks = remote.items.find(i => i.id === 'remote-tasks')!;
+    expect(tasks.enabledWhen).toBe('hasActiveRemote');
   });
 
   it('Remote items route correctly', () => {
@@ -38,9 +45,11 @@ describe('getRegistry', () => {
     const select = remote.items.find(i => i.id === 'remote-select')!;
     const add = remote.items.find(i => i.id === 'remote-add')!;
     const deleteItem = remote.items.find(i => i.id === 'remote-delete')!;
+    const tasks = remote.items.find(i => i.id === 'remote-tasks')!;
     expect(select.route).toBe('/remotes');
     expect(add.route).toBe('/remotes/add');
     expect(deleteItem.route).toBe('/remotes/rm');
+    expect(tasks.route).toBe('/tasks');
   });
 
   it('doctor action has handlerKey', () => {

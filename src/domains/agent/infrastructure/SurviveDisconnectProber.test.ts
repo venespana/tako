@@ -86,6 +86,10 @@ describe('SurviveDisconnectProber — success path', () => {
       store: new InMemoryJobStore(),
       clock: { now: () => new Date() },
       status: async () => ({ unitState: 'active', linger: true, lingerByTako: false }),
+      // The prober never triggers runs; an explicit no-op satisfies the 8.0 bridge contract.
+      trigger: async () => {
+        throw new Error('the survive-disconnect probe must never trigger a run');
+      },
     });
     await server.start();
 

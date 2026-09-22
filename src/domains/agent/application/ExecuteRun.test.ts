@@ -188,4 +188,28 @@ describe('ExecuteRun — one run through the state machine (7.2)', () => {
 
     await expect(executeRun.execute({ job, mode: 'apply', catchup: false })).rejects.toThrow(IllegalRunTransitionError);
   });
+
+  it('8.0 RED: executes a pre-created triggered run instead of creating a second one', async () => {
+    const { store, clock } = build();
+    const job = hourlyJob('nas-pull');
+    await store.upsertJob(job);
+    // TriggerJob already created this pending run when the trigger arrived.
+    const triggered = await store.createRun({
+      jobId: job.id,
+      mode: 'dry-run',
+      catchup: false,
+      startedAt: clock.now().toISOString(),
+    });
+    const handler = new FakeJobHandler({ status: 'succeeded', result: { planned: true } });
+    const executeRun = new ExecuteRun({ store, clock, handler });
+
+    const run = await executeRun.execute({ job, mode: 'dry-run', catchup: false, run: triggered });
+
+    expect(run.id).toBe(triggered.id);
+    expect(run.status).toBe('succeeded');
+    const runs = await store.listRuns({});
+    expect(runs).toHaveLength(1); // the pre-created run — never a duplicate
+    expect(runs[0]?.id).toBe(triggered.id);
+    expect(handler.calls).toEqual([{ job, mode: 'dry-run' }]);
+  });
 });

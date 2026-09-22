@@ -8,12 +8,13 @@
 // never double-fired by a later tick.
 import { describe, expect, it } from 'vitest';
 
-import type { JobDefinition, JobView } from '../domain/types.js';
+import type { JobDefinition, JobView, RunMode } from '../domain/types.js';
 import { InMemoryJobStore } from '../testing/InMemoryJobStore.js';
 import { ExecuteRun } from './ExecuteRun.js';
 import type { JobExecutionOutcome, JobHandler } from './JobHandler.js';
 // RED: import the module that doesn't exist yet
 import { DEFAULT_TICK_INTERVAL_MS, RunSchedulerLoop, type SchedulerTimer } from './RunSchedulerLoop.js';
+import { JobNotFoundError } from './use-cases/TriggerJob.js';
 
 const T0 = '2026-09-18T08:00:00.000Z';
 const HOUR = 3_600_000;
@@ -326,5 +327,116 @@ describe('RunSchedulerLoop — clean shutdown (7.3 contract)', () => {
     expect(await store.listRuns({ jobId: b.id })).toHaveLength(1);
     expect(await store.listRuns({ jobId: a.id })).toHaveLength(1);
     await restarted.loop.stop();
+  });
+});
+
+describe('RunSchedulerLoop — triggered runs through the serial queue (8.0)', () => {
+  it('8.0 RED: enqueueTriggered creates the pending run, returns it, and executes it with the requested mode', async () => {
+    const store = new InMemoryJobStore();
+    const clock = new FakeClock(T0);
+    const job = await seedJob(store, 'nas-prune', T0);
+    const modes: RunMode[] = [];
+    const handler: JobHandler = {
+      async execute(_job, mode) {
+        modes.push(mode);
+        return { status: 'succeeded' };
+      },
+    };
+    const { loop } = buildLoop(store, clock, handler);
+
+    const queued = await loop.enqueueTriggered('nas-prune', 'dry-run');
+    expect(queued.jobId).toBe('nas-prune');
+    expect(queued.status).toBe('pending'); // returned BEFORE the drain reaches it
+    expect(queued.catchup).toBe(false); // manual triggers are never catch-up
+
+    await settle();
+    expect(modes).toEqual(['dry-run']);
+    const runs = await store.listRuns({ jobId: job.id });
+    expect(runs).toHaveLength(1); // the returned run — never a second one
+    expect(runs[0]?.id).toBe(queued.id);
+    expect(runs[0]?.status).toBe('succeeded');
+    await loop.stop();
+  });
+
+  it('8.0 RED: a triggered run drains SERIALLY behind a scheduled fire (one queue, FIFO, concurrency 1)', async () => {
+    const store = new InMemoryJobStore();
+    const clock = new FakeClock(T0);
+    const a = await seedJob(store, 'job-a', T0);
+    await seedJob(store, 'job-b', T0);
+    clock.advance(1.5 * HOUR); // 09:30 — the 09:00 fire is due for both
+    const handler = new GatedJobHandler();
+    const { loop } = buildLoop(store, clock, handler);
+
+    await loop.start();
+    await settle(3);
+    expect(handler.events).toEqual(['start:job-a']); // scheduled a in flight
+
+    const triggered = await loop.enqueueTriggered('job-b', 'apply');
+    await settle();
+    expect(handler.events).toEqual(['start:job-a']); // the trigger waits behind a
+
+    handler.releaseNext();
+    await settle();
+    expect(handler.events).toEqual(['start:job-a', 'end:job-a', 'start:job-b']);
+    expect(handler.maxConcurrent).toBe(1);
+    // job-b was ALSO due on the tick, so its scheduled fire drains first;
+    // the triggered run waits behind it — strictly one start per release.
+    handler.releaseNext();
+    await settle();
+    expect(handler.events).toEqual(['start:job-a', 'end:job-a', 'start:job-b', 'end:job-b', 'start:job-b']);
+    expect(handler.maxConcurrent).toBe(1);
+    handler.releaseNext();
+    await settle();
+    expect(handler.events).toEqual([
+      'start:job-a',
+      'end:job-a',
+      'start:job-b',
+      'end:job-b',
+      'start:job-b',
+      'end:job-b',
+    ]);
+
+    const runs = await store.listRuns({ jobId: triggered.jobId });
+    expect(runs).toHaveLength(2); // the scheduled fire + the trigger
+    expect(runs.every(run => run.status === 'succeeded')).toBe(true);
+    await loop.stop();
+  });
+
+  it('8.0 RED: triggering an unknown job throws JobNotFoundError and queues nothing', async () => {
+    const store = new InMemoryJobStore();
+    const clock = new FakeClock(T0);
+    const { loop } = buildLoop(store, clock);
+
+    await expect(loop.enqueueTriggered('nope', 'apply')).rejects.toThrow(JobNotFoundError);
+    expect(loop.hasQueuedFire('nope')).toBe(false);
+    expect(await store.listRuns({})).toEqual([]);
+    await loop.stop();
+  });
+
+  it('8.0 RED: stop() finishes the in-flight triggered run; queued-not-started triggers stay pending (no watermark to restore)', async () => {
+    const store = new InMemoryJobStore();
+    const clock = new FakeClock(T0);
+    await seedJob(store, 'nas-prune', T0);
+    const handler = new GatedJobHandler();
+    const { loop } = buildLoop(store, clock, handler);
+
+    await loop.enqueueTriggered('nas-prune', 'dry-run');
+    await settle(2);
+    expect(handler.events).toEqual(['start:nas-prune']); // in flight
+
+    void loop.enqueueTriggered('nas-prune', 'dry-run'); // queues a second while the first runs
+    await settle();
+    const stopped = loop.stop();
+    handler.releaseNext();
+    await stopped;
+
+    const runs = await store.listRuns({ jobId: 'nas-prune' });
+    expect(runs.map(run => run.status).sort()).toEqual(['pending', 'succeeded']);
+    // Triggered fires carry no watermark — schedule state is untouched by stop().
+    expect(await store.getScheduleState('nas-prune')).toEqual({
+      jobId: 'nas-prune',
+      lastScheduledFire: T0,
+      lastFireEnqueued: false,
+    });
   });
 });

@@ -17,7 +17,8 @@ import {
   requestFrame,
   type AgentFrame,
 } from '../domain/protocol.js';
-import type { JobDefinition } from '../domain/types.js';
+import { TriggerJob } from '../application/use-cases/TriggerJob.js';
+import type { JobDefinition, RunView } from '../domain/types.js';
 import { InMemoryJobStore } from '../testing/InMemoryJobStore.js';
 import { UnixSocketAgentServer } from './UnixSocketAgentServer.js';
 
@@ -81,12 +82,16 @@ const PRUNE_JOB: JobDefinition = {
 };
 
 function createServer(socketPath: string, store = new InMemoryJobStore()): UnixSocketAgentServer {
+  const clock = { now: () => new Date('2026-01-01T00:00:00.000Z') };
   return new UnixSocketAgentServer({
     socketPath,
     agentVersion: '0.1.2',
     store,
-    clock: { now: () => new Date('2026-01-01T00:00:00.000Z') },
+    clock,
     status: async () => ({ unitState: 'active', linger: true, lingerByTako: false }),
+    // Default test wiring keeps the pre-8.0 behavior: the callback IS the
+    // TriggerJob creation path. The delegation test below swaps in a spy.
+    trigger: (jobId, mode) => new TriggerJob(store, clock).execute(jobId, mode),
   });
 }
 
@@ -424,6 +429,97 @@ describe('UnixSocketAgentServer — oversized frames', () => {
 
     expect(response.kind).toBe('error');
     expect(response.payload).toMatchObject({ code: 'invalid_payload', correlation: 'big' });
+    await client.close();
+    await server.stop();
+    rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe('UnixSocketAgentServer — jobs.trigger bridging (8.0)', () => {
+  it('8.0 RED: delegates jobs.trigger to the trigger callback and returns the queued run in the response', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tako-trigger-'));
+    const socketPath = join(dir, 'agent.sock');
+    const store = new InMemoryJobStore();
+    await store.upsertJob(PRUNE_JOB);
+    const sentinel: RunView = {
+      seq: 0,
+      id: 'triggered-1',
+      jobId: 'nas-prune',
+      mode: 'dry-run',
+      status: 'pending',
+      catchup: false,
+      startedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const calls: Array<{ jobId: string; mode: string }> = [];
+    const server = new UnixSocketAgentServer({
+      socketPath,
+      agentVersion: '0.1.2',
+      store,
+      clock: { now: () => new Date('2026-01-01T00:00:00.000Z') },
+      status: async () => ({ unitState: 'active', linger: true, lingerByTako: false }),
+      trigger: async (jobId, mode) => {
+        calls.push({ jobId, mode });
+        return sentinel;
+      },
+    });
+    await server.start();
+    const client = await connectClient(socketPath);
+    client.send(helloFrame('0.1.2'));
+    await client.nextFrame();
+
+    client.send(requestFrame('c10', 'jobs.trigger', { jobId: 'nas-prune', mode: 'dry-run' }));
+    const response = await client.nextFrame();
+
+    // The handler NEVER creates runs inline — the engine's callback is the
+    // only execution path (serial drain alongside scheduled fires).
+    expect(calls).toEqual([{ jobId: 'nas-prune', mode: 'dry-run' }]);
+    expect(response.kind).toBe('response');
+    expect(response.payload).toEqual({ run: sentinel });
+    expect(await store.listRuns({})).toEqual([]); // nothing was created server-side
+
+    await client.close();
+    await server.stop();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('8.0 RED: an invalid mode is rejected BEFORE the trigger callback is consulted', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tako-trigger-'));
+    const socketPath = join(dir, 'agent.sock');
+    const store = new InMemoryJobStore();
+    await store.upsertJob(PRUNE_JOB);
+    const calls: unknown[] = [];
+    const server = new UnixSocketAgentServer({
+      socketPath,
+      agentVersion: '0.1.2',
+      store,
+      clock: { now: () => new Date('2026-01-01T00:00:00.000Z') },
+      status: async () => ({ unitState: 'active', linger: true, lingerByTako: false }),
+      trigger: async (jobId, mode) => {
+        calls.push({ jobId, mode });
+        throw new Error('callback must not run');
+      },
+    });
+    await server.start();
+    const client = await connectClient(socketPath);
+    client.send(helloFrame('0.1.2'));
+    await client.nextFrame();
+
+    // The wire is untyped JSON: an invalid mode string is exactly what the
+    // server must reject before consulting the callback (typed requestFrame
+    // cannot even express it).
+    client.send({
+      v: PROTOCOL_VERSION,
+      kind: 'request',
+      id: 'c11',
+      type: 'jobs.trigger',
+      payload: { jobId: 'nas-prune', mode: 'deploy' },
+    } as unknown as AgentFrame);
+    const response = await client.nextFrame();
+
+    expect(calls).toEqual([]);
+    expect(response.kind).toBe('error');
+    expect(response.payload).toMatchObject({ code: 'invalid_payload', correlation: 'c11' });
+
     await client.close();
     await server.stop();
     rmSync(dir, { recursive: true, force: true });

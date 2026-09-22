@@ -40,6 +40,12 @@ export interface ExecuteRunInput {
   readonly mode: RunMode;
   /** True for the missed-once catch-up execution. */
   readonly catchup: boolean;
+  /**
+   * Pre-created pending run (task 8.0, triggered executions): when present,
+   * THIS run is driven instead of creating a new one — the run the trigger
+   * response returned is the run that executes. Scheduled fires omit it.
+   */
+  readonly run?: RunView;
   readonly fire?: ScheduledFireContext;
 }
 
@@ -63,7 +69,8 @@ export class ExecuteRun {
     const { store, clock, handler } = this.#options;
     const { job, mode, catchup } = input;
 
-    let run = await store.createRun({ jobId: job.id, mode, catchup, startedAt: clock.now().toISOString() });
+    let run =
+      input.run ?? (await store.createRun({ jobId: job.id, mode, catchup, startedAt: clock.now().toISOString() }));
     try {
       run = await this.#transition(run, 'running');
       let outcome: JobExecutionOutcome;
