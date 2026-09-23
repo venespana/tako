@@ -6,12 +6,11 @@
 // FSD — the page only sees the gateway port.
 import { useMemo } from 'react';
 
-import Conf from 'conf';
-
 import { StreamLocalAgentTransport } from '../../../domains/agent/infrastructure/StreamLocalAgentTransport.js';
 import type { Remote } from '../../../domains/remotes/domain/types.js';
 import { ConfRemoteRepository } from '../../../domains/remotes/infrastructure/ConfRemoteRepository.js';
 import { ConfSecretVault } from '../../../domains/remotes/infrastructure/ConfSecretVault.js';
+import { createConfStore } from '../../../domains/remotes/infrastructure/createConfStore.js';
 import { SshConnectionManager } from '../../../domains/remotes/infrastructure/SshConnectionManager.js';
 import type { SshConnectAuth, SshConnectConfig } from '../../../domains/remotes/infrastructure/SshConnectionManager.js';
 import { SshRemoteCommandRunner } from '../../../domains/remotes/infrastructure/SshRemoteCommandRunner.js';
@@ -51,7 +50,7 @@ function resolveAuth(entity: Remote, vault: ConfSecretVault, sessionPassword: st
  * transport, and persists the reconcile cursor per remote in conf.
  */
 function buildTasksGateway(remote: string, sessionPassword: string | undefined): TasksGateway {
-  const confStore = new Conf({ projectName: 'tako' });
+  const confStore = createConfStore();
   const repository = new ConfRemoteRepository(confStore);
   const vault = new ConfSecretVault(confStore);
 

@@ -26,10 +26,14 @@ const FAIL = (stderr = 'failed', exitCode = 1): RemoteCommandResult => ({ stdout
 class ScriptedRunner implements RemoteCommandRunner {
   readonly calls: string[] = [];
 
-  constructor(private readonly respond: (command: string) => RemoteCommandResult) {}
+  constructor(
+    private readonly respond: (command: string) => RemoteCommandResult,
+    private readonly events?: string[]
+  ) {}
 
   async run(command: string): Promise<RemoteCommandResult> {
     this.calls.push(command);
+    this.events?.push(`runner:${command}`);
     return this.respond(command);
   }
 }
@@ -40,11 +44,13 @@ type StatusHandler = () => Record<string, unknown>;
 class ScriptedAgentChannel extends Duplex implements AgentChannel {
   readonly #version: string;
   readonly #status: StatusHandler | undefined;
+  readonly #events?: string[];
 
-  constructor(version: string, status?: StatusHandler) {
+  constructor(version: string, status?: StatusHandler, events?: string[]) {
     super({ objectMode: true });
     this.#version = version;
     this.#status = status;
+    this.#events = events;
   }
 
   override _read(): void {}
@@ -52,8 +58,10 @@ class ScriptedAgentChannel extends Duplex implements AgentChannel {
   override _write(frame: unknown, _encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
     const parsed = JSON.parse(String(frame)) as { kind: string; id?: string; type?: string };
     if (parsed.kind === 'hello') {
+      this.#events?.push('channel:hello');
       this.push(JSON.stringify(helloAckFrame(this.#version, 'start-1')));
     } else if (parsed.kind === 'request' && parsed.id !== undefined) {
+      this.#events?.push(`channel:request:${parsed.type ?? 'unknown'}`);
       const payload = this.#status?.() ?? {};
       this.push(JSON.stringify(responseFrame(parsed.id, 'agent.status', payload)));
     }
@@ -82,6 +90,8 @@ interface Harness {
   readonly verifierCloses: () => number;
   readonly out: { lines: string[] };
   readonly errs: { lines: string[] };
+  /** Shared cross-fake event log: `channel:*` and `runner:*` entries in real-time order. */
+  readonly events: string[];
 }
 
 function createHarness(
@@ -93,13 +103,16 @@ function createHarness(
   } = {}
 ): Harness {
   const { lingerByTako = false, reachable = true, teardownFailures = {}, residue = {} } = options;
+  // One clock for both fakes: teardown-before-read regressions show up as a
+  // `runner:*` event preceding the `channel:request:agent.status` read.
+  const events: string[] = [];
   const runner = new ScriptedRunner(command => {
     if (command === 'printf %s "$HOME"') return OK('/home/ops');
     for (const [needle, result] of Object.entries(teardownFailures)) {
       if (command.includes(needle)) return result;
     }
     return OK();
-  });
+  }, events);
 
   const verifierRunner = new ScriptedRunner(command => {
     for (const [needle, result] of Object.entries(residue)) {
@@ -116,7 +129,9 @@ function createHarness(
 
   const deps: AgentUninstallDeps = {
     runner,
-    channel: reachable ? new ScriptedAgentChannel(CLIENT_VERSION, () => ({ lingerByTako })) : new UnreachableChannel(),
+    channel: reachable
+      ? new ScriptedAgentChannel(CLIENT_VERSION, () => ({ lingerByTako }), events)
+      : new UnreachableChannel(),
     clientVersion: CLIENT_VERSION,
     openVerifier: async (): Promise<VerifierConnection> => ({
       runner: verifierRunner,
@@ -133,24 +148,24 @@ function createHarness(
     },
   };
 
-  return { deps, runner, verifierRunner, verifierCloses: () => verifierCloseCount, out, errs };
+  return { deps, runner, verifierRunner, verifierCloses: () => verifierCloseCount, out, errs, events };
 }
 
 describe('runAgentUninstall — ordering', () => {
-  it('6.4 RED: reads linger-by-tako over the transport BEFORE any teardown command', async () => {
+  it('9.7: reads linger-by-tako over the transport BEFORE any teardown command (shared event log)', async () => {
     const harness = createHarness({ lingerByTako: true });
 
     const exitCode = await runAgentUninstall(harness.deps);
 
     expect(exitCode).toBe(0);
-    const firstMutation = harness.runner.calls.findIndex(
-      command => command.includes('systemctl') || command.includes('rm ') || command.includes('loginctl disable')
-    );
-    expect(firstMutation).toBeGreaterThan(-1);
-    // The transport read consumed the channel before the first mutation ran.
-    // With a scripted channel this is proven by the teardown having happened
-    // at all (the read must have completed to decide linger handling).
-    expect(harness.runner.calls.some(call => call.includes('systemctl --user disable --now'))).toBe(true);
+    // The shared event log gives BOTH fakes one clock: the transport read
+    // (channel handshake + agent.status request) must appear before the FIRST
+    // runner event of any kind, and teardown must have happened at all.
+    const statusRead = harness.events.indexOf('channel:request:agent.status');
+    const firstRunnerEvent = harness.events.findIndex(event => event.startsWith('runner:'));
+    expect(statusRead).toBeGreaterThan(-1);
+    expect(firstRunnerEvent).toBeGreaterThan(statusRead);
+    expect(harness.events.some(event => event.includes('systemctl --user disable --now'))).toBe(true);
     expect(harness.runner.calls.some(call => call.includes('loginctl disable-linger'))).toBe(true);
   });
 

@@ -22,6 +22,17 @@ export type StackLifecycleOp = 'up' | 'down' | 'pull' | 'restart';
  */
 export type PruneScopes = 'stopped-containers' | 'dangling-images' | 'build-cache';
 
+/**
+ * Runtime list of {@link PruneScopes} members, in canonical order.
+ *
+ * PARITY WITNESS (9.7): this list must stay member-wise identical to
+ * `docker/domain`'s `PruneScope`/`PRUNE_SCOPES` (the agent mirrors the
+ * docker domain's closed union; ADR-0015 forbids importing it directly).
+ * The co-located parity test pins both directions — a member added to
+ * either side without the other fails typecheck and the runtime equality.
+ */
+export const PRUNE_SCOPES: readonly PruneScopes[] = ['stopped-containers', 'dangling-images', 'build-cache'];
+
 /** v0 schedules are cron-only; one-shot scheduling is deferred (design §Job & Run Model). */
 export interface Schedule {
   readonly kind: 'cron';

@@ -6,11 +6,12 @@
 // returns null).
 import { useMemo, useState } from 'react';
 
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 
 import { TextInput } from '@inkjs/ui';
 
 import type { JobDefinition, StackLifecycleOp, PruneScopes } from '../../../../../domains/agent/domain/types.js';
+import { useKeyBindings } from '../../../../shared/lib/use-key-bindings.js';
 import { EditingGuard } from '../../../../shared/ui/EditingGuard.js';
 import {
   SCOPE_OPTIONS,
@@ -64,30 +65,40 @@ export function JobForm({ initial, onCancel, onSubmit }: JobFormProps): React.Re
     onSubmit(job);
   };
 
-  // When no text field is active the hotkeys own the keyboard.
-  useInput(
-    (input, key) => {
-      if (key.tab) {
-        const fields: TextField[] = isLifecycle ? ['id', 'stackDir', 'cron'] : ['id', 'cron'];
-        const index = activeField === null ? -1 : fields.indexOf(activeField);
-        const next = key.shift ? (index <= 0 ? fields.length - 1 : index - 1) : (index + 1) % fields.length;
-        setActiveField(fields[next] ?? 'id');
-        return;
-      }
-      if (key.escape) {
-        onCancel();
-        return;
-      }
-      if (key.return) {
-        submit();
-        return;
-      }
-      if (input === 't') cycleType();
-      else if (input === 'o' && isLifecycle) cycleOp();
-      else if (isPrune && (input === '1' || input === '2' || input === '3')) {
-        const scope = SCOPE_OPTIONS[Number(input) - 1]?.value;
-        if (scope !== undefined) toggleScopeValue(scope);
-      }
+  // Tab navigation over the form's fields (Shift-Tab goes back; from no
+  // active field, Tab enters the first).
+  const advanceField = (back: boolean): void => {
+    const fields: TextField[] = isLifecycle ? ['id', 'stackDir', 'cron'] : ['id', 'cron'];
+    const index = activeField === null ? -1 : fields.indexOf(activeField);
+    const next = back ? (index <= 0 ? fields.length - 1 : index - 1) : (index + 1) % fields.length;
+    setActiveField(fields[next] ?? 'id');
+  };
+
+  const toggleScopeByDigit = (digit: 1 | 2 | 3): void => {
+    if (!isPrune) return;
+    const scope = SCOPE_OPTIONS[digit - 1]?.value;
+    if (scope !== undefined) toggleScopeValue(scope);
+  };
+
+  // When no text field is active the hotkeys own the keyboard (dispatched by
+  // the shared useKeyBindings hook, 9.9). Char bindings carry their own
+  // context guards: 'o' only makes sense for lifecycle jobs, digits only for
+  // prune jobs — an unguarded context is a no-op, like the unbound case.
+  useKeyBindings(
+    {
+      tab: () => advanceField(false),
+      shiftTab: () => advanceField(true),
+      cancel: onCancel,
+      confirm: submit,
+      chars: {
+        t: cycleType,
+        o: () => {
+          if (isLifecycle) cycleOp();
+        },
+        '1': () => toggleScopeByDigit(1),
+        '2': () => toggleScopeByDigit(2),
+        '3': () => toggleScopeByDigit(3),
+      },
     },
     { isActive: activeField === null }
   );

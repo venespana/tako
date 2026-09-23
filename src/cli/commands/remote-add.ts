@@ -1,7 +1,5 @@
 // cli/commands/remote-add.ts — CLI handler for `tako remote add`
 // Composes adapters + use cases, renders TUI wizard, maps exit codes
-import Conf from 'conf';
-
 import { AddRemote } from '../../domains/remotes/application/AddRemote.js';
 import { CheckDuplicateRemote } from '../../domains/remotes/application/CheckDuplicateRemote.js';
 import type { RemoteRepository } from '../../domains/remotes/application/RemoteRepository.js';
@@ -54,7 +52,10 @@ export async function runRemoteAdd(deps: RemoteAddDeps): Promise<number> {
  * Default entry point — wires real conf + infrastructure adapters
  */
 export async function runRemoteAddDefault(): Promise<number> {
-  const confStore = new Conf({ projectName: 'tako' });
+  // conf store built by the remotes infrastructure factory (Port/Adapter
+  // Isolation: this CLI handler never imports the `conf` package directly)
+  const { createConfStore } = await import('../../domains/remotes/infrastructure/createConfStore.js');
+  const confStore = createConfStore();
 
   // Infrastructure adapters
   const vault: SecretVault = new (

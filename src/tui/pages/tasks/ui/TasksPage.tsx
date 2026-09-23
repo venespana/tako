@@ -8,7 +8,7 @@
 // import app/, per FSD).
 import { useEffect, useState } from 'react';
 
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 
 import { formatSchedule } from '../../../entities/job/index.js';
 import { DryRunPreviewPane } from '../../../features/tasks/dry-run-preview/index.js';
@@ -16,6 +16,7 @@ import { EMPTY_JOB_FORM, JobForm, jobToForm } from '../../../features/tasks/job-
 import { JobHistoryPane } from '../../../features/tasks/job-history/index.js';
 import { JobListPane, useTasksStore } from '../../../features/tasks/job-list/index.js';
 import type { TasksGateway } from '../../../features/tasks/job-list/index.js';
+import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 
 export interface TasksPageProps {
   /** Composition-root gateway for the active remote (null → select hint). */
@@ -58,17 +59,29 @@ export function TasksPage({ gateway }: TasksPageProps): React.ReactElement {
   // resolve their report through push events without any user action.
   const latestDryRun = runs.find(run => run.mode === 'dry-run') ?? null;
 
-  useInput(
-    (input, key) => {
-      if (key.escape) return; // global back navigation owns Esc in browse mode
-      if (input === 'n') setMode('create');
-      else if (input === 'e' && selected !== null) setMode('edit');
-      else if (input === 'd' && selected !== null) void remove(selected.job.id);
-      else if (input === 'r' && selected !== null) void trigger(selected.job.id, 'dry-run');
-      else if (input === 'a' && selected !== null && latestDryRun !== null) {
-        // Explicit, separate apply — only meaningful after a reviewed report.
-        void trigger(selected.job.id, 'apply');
-      } else if (input === 't' && selected !== null) void trigger(selected.job.id, 'apply');
+  // Page hotkeys as char bindings (9.9): guards live in each binding, Esc is
+  // deliberately UNBOUND — global back navigation owns Esc in browse mode.
+  useKeyBindings(
+    {
+      chars: {
+        n: () => setMode('create'),
+        e: () => {
+          if (selected !== null) setMode('edit');
+        },
+        d: () => {
+          if (selected !== null) void remove(selected.job.id);
+        },
+        r: () => {
+          if (selected !== null) void trigger(selected.job.id, 'dry-run');
+        },
+        a: () => {
+          // Explicit, separate apply — only meaningful after a reviewed report.
+          if (selected !== null && latestDryRun !== null) void trigger(selected.job.id, 'apply');
+        },
+        t: () => {
+          if (selected !== null) void trigger(selected.job.id, 'apply');
+        },
+      },
     },
     { isActive: mode === 'browse' }
   );

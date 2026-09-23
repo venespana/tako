@@ -1,9 +1,19 @@
 // persistence/BunqueueJobStore.ts — JobStore port adapter over bunqueue embedded (task 4.2)
 //
-// VERIFIED FINDING — bunqueue's missed-cron-fire semantics (bunqueue 2.9.5,
-// verified empirically with separate-process restarts against a temp
-// dataPath, plus source reading of
-// infrastructure/scheduler/cron/{runtime,execution}.js):
+// FIRING AUTHORITY (task 9.8, maintainer decision 2026-09-18): RunSchedulerLoop's
+// watermark tick is the ONLY firing authority. This store does NOT arm bunqueue
+// job schedulers (the former `upsertJobScheduler` mirror was removed): with no
+// Worker consuming them, armed schedulers only spawned unconsumed dead queue
+// rows (~8.8k/yr per hourly job). Bunqueue remains DURABLE STORAGE (its
+// embedded SQLite + queue runtime own the data file next to Tako's thin
+// tables); open() sweeps away any scheduler persisted by a pre-9.8 store so
+// upgraded databases stop spawning dead rows too.
+//
+// HISTORICAL VERIFICATION (rationale for the watermark protocol, design D3 —
+// bunqueue 2.9.5 scheduler semantics, verified empirically with
+// separate-process restarts against a temp dataPath, plus source reading of
+// infrastructure/scheduler/cron/{runtime,execution}.js, while the store still
+// armed schedulers):
 //
 //   1. Default `skipMissedOnRestart: true`: on load, a scheduler whose
 //      persisted next_run is in the past is silently re-anchored to the next
@@ -11,18 +21,15 @@
 //      spec `agent-jobs#Missed-Runs-Execute-Once` (exactly once).
 //   2. `skipMissedOnRestart: false`: the past-due next_run survives the
 //      restart and the first tick fires EXACTLY ONE job, then recomputes
-//      next_run from now (cron) or collapses the remaining slots via the
-//      preventOverlap/overlap guard (interval). Verified: 5 missed cron
-//      occurrences → 1 firing; 5 missed interval slots → 1 firing. Bunqueue
-//      never re-fires missed occurrences more than once.
+//      next_run from now. Verified: 5 missed occurrences → 1 firing.
 //   3. Source nuance: the tick persists the advanced next_run BEFORE pushing
 //      the spawned job, so a crash inside that window loses the firing
-//      (at-most-once). The Tako watermark protocol
-//      (schedule_state.last_fire_enqueued, RunSchedulerLoop WU7) stays on top
-//      as the safety net for that window, per design D3.
+//      (at-most-once).
 //
-// CONFIGURATION: every scheduler is created with skipMissedOnRestart: false,
-// matching the spec's run-missed-ONCE policy natively.
+// Those semantics are why Tako's watermark protocol
+// (schedule_state.last_fire_enqueued, RunSchedulerLoop WU7) — not bunqueue —
+// owns firing decisions: the tick is what satisfies run-missed-ONCE even if a
+// scheduler ever reappears.
 //
 // WHY TAKO ALSO OWNS THIN TABLES: bunqueue's public scheduler API does not
 // round-trip the scheduler template payload or timestamps (SchedulerInfo is
@@ -31,12 +38,23 @@
 // Per the design §SQLite Schema amendment, Tako therefore keeps the thin
 // `tako_jobs` / `tako_schedule_state` / `tako_runs` tables — in the SAME
 // dataPath file — for definitions, watermark/crash-guard, and the runs
-// mirror; bunqueue owns cron firing and its own schema. The tako_ prefix is
-// REQUIRED, not cosmetic: bunqueue's schema ships its own `jobs` table, and
-// sharing the file with an unprefixed `jobs` breaks bunqueue's migrations
-// (verified: 'no such column: queue' during its step-1 migration). Persisted definitions are re-validated by
-// the domain guards on every load; invalid rows are rejected, never served
-// or executed.
+// mirror. The tako_ prefix is REQUIRED, not cosmetic: bunqueue's schema ships
+// its own `jobs` table, and sharing the file with an unprefixed `jobs` breaks
+// bunqueue's migrations (verified: 'no such column: queue' during its step-1
+// migration).
+//
+// TAKO ↔ BUNQUEUE TWO-STEP MUTATIONS (repair path): a job mutation writes
+// Tako's thin tables and bunqueue's own schema in TWO steps inside ONE
+// process, not one transaction (different libraries, no shared connection
+// semantics). Upsert order: tako_jobs row first, then anything else; delete
+// order: tako_jobs row (FK cascade clears schedule_state + runs), then
+// bunqueue-side rows. A crash between the steps can leave a bunqueue-side
+// row without a tako_jobs definition (or vice versa). REPAIR: the source of
+// truth is tako_jobs — the next `tako agent run` start re-derives everything
+// it needs from the thin tables (definitions are re-validated by domain
+// guards on load), and orphaned bunqueue-side rows are inert storage that the
+// open() scheduler sweep and job re-upserts converge away. Never execute a
+// job from a bunqueue-side row that lacks a valid tako_jobs definition.
 //
 // bun:sqlite + bunqueue are scoped to persistence/** (ADR-0016): consumers
 // MUST reach this module via lazy import() (agent-mode composition root).
@@ -108,6 +126,8 @@ export class BunqueueJobStore implements JobStore {
   /**
    * Open both stores: create/upgrade Tako's thin tables and construct the
    * embedded bunqueue queue (its own schema lives in the same file).
+   * Sweeps away bunqueue job schedulers persisted by a pre-9.8 store —
+   * schedulers are never armed (FIRING AUTHORITY, module header).
    */
   async open(): Promise<void> {
     if (this.#opened) return;
@@ -119,7 +139,16 @@ export class BunqueueJobStore implements JobStore {
     // Lazy construction: the module import is the ADR-0016 gate; the queue
     // binds to the same dataPath (embedded mode, Bun-only).
     this.#queue = new Queue(this.#queueName, { embedded: true, dataPath: this.#dataPath });
+    await this.#disarmLegacySchedulers();
     this.#opened = true;
+  }
+
+  /** Remove every persisted bunqueue scheduler (the tako-agent queue is Tako's alone). */
+  async #disarmLegacySchedulers(): Promise<void> {
+    const stale = await this.#queue!.getJobSchedulers();
+    for (const scheduler of stale) {
+      await this.#queue!.removeJobScheduler(scheduler.id);
+    }
   }
 
   async close(): Promise<void> {
@@ -176,21 +205,9 @@ export class BunqueueJobStore implements JobStore {
         now,
       ]);
     }
-    // Mirror the schedule into bunqueue: the scheduler id IS the job Slug
-    // (idempotent upsert). skipMissedOnRestart: false — see the verified
-    // finding in the module header.
-    //
-    // FIRING AUTHORITY (WU7, do not "helpfully" change): RunSchedulerLoop's
-    // watermark tick is the ONLY thing that fires runs — there is NO bunqueue
-    // Worker consuming these spawned jobs, by design (a Worker here would
-    // DOUBLE-FIRE against the tick and break missed-once exactly-once).
-    // Bunqueue schedulers are currently unconsumed mirrors; their spawned
-    // queue rows accumulate (task 9.7 tracks the cleanup decision).
-    await this.#queue!.upsertJobScheduler(
-      job.id,
-      { pattern: job.schedule.expr, skipMissedOnRestart: false },
-      { name: job.id, data: job }
-    );
+    // NO bunqueue scheduler here (FIRING AUTHORITY, module header): the
+    // watermark tick in RunSchedulerLoop is the only firing authority; the
+    // former scheduler mirror spawned unconsumed dead queue rows.
     const view = await this.getJob(job.id);
     if (!view) throw new Error(`upsertJob: job ${job.id} vanished after write`);
     return { job: view, created: existing === undefined };
@@ -199,8 +216,8 @@ export class BunqueueJobStore implements JobStore {
   async deleteJob(id: Slug): Promise<boolean> {
     const db = this.#requireDb();
     const removed = db.run('DELETE FROM tako_jobs WHERE id = ?', [id]);
-    // FK cascade clears schedule_state + runs; the bunqueue scheduler goes too.
-    await this.#queue!.removeJobScheduler(id);
+    // FK cascade clears schedule_state + runs. No bunqueue-side scheduler to
+    // remove (none are armed since task 9.8; open() swept legacy ones).
     return Number(removed.changes) > 0;
   }
 

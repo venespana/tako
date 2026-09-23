@@ -102,7 +102,30 @@ export default defineConfig(
               message:
                 'Architecture rule: src/cli/ may not import from src/tui/ (ADR-0014 exceptions: add-remote-wizard and doctor feature slices)',
             },
+            {
+              target: ['src/domains/agent/**/*'],
+              from: ['src/domains/remotes/**/*'],
+              except: ['**/src/domains/remotes/application/**'],
+              message:
+                'ADR-0015/D4: agent may import only remotes/application ports (type-only); runtime wiring lives in cli/tui composition roots',
+            },
           ],
+        },
+      ],
+    },
+  },
+  {
+    // The zone above restricts agent to remotes/application paths; this rule enforces
+    // the second half of the D4 contract: those imports must be `import type` so the
+    // compiled agent carries zero runtime coupling to the remotes domain.
+    files: ['src/domains/agent/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "ImportDeclaration[importKind='value'][source.value=/remotes\\/application/]",
+          message:
+            'ADR-0015/D4: agent imports remotes/application ports type-only (`import type`); runtime wiring lives in cli/tui composition roots',
         },
       ],
     },

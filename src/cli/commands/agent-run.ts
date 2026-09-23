@@ -181,6 +181,26 @@ export interface AgentRunOptions {
   readonly watchdogTimeoutMs?: number;
 }
 
+/**
+ * Teardown contract of the agent process, in THIS order (9.7 — unit-tested):
+ * the scheduler tick + in-flight run settle and queued firings roll back
+ * BEFORE the socket closes and the stores shut down. The structural types
+ * let unit tests pin the sequence with fakes.
+ */
+export interface AgentProcessComponents {
+  readonly scheduler: { stop(): Promise<void> };
+  readonly server: { stop(): Promise<void> };
+  readonly store: { close(): Promise<void> };
+  readonly meta: { close(): void };
+}
+
+export async function shutdownAgentProcess(components: AgentProcessComponents): Promise<void> {
+  await components.scheduler.stop();
+  await components.server.stop();
+  await components.store.close();
+  components.meta.close();
+}
+
 export async function runAgentRun(options: AgentRunOptions = {}): Promise<number> {
   const log = options.log ?? (line => console.log(line));
   const error = options.error ?? (line => console.error(line));
@@ -248,14 +268,11 @@ export async function runAgentRun(options: AgentRunOptions = {}): Promise<number
   await scheduler.start();
   log(`scheduler loop: ticking every ${schedulerIntervalMs} ms (serial run queue, ${watchdogTimeoutMs} ms watchdog)`);
 
-  const shutdown = async (): Promise<void> => {
-    // Order matters: stop the tick + finish the in-flight run (rolling back
-    // queued firings for the next start) BEFORE tearing down the store.
-    await scheduler.stop();
-    await server.stop();
-    await store.close();
-    meta.close();
-  };
+  const shutdown = (): Promise<void> =>
+    // Order matters (see shutdownAgentProcess): stop the tick + finish the
+    // in-flight run (rolling back queued firings for the next start) BEFORE
+    // tearing down the store.
+    shutdownAgentProcess({ scheduler, server, store, meta });
   process.once('SIGTERM', () => void shutdown());
   process.once('SIGINT', () => void shutdown());
 

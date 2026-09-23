@@ -3,6 +3,7 @@ export { JobListPane } from './ui/JobListPane.js';
 export type { JobListPaneProps } from './ui/JobListPane.js';
 export {
   useTasksStore,
+  resetTasksStoreForTests,
   mergeRuns,
   applyJobStateChanged,
   applyRunCompleted,

@@ -3,10 +3,11 @@
 // Always shows all tools with their status and version.
 import { useEffect } from 'react';
 
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 
 import { DoctorToolLine } from './DoctorToolLine.js';
 import type { SystemCheckResult } from '../../../../domains/system/domain/types.js';
+import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 import { useDoctorCheck } from '../model/use-doctor-check.js';
 
 export type DoctorScreenProps = {
@@ -40,9 +41,7 @@ function ErrorState({ error }: { error: unknown }): React.ReactElement {
 }
 
 function StandaloneWaiter({ onConfirm }: { onConfirm: () => void }): React.ReactElement {
-  useInput((_input, _key) => {
-    onConfirm();
-  });
+  useKeyBindings({ anyKey: onConfirm });
   return <Text dimColor>Press any key to exit</Text>;
 }
 

@@ -33,7 +33,7 @@ describe('BunqueueJobStore — restart persistence (real bunqueue embedded)', ()
     if (dir) rmSync(dir, { recursive: true, force: true });
   });
 
-  it('4.9 RED: survives an agent restart — jobs, runs, schedule state, and the bunqueue scheduler persist', () => {
+  it('4.9: survives an agent restart — jobs, runs, and schedule state persist; NO bunqueue scheduler is armed (9.8)', () => {
     dir = mkdtempSync(join(tmpdir(), 'tako-store-'));
     const dbPath = join(dir, 'agent.db');
 
@@ -50,7 +50,7 @@ describe('BunqueueJobStore — restart persistence (real bunqueue embedded)', ()
       run: { seq: number; status: string; result: unknown; jobId: string } | undefined;
       schedule: { lastScheduledFire?: string; lastFireEnqueued: boolean } | undefined;
       lastSeq: number;
-      scheduler: { id: string; skipMissedOnRestart: number } | undefined;
+      schedulers: number;
     };
 
     expect(payload.jobs).toEqual(['homepage-pull', 'nas-prune']);
@@ -63,8 +63,30 @@ describe('BunqueueJobStore — restart persistence (real bunqueue embedded)', ()
     });
     expect(payload.schedule).toEqual({ lastScheduledFire: '2026-01-01T04:00:00.000Z', lastFireEnqueued: false });
     expect(payload.lastSeq).toBe(1);
-    // Empirically verified: skipMissedOnRestart=false fires missed crons EXACTLY once.
-    expect(payload.scheduler).toEqual({ id: 'nas-prune', skipMissedOnRestart: 0 });
+    // FIRING AUTHORITY (task 9.8, maintainer decision 2026-09-18): the store
+    // must NOT arm bunqueue schedulers — RunSchedulerLoop's watermark tick is
+    // the sole firing authority; armed schedulers would spawn unconsumed dead
+    // queue rows (~8.8k/yr per hourly job).
+    expect(payload.schedulers).toBe(0);
+  });
+
+  it('9.8 RED: the open() sweep disarms a scheduler persisted by a pre-9.8 store', () => {
+    dir = mkdtempSync(join(tmpdir(), 'tako-store-'));
+    const dbPath = join(dir, 'agent.db');
+
+    expect(runWorker('setup', dbPath).status).toBe(0);
+    // Simulate an OLD store's legacy mirror: arm a scheduler directly.
+    expect(runWorker('seed-scheduler', dbPath, 'nas-prune').status).toBe(0);
+    // Sanity: the seeded scheduler exists before the new store opens.
+    const seeded = runWorker('count-schedulers', dbPath);
+    expect(seeded.status).toBe(0);
+    expect(JSON.parse(seeded.stdout.trim())).toMatchObject({ schedulers: 1 });
+
+    // Re-opening the store MUST sweep the stale scheduler away.
+    const assertRun = runWorker('assert', dbPath);
+    expect(assertRun.status).toBe(0);
+    const payload = JSON.parse(assertRun.stdout.trim()) as { schedulers: number };
+    expect(payload.schedulers).toBe(0);
   });
 
   it('RED: rejects corrupted persisted job definitions instead of serving or executing them', () => {

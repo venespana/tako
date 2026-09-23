@@ -10,6 +10,8 @@
 //   setup <db>            seed two jobs + one completed run + schedule state
 //   assert <db>           reopen and verify everything survived the restart
 //   tamper <db> <jobId>   corrupt a job's spec_json directly in SQLite
+//   seed-scheduler <db> <jobId>  arm a bunqueue scheduler directly (pre-9.8
+//                         store behavior) to exercise the open() disarm sweep
 //   meta-setup <db>       write the seeded agent_meta keys
 //   meta-assert <db>      reopen and verify the agent_meta keys
 import { randomUUID } from 'node:crypto';
@@ -72,7 +74,8 @@ interface AssertPayload {
   run: { seq: number; status: string; result: unknown; jobId: string } | undefined;
   schedule: { lastScheduledFire?: string; lastFireEnqueued: boolean } | undefined;
   lastSeq: number;
-  scheduler: { id: string; skipMissedOnRestart: number } | undefined;
+  /** Count of bunqueue cron scheduler rows — MUST be 0 (schedulers are not armed since task 9.8). */
+  schedulers: number;
 }
 
 async function assertDb(databasePath: string): Promise<void> {
@@ -84,13 +87,12 @@ async function assertDb(databasePath: string): Promise<void> {
   const lastSeq = await store.lastSeq();
   await store.close();
 
-  // The bunqueue scheduler must exist with skipMissedOnRestart=false — the
-  // empirically verified configuration that satisfies run-missed-ONCE.
+  // FIRING AUTHORITY (task 9.8): RunSchedulerLoop's watermark tick is the
+  // ONLY firing authority — bunqueue schedulers are never armed, and any
+  // scheduler persisted by a pre-9.8 store is disarmed by the open() sweep.
   const { Database } = await import('bun:sqlite');
   const raw = new Database(databasePath);
-  const schedulerRow = raw
-    .query('SELECT name, skip_missed_on_restart FROM cron_jobs WHERE name = ?')
-    .get('nas-prune') as { name: string; skip_missed_on_restart: number } | undefined;
+  const schedulerCount = raw.query('SELECT COUNT(*) AS n FROM cron_jobs').get() as { n: number };
   raw.close();
 
   const payload: AssertPayload = {
@@ -103,11 +105,37 @@ async function assertDb(databasePath: string): Promise<void> {
       ? { lastScheduledFire: schedule.lastScheduledFire, lastFireEnqueued: schedule.lastFireEnqueued }
       : undefined,
     lastSeq,
-    scheduler: schedulerRow
-      ? { id: schedulerRow.name, skipMissedOnRestart: schedulerRow.skip_missed_on_restart }
-      : undefined,
+    schedulers: schedulerCount.n,
   };
   console.log(JSON.stringify(payload));
+}
+
+/** Arm a bunqueue scheduler directly, exactly like the pre-9.8 store did. */
+async function seedScheduler(databasePath: string, jobId: string): Promise<void> {
+  const { Queue } = await import('bunqueue/client');
+  const queue = new Queue('tako-agent', { embedded: true, dataPath: databasePath });
+  const definition = jobId === 'homepage-pull' ? STACK_JOB : PRUNE_JOB;
+  await queue.upsertJobScheduler(
+    jobId,
+    { pattern: definition.schedule.expr, skipMissedOnRestart: false },
+    {
+      name: jobId,
+      data: definition,
+    }
+  );
+  const { shutdownManager } = await import('bunqueue/client');
+  await queue.close();
+  shutdownManager();
+  console.log('SEED_SCHEDULER_OK');
+}
+
+/** Read-only scheduler count without opening the store (no sweep). */
+async function countSchedulers(databasePath: string): Promise<void> {
+  const { Database } = await import('bun:sqlite');
+  const raw = new Database(databasePath);
+  const row = raw.query('SELECT COUNT(*) AS n FROM cron_jobs').get() as { n: number };
+  raw.close();
+  console.log(JSON.stringify({ schedulers: row.n }));
 }
 
 async function tamper(databasePath: string, jobId: string): Promise<void> {
@@ -151,6 +179,12 @@ try {
       break;
     case 'tamper':
       await tamper(dbPath as string, arg as string);
+      break;
+    case 'seed-scheduler':
+      await seedScheduler(dbPath as string, arg as string);
+      break;
+    case 'count-schedulers':
+      await countSchedulers(dbPath as string);
       break;
     case 'meta-setup':
       await metaSetup(dbPath as string);

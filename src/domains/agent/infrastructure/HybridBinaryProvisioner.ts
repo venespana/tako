@@ -54,6 +54,9 @@ export interface HybridBinaryProvisionerOptions {
   readonly releaseBaseUrl?: string;
 }
 
+/** Outcome of probing a remote file's sha256: missing vs failed are NOT the same (9.7). */
+type RemoteShaProbe = { kind: 'sha'; sha: string } | { kind: 'missing' } | { kind: 'failed'; detail: string };
+
 export class HybridBinaryProvisioner {
   readonly #runner: RemoteCommandRunner;
   readonly #transfer: RemoteFileTransfer;
@@ -78,11 +81,18 @@ export class HybridBinaryProvisioner {
         ? await this.#provisionByCopy(input, staging, target)
         : await this.#provisionByDownload(input, staging, target);
 
-    // Decoy guard BEFORE the move — a file we cannot account for is never replaced.
-    const existingSha = await this.#remoteSha256(target);
-    if (existingSha !== undefined && !isSafeToReplace(existingSha, newSha, input.priorInstallSha256)) {
+    // Decoy guard BEFORE the move — a file we cannot account for is never
+    // replaced, and a FAILED probe is never read as "absent" (that would
+    // bypass the guard).
+    const existing = await this.#remoteSha256(target);
+    if (existing.kind === 'failed') {
       throw new BinaryProvisioningError(
-        `refusing to overwrite ${target}: its sha256 (${existingSha.slice(0, 12)}…) matches neither the new binary nor the prior install — the file may not be Tako's (decoy). Remove it manually or verify its origin, then re-run install`
+        `refusing to proceed: could not hash the existing ${target} (${existing.detail}) — a file we cannot account for is never replaced; inspect it manually, then re-run install`
+      );
+    }
+    if (existing.kind === 'sha' && !isSafeToReplace(existing.sha, newSha, input.priorInstallSha256)) {
+      throw new BinaryProvisioningError(
+        `refusing to overwrite ${target}: its sha256 (${existing.sha.slice(0, 12)}…) matches neither the new binary nor the prior install — the file may not be Tako's (decoy). Remove it manually or verify its origin, then re-run install`
       );
     }
 
@@ -107,11 +117,17 @@ export class HybridBinaryProvisioner {
         { cause: error }
       );
     }
-    const remoteSha = await this.#remoteSha256(staging);
-    if (remoteSha !== localSha) {
+    const remoteProbe = await this.#remoteSha256(staging);
+    if (remoteProbe.kind !== 'sha' || remoteProbe.sha !== localSha) {
       await this.#exec(`rm -f '${staging}'`);
+      const remoteText =
+        remoteProbe.kind === 'sha'
+          ? `${remoteProbe.sha.slice(0, 12)}…`
+          : remoteProbe.kind === 'missing'
+            ? '(missing)'
+            : `unhashable: ${remoteProbe.detail}`;
       throw new BinaryProvisioningError(
-        `copy path failed: sha256 mismatch after upload — local ${localSha.slice(0, 12)}… vs remote ${remoteSha === undefined ? '(missing)' : `${remoteSha.slice(0, 12)}…`} at ${staging} (target ${target})`
+        `copy path failed: sha256 mismatch after upload — local ${localSha.slice(0, 12)}… vs remote ${remoteText} at ${staging} (target ${target})`
       );
     }
     return localSha;
@@ -143,20 +159,26 @@ export class HybridBinaryProvisioner {
       failMessage: `download path failed: could not read the sha256 sidecar at ${sidecarPath}`,
     });
     const expectedSha = parseSidecarSha256(sidecarContent.stdout);
-    const actualSha = await this.#remoteSha256(staging);
+    const actualProbe = await this.#remoteSha256(staging);
     if (expectedSha === undefined) {
       await this.#exec(`rm -f '${staging}' '${sidecarPath}'`);
       throw new BinaryProvisioningError(
         `download path failed: could not parse a sha256 out of the sidecar ${sidecarPath} (content: ${JSON.stringify(sidecarContent.stdout.slice(0, 80))}) — arch ${asset}, asset ${assetUrl}`
       );
     }
-    if (actualSha !== expectedSha) {
+    if (actualProbe.kind !== 'sha' || actualProbe.sha !== expectedSha) {
       await this.#exec(`rm -f '${staging}' '${sidecarPath}'`);
+      const actualText =
+        actualProbe.kind === 'sha'
+          ? actualProbe.sha
+          : actualProbe.kind === 'missing'
+            ? '(missing)'
+            : `unhashable: ${actualProbe.detail}`;
       throw new BinaryProvisioningError(
-        `download path failed: checksum verification for arch ${asset} — asset ${assetUrl} downloaded to ${staging} has sha256 ${actualSha === undefined ? '(missing)' : actualSha} but the sidecar declares ${expectedSha}; the asset may be corrupted`
+        `download path failed: checksum verification for arch ${asset} — asset ${assetUrl} downloaded to ${staging} has sha256 ${actualText} but the sidecar declares ${expectedSha}; the asset may be corrupted`
       );
     }
-    return actualSha as string;
+    return actualProbe.sha;
   }
 
   async #remoteHome(): Promise<string> {
@@ -171,11 +193,30 @@ export class HybridBinaryProvisioner {
     return home;
   }
 
-  /** `sha256sum <path>` → hex digest, or undefined when the file does not exist. */
-  async #remoteSha256(path: string): Promise<string | undefined> {
-    const result = await this.#tryExec(`sha256sum '${path}' 2>/dev/null`);
-    if (result === undefined || result.exitCode !== 0) return undefined;
-    return parseSha256Sum(result.stdout);
+  /**
+   * `sha256sum <path>` → discriminated probe. A file that does not exist reads
+   * as 'missing' (stderr match — coreutils AND busybox wording); ANY other
+   * failure (transport drop, exit ≠ 0, unparseable output) reads as 'failed'
+   * so callers can refuse instead of confusing "cannot verify" with "absent".
+   */
+  async #remoteSha256(path: string): Promise<RemoteShaProbe> {
+    let result: RemoteCommandResult;
+    try {
+      result = await this.#runner.run(`sha256sum '${path}'`);
+    } catch (error) {
+      return { kind: 'failed', detail: `transport failure: ${describeError(error)}` };
+    }
+    if (result.exitCode === 0) {
+      const sha = parseSha256Sum(result.stdout);
+      return sha !== undefined
+        ? { kind: 'sha', sha }
+        : { kind: 'failed', detail: `unparseable sha256sum output: ${JSON.stringify(result.stdout.slice(0, 80))}` };
+    }
+    if (/no such file or directory/i.test(result.stderr)) return { kind: 'missing' };
+    return {
+      kind: 'failed',
+      detail: `sha256sum exited ${result.exitCode ?? 'signal'}: ${result.stderr.trim() || 'no stderr'}`,
+    };
   }
 
   async #exec(
@@ -197,14 +238,6 @@ export class HybridBinaryProvisioner {
       throw new BinaryProvisioningError(`${context?.failMessage ?? `remote command failed`}: ${detail}${suffix}`);
     }
     return result;
-  }
-
-  async #tryExec(command: string): Promise<RemoteCommandResult | undefined> {
-    try {
-      return await this.#runner.run(command);
-    } catch {
-      return undefined;
-    }
   }
 }
 

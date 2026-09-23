@@ -107,4 +107,20 @@ describe('BunqueueJobStore — runs-mirror row mapping', () => {
     expect(view.result).toBeUndefined();
     expect(view.catchup).toBe(false);
   });
+
+  it('degrades a corrupted result_json to an explicit error result (tamper-tolerant load)', () => {
+    const row: RunRow = {
+      seq: 9,
+      id: 'run-9',
+      job_id: 'nas-prune',
+      mode: 'apply',
+      status: 'succeeded',
+      catchup: 0,
+      started_at: '2026-01-01T04:00:00.000Z',
+      finished_at: '2026-01-01T04:00:05.000Z',
+      result_json: '{"deleted":3', // truncated / tampered JSON
+    };
+    const view = runViewFromRow(row);
+    expect(view.result).toEqual({ error: 'corrupted result record (unparseable result_json)' });
+  });
 });

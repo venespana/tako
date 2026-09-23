@@ -276,15 +276,17 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
     if (activeSession === null) return null;
     try {
       const { run } = await activeSession.request('jobs.trigger', { jobId, mode });
-      set(state => {
-        const historyByJob = {
-          ...state.historyByJob,
-          [jobId]: mergeRuns(state.historyByJob[jobId] ?? [], [run]),
-        };
-        const lastSeq = Math.max(state.lastSeq, run.seq);
-        activeGateway?.saveCursor(lastSeq);
-        return { historyByJob, lastSeq };
-      });
+      // Next state is computed from a get() snapshot so the cursor side
+      // effect (conf write) stays OUT of the set() updater — updaters must
+      // stay pure (9.7: they can run more than once).
+      const state = get();
+      const historyByJob = {
+        ...state.historyByJob,
+        [jobId]: mergeRuns(state.historyByJob[jobId] ?? [], [run]),
+      };
+      const lastSeq = Math.max(state.lastSeq, run.seq);
+      activeGateway?.saveCursor(lastSeq);
+      set({ historyByJob, lastSeq });
       return run;
     } catch (error) {
       await failSession(set, error);
@@ -296,16 +298,11 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
     if (activeSession === null) return [];
     try {
       const response = await activeSession.request('jobs.history', { jobId });
-      let merged: RunView[] = [];
-      set(state => {
-        merged = mergeRuns(state.historyByJob[jobId] ?? [], response.runs);
-        const lastSeq = Math.max(state.lastSeq, response.lastSeq);
-        activeGateway?.saveCursor(lastSeq);
-        return {
-          historyByJob: { ...state.historyByJob, [jobId]: merged },
-          lastSeq,
-        };
-      });
+      const state = get();
+      const merged = mergeRuns(state.historyByJob[jobId] ?? [], response.runs);
+      const lastSeq = Math.max(state.lastSeq, response.lastSeq);
+      activeGateway?.saveCursor(lastSeq);
+      set({ historyByJob: { ...state.historyByJob, [jobId]: merged }, lastSeq });
       return merged;
     } catch (error) {
       await failSession(set, error);
@@ -345,4 +342,9 @@ async function failSession(set: TasksSet, error: unknown): Promise<void> {
   unsubscribe = null;
   if (session !== null) await session.close().catch(() => {});
   set({ status: 'error', message: describeError(error) });
+}
+
+/** Test seam: synchronously reset the singleton store (public via the slice index). */
+export function resetTasksStoreForTests(): void {
+  useTasksStore.getState().reset();
 }

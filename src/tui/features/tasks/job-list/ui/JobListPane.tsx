@@ -1,16 +1,17 @@
 // features/tasks/job-list/ui/JobListPane.tsx — the job list column (task 8.4).
-// Owns the list cursor (up/k, down/j, Enter/l to select) — a local 20-line
-// cursor hook mirrors features/menu's useMenuList WITHOUT cross-importing the
-// menu feature (FSD: same-layer cross-slice imports are forbidden, Strategy D
-// not justified for a hook this small). Rows render through the job entity's
-// JobRow.
+// Owns the list cursor (up/k, down/j, Enter/l to select — dispatched by the
+// shared useKeyBindings hook, 9.9) — a local cursor mirrors features/menu's
+// useMenuList WITHOUT cross-importing the menu feature (FSD: same-layer
+// cross-slice imports are forbidden, Strategy D not justified for a hook this
+// small). Rows render through the job entity's JobRow.
 import { useCallback, useState } from 'react';
 
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 
 import type { JobView } from '../../../../../domains/agent/domain/types.js';
 import { JobRow } from '../../../../entities/job/index.js';
 import { useEditing } from '../../../../shared/lib/editing-context.js';
+import { useKeyBindings } from '../../../../shared/lib/use-key-bindings.js';
 
 export interface JobListPaneProps {
   readonly jobs: readonly JobView[];
@@ -31,14 +32,14 @@ export function JobListPane({ jobs, onSelect }: JobListPaneProps): React.ReactEl
     [jobs.length]
   );
 
-  useInput(
-    (input, key) => {
-      if (key.upArrow || input === 'k') move(-1);
-      else if (key.downArrow || input === 'j') move(1);
-      else if (key.return || input === 'l') {
+  useKeyBindings(
+    {
+      moveUp: () => move(-1),
+      moveDown: () => move(1),
+      confirm: () => {
         const focused = jobs[cursor];
         if (focused !== undefined) onSelect(focused.job.id);
-      }
+      },
     },
     { isActive: !isEditing }
   );

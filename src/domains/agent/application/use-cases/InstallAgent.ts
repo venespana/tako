@@ -53,10 +53,18 @@ export interface LingerInstallDecision {
   readonly lingerEnabledByTako: boolean;
 }
 
+/**
+ * Linger decision (D8): only a PROVEN `Linger=no` lets Tako record the
+ * by-tako flag. `'unknown'` still enables linger (idempotent — the agent
+ * needs it to survive logout) but records `lingerEnabledByTako: false`:
+ * recording true on an unreadable state risks disabling a pre-existing,
+ * user-owned linger at uninstall. The only-by-tako rule tolerates kept
+ * linger; it never guesses teardown.
+ */
 export function decideLingerOnInstall(preExistingLinger: boolean | 'unknown'): LingerInstallDecision {
-  return preExistingLinger === true
-    ? { action: 'keep-linger', lingerEnabledByTako: false }
-    : { action: 'enable-linger', lingerEnabledByTako: true };
+  if (preExistingLinger === false) return { action: 'enable-linger', lingerEnabledByTako: true };
+  if (preExistingLinger === true) return { action: 'keep-linger', lingerEnabledByTako: false };
+  return { action: 'enable-linger', lingerEnabledByTako: false };
 }
 
 /** Parse `loginctl show-user … --property=Linger` output. */

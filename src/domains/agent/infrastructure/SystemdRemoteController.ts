@@ -158,7 +158,8 @@ export class SystemdRemoteController {
     const result = await this.#runner.run(command);
     if (result.exitCode !== 0 && isMutationCommand(command)) {
       const stderr = result.stderr.trim();
-      throw new Error(`remote command failed (exit ${result.exitCode ?? 'signal'}): ${command}\n${stderr}`);
+      const remedy = command.includes('systemctl') ? systemctlRemedy() : '';
+      throw new Error(`remote command failed (exit ${result.exitCode ?? 'signal'}): ${command}\n${stderr}${remedy}`);
     }
     return result;
   }
@@ -175,6 +176,19 @@ export class SystemdRemoteController {
 /** True when the unit content is Tako's (ExecStart references the agent binary). */
 function isTakoUnit(content: string): boolean {
   return content.split('\n').some(line => line.startsWith('ExecStart=') && line.includes('%h/.tako/tako'));
+}
+
+/**
+ * Threat-matrix remedy for generic systemctl step failures (one sentence):
+ * point at the two diagnostic commands and the usual cause (vanished user
+ * session), then retry.
+ */
+function systemctlRemedy(): string {
+  return (
+    ' — remedy: inspect the unit with "systemctl --user status tako-agent.service" and the logs with' +
+    ' "journalctl --user -u tako-agent.service -n 50 --no-pager" (a vanished user session is the usual' +
+    ' cause; "sudo loginctl enable-linger $USER" prevents it), then retry the command'
+  );
 }
 
 /** Commands whose non-zero exit must throw (probes like `cat` inspect instead). */

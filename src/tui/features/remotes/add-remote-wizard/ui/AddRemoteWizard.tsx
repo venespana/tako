@@ -6,13 +6,13 @@
 // global handler only manages Tab navigation so Enter is never processed twice.
 import { useState, useCallback } from 'react';
 
-import { Box, Text, useInput } from 'ink';
-import type { Key } from 'ink';
+import { Box, Text } from 'ink';
 
 import { TextInput, PasswordInput, Select } from '@inkjs/ui';
 
 import type { AddRemote } from '../../../../../domains/remotes/application/AddRemote.js';
 import type { AddRemoteResult, SshCredentialType } from '../../../../../domains/remotes/domain/types.js';
+import { useKeyBindings } from '../../../../shared/lib/use-key-bindings.js';
 import { EditingGuard } from '../../../../shared/ui/EditingGuard.js';
 import { useAddRemoteWizard } from '../model/use-add-remote-wizard.js';
 import type { WizardStep } from '../model/wizard-store.js';
@@ -201,32 +201,31 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
     if (idx > 0) setBackField(nav[idx - 1]!);
   }, [activeField, data.credentialType, wizard]);
 
-  // Global handler: Tab navigation while editing; Esc cancels the wizard from
-  // ANY state (EditingGuard blocks the app-level Esc, so the wizard owns it);
-  // hostkey-confirm resolves with y/N. Enter belongs to each input
-  // (TextInput.onSubmit / Select.onChange) — handling it here too would commit
-  // every keypress twice.
-  useInput(
-    (input: string, key: Key) => {
-      if (wizard.step === 'hostkey-confirm') {
-        if (input === 'y' || input === 'Y') wizard.acceptHostkey();
-        else if (input === 'n' || input === 'N') wizard.declineHostkey();
-        return;
-      }
-      if (key.escape) {
-        if (wizard.step !== 'done') wizard.abort();
-        return;
-      }
-      if (!isEditing) return;
-      if (key.tab && !key.shift) {
-        advance();
-        return;
-      }
-      if (key.tab && key.shift) {
-        goBack();
-        return;
-      }
-    },
+  // Global handler dispatched through useKeyBindings (9.9), with the wizard's
+  // staged semantics preserved: in the hostkey-confirm step ONLY y/N respond
+  // (Esc is deliberately swallowed here — aborting the wizard from the
+  // hostkey prompt would discard all entered state); otherwise Esc cancels
+  // the wizard from ANY state (EditingGuard blocks the app-level Esc, so the
+  // wizard owns it), and Tab navigation is live only while a text field is
+  // active. Enter belongs to each input (TextInput.onSubmit / Select.onChange)
+  // — handling it here too would commit every keypress twice.
+  const isHostkeyStep = wizard.step === 'hostkey-confirm';
+  useKeyBindings(
+    isHostkeyStep
+      ? {
+          chars: {
+            y: wizard.acceptHostkey,
+            Y: wizard.acceptHostkey,
+            n: wizard.declineHostkey,
+            N: wizard.declineHostkey,
+          },
+        }
+      : {
+          cancel: () => {
+            if (wizard.step !== 'done') wizard.abort();
+          },
+          ...(isEditing ? { tab: advance, shiftTab: goBack } : {}),
+        },
     { isActive: true }
   );
 

@@ -44,8 +44,21 @@ export function parseJobRow(row: JobRow): JobView | undefined {
   }
 }
 
-/** Map a runs-mirror row to the protocol RunView. */
+/** Map a runs-mirror row to the protocol RunView.
+ *
+ * Tamper-tolerant: a corrupted `result_json` (manual DB edit, partial write)
+ * must never crash a history/reconcile load — it degrades to an explicit
+ * error result instead of throwing or fabricating a report.
+ */
 export function runViewFromRow(row: RunRow): RunView {
+  let result: unknown;
+  if (row.result_json !== null) {
+    try {
+      result = JSON.parse(row.result_json) as unknown;
+    } catch {
+      result = { error: 'corrupted result record (unparseable result_json)' };
+    }
+  }
   return {
     seq: row.seq,
     id: row.id,
@@ -55,6 +68,6 @@ export function runViewFromRow(row: RunRow): RunView {
     catchup: row.catchup === 1,
     startedAt: row.started_at,
     ...(row.finished_at !== null && { finishedAt: row.finished_at }),
-    ...(row.result_json !== null && { result: JSON.parse(row.result_json) as unknown }),
+    ...(row.result_json !== null && { result }),
   };
 }

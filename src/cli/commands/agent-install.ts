@@ -10,8 +10,6 @@
 // Linger recording (design D8): when TAKO enables linger here, the by-tako
 // marker is written through RemoteInstallRecords so the agent's status()
 // and any later uninstall trust a RECORDED flag instead of guessing.
-import Conf from 'conf';
-
 import {
   decideBinarySource,
   decideLingerOnInstall,
@@ -139,7 +137,7 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
     //    enabled-but-unrecorded linger would make every future uninstall
     //    keep a linger Tako turned on (D8 fidelity over convenience).
     const linger = decideLingerOnInstall(preflight.linger);
-    if (linger.action === 'enable-linger') {
+    if (linger.action === 'enable-linger' && linger.lingerEnabledByTako) {
       await controller.enableLinger();
       try {
         await records.writeLingerByTako();
@@ -151,6 +149,11 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
         );
       }
       log('linger enabled by Tako');
+    } else if (linger.action === 'enable-linger') {
+      // 'unknown' pre-state: enable (the agent needs it) but do NOT record —
+      // uninstall will keep linger rather than guess it was Tako's (D8).
+      await controller.enableLinger();
+      log('linger enabled (previous state unreadable — NOT recorded as Tako-enabled)');
     } else {
       log('linger already enabled — kept as-is (not recorded as Tako-enabled)');
     }
@@ -234,7 +237,10 @@ export interface ResolvedRemoteConfig {
 
 /** Resolve a configured remote into connection material (shared helper). */
 export async function resolveRemote(remoteName: string): Promise<{ readonly config: ResolvedRemoteConfig } | number> {
-  const confStore = new Conf({ projectName: 'tako' });
+  // conf store built by the remotes infrastructure factory (Port/Adapter
+  // Isolation: this CLI handler never imports the `conf` package directly)
+  const { createConfStore } = await import('../../domains/remotes/infrastructure/createConfStore.js');
+  const confStore = createConfStore();
   const { ConfRemoteRepository } = await import('../../domains/remotes/infrastructure/ConfRemoteRepository.js');
   const { ConfSecretVault } = await import('../../domains/remotes/infrastructure/ConfSecretVault.js');
   const repo = new ConfRemoteRepository(confStore);

@@ -291,6 +291,24 @@ describe('runAgentInstall — linger and polkit', () => {
     const output = captured.errorLines.join('\n');
     expect(output).toMatch(/linger disabled again to restore the pre-install state/);
   });
+
+  it('9.7 RED: unreadable linger state still enables linger but does NOT write the by-tako marker', async () => {
+    const harness = createHarness({
+      'loginctl show-user "$USER" --property=Linger': FAIL('could not read state', 1),
+    });
+    const captured = capture(harness.deps);
+
+    const exitCode = await runAgentInstall(captured);
+
+    expect(exitCode).toBe(0);
+    // Linger IS enabled (the agent needs it to survive logout)…
+    expect(harness.runner.calls).toContainEqual('loginctl enable-linger');
+    // …but the by-tako marker is NOT written (the flag is never guessed).
+    expect(harness.runner.calls.some(call => call.includes('linger.by-tako'))).toBe(false);
+    expect(
+      captured.logLines.some(line => line.includes('NOT recorded as Tako-enabled'))
+    ).toBe(true);
+  });
 });
 
 describe('runAgentInstall — happy path and 6.8 tilde resolution', () => {

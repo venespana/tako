@@ -118,6 +118,22 @@ describe('SystemdRemoteController — systemd commands', () => {
 
     await expect(controller.enableUnit()).rejects.toThrow(/Failed to connect to bus/);
   });
+
+  it('9.7 RED: generic systemctl failures append the threat-matrix remedy sentence', async () => {
+    const { run } = createRunner(() => fail('Failed to connect to bus: $XDG_RUNTIME_DIR not set'));
+    const controller = new SystemdRemoteController({ runner: { run } });
+
+    const error = await controller.daemonReload().then(
+      () => {
+        throw new Error('expected daemonReload to reject');
+      },
+      (err: unknown) => err as Error
+    );
+    expect(error.message).toContain('Failed to connect to bus');
+    expect(error.message).toContain('systemctl --user status tako-agent.service');
+    expect(error.message).toContain('journalctl --user -u tako-agent.service -n 50 --no-pager');
+    expect(error.message).toContain('sudo loginctl enable-linger $USER');
+  });
 });
 
 describe('SystemdRemoteController — linger (D8 by-tako recording)', () => {

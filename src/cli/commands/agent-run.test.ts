@@ -17,6 +17,7 @@ import {
   WatchdogTimeoutError,
   mapLifecycleOutcome,
   mapPruneOutcome,
+  shutdownAgentProcess,
   withWatchdogTimeout,
 } from './agent-run.js';
 
@@ -102,5 +103,38 @@ describe('watchdog timeout for wedged job handlers (7.5)', () => {
     };
     const guarded = withWatchdogTimeout(handler, 5_000);
     await expect(guarded.execute(pruneJob, 'apply')).resolves.toEqual({ status: 'succeeded' });
+  });
+});
+
+describe('composition-root shutdown sequence (9.7)', () => {
+  it('RED: stops scheduler → server → store → meta, each fully settled before the next starts', async () => {
+    const trace: string[] = [];
+    const asyncStep =
+      (name: string) =>
+      async (): Promise<void> => {
+        trace.push(`${name}:start`);
+        await new Promise(resolve => setTimeout(resolve, 1));
+        trace.push(`${name}:end`);
+      };
+
+    await shutdownAgentProcess({
+      scheduler: { stop: asyncStep('scheduler') },
+      server: { stop: asyncStep('server') },
+      store: { close: asyncStep('store') },
+      meta: { close: () => trace.push('meta:close') },
+    });
+
+    // start/end interleaving proves each component is awaited to completion
+    // before the next teardown step begins (design: scheduler tick + in-flight
+    // run settle and queued firings roll back BEFORE the store closes).
+    expect(trace).toEqual([
+      'scheduler:start',
+      'scheduler:end',
+      'server:start',
+      'server:end',
+      'store:start',
+      'store:end',
+      'meta:close',
+    ]);
   });
 });

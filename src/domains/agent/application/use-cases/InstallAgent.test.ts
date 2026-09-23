@@ -76,8 +76,11 @@ describe('linger decision (task 3.11, D8)', () => {
     expect(decideLingerOnInstall(false)).toEqual({ action: 'enable-linger', lingerEnabledByTako: true });
   });
 
-  it('3.11 RED: unknown linger state → attempt enable (idempotent) and record by-Tako', () => {
-    expect(decideLingerOnInstall('unknown')).toEqual({ action: 'enable-linger', lingerEnabledByTako: true });
+  it("9.7 RED: unknown linger state → attempt enable (idempotent) but NOT recorded as by-Tako — the flag is never guessed", () => {
+    // Recording by-tako=true on an unreadable state risks disabling a
+    // pre-existing (user-owned) linger at uninstall — the only-by-tako rule
+    // (design D8, uninstall) tolerates kept linger, never guessed teardown.
+    expect(decideLingerOnInstall('unknown')).toEqual({ action: 'enable-linger', lingerEnabledByTako: false });
   });
 });
 

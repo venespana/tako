@@ -84,6 +84,9 @@ function createHarness(): Harness {
   const runner = new FakeRunner();
   runner.register('printf %s "$HOME"', { stdout: HOME });
   runner.register('mkdir -p', { stdout: '' });
+  // Fresh-server default: the target does not exist yet (individual tests
+  // override this to plant a decoy or a failing probe).
+  runner.register(`sha256sum '${TARGET}'`, { exitCode: 1, stderr: `sha256sum: ${TARGET}: No such file or directory` });
   const transfer = new FakeTransfer();
   const provisioner = new HybridBinaryProvisioner(runner, transfer);
   return { runner, transfer, provisioner, localBinary, localSha: sha256File(localBinary) };
@@ -103,7 +106,7 @@ describe('HybridBinaryProvisioner — copy path (arch match)', () => {
   it('uploads to tako.new, verifies the remote sha256, then moves atomically with chmod 700', async () => {
     const { runner, transfer, provisioner, localBinary, localSha } = createHarness();
     runner.register(`sha256sum '${STAGING}'`, { stdout: `${localSha}  ${STAGING}` });
-    runner.register(`sha256sum '${TARGET}' 2>/dev/null`, { exitCode: 1 });
+    runner.register(`sha256sum '${TARGET}'`, { exitCode: 1, stderr: `sha256sum: ${TARGET}: No such file or directory` });
 
     const result = await provisioner.provision({
       source: copySource,
@@ -141,7 +144,7 @@ describe('HybridBinaryProvisioner — 3.13 decoy-file refusal', () => {
   it('3.13 RED: refuses to overwrite a pre-existing non-Tako ~/.tako/tako whose sha matches neither prior install nor the new binary', async () => {
     const { runner, provisioner, localBinary, localSha } = createHarness();
     // A decoy already sits at the target and matches nothing we know.
-    runner.register(`sha256sum '${TARGET}' 2>/dev/null`, { stdout: `${'d'.repeat(64)}  ${TARGET}` });
+    runner.register(`sha256sum '${TARGET}'`, { stdout: `${'d'.repeat(64)}  ${TARGET}` });
     runner.register(`sha256sum '${STAGING}'`, { stdout: `${localSha}  ${STAGING}` });
 
     await expect(
@@ -160,7 +163,7 @@ describe('HybridBinaryProvisioner — 3.13 decoy-file refusal', () => {
   it('3.13: replaces a pre-existing file when its sha256 matches the recorded prior install', async () => {
     const { runner, provisioner, localBinary, localSha } = createHarness();
     const priorSha = 'aaaa'.repeat(16);
-    runner.register(`sha256sum '${TARGET}' 2>/dev/null`, { stdout: `${priorSha}  ${TARGET}` });
+    runner.register(`sha256sum '${TARGET}'`, { stdout: `${priorSha}  ${TARGET}` });
     runner.register(`sha256sum '${STAGING}'`, { stdout: `${localSha}  ${STAGING}` });
 
     const result = await provisioner.provision({
@@ -177,7 +180,7 @@ describe('HybridBinaryProvisioner — 3.13 decoy-file refusal', () => {
 
   it('3.13: replaces silently when the existing file already matches the new binary (reinstall)', async () => {
     const { runner, provisioner, localBinary, localSha } = createHarness();
-    runner.register(`sha256sum '${TARGET}' 2>/dev/null`, { stdout: `${localSha}  ${TARGET}` });
+    runner.register(`sha256sum '${TARGET}'`, { stdout: `${localSha}  ${TARGET}` });
     runner.register(`sha256sum '${STAGING}'`, { stdout: `${localSha}  ${STAGING}` });
 
     await expect(
@@ -188,6 +191,59 @@ describe('HybridBinaryProvisioner — 3.13 decoy-file refusal', () => {
         clientSha256: localSha,
       })
     ).resolves.toMatchObject({ remotePath: TARGET });
+  });
+
+  it('9.7 RED: a failing sha256sum on the target is NOT read as "absent" — the decoy guard refuses to overwrite', async () => {
+    const { runner, provisioner, localBinary, localSha } = createHarness();
+    runner.register(`sha256sum '${STAGING}'`, { stdout: `${localSha}  ${STAGING}` });
+    // sha256sum RAN and failed (I/O error / permissions) — NOT "no such file".
+    runner.register(`sha256sum '${TARGET}'`, { exitCode: 1, stderr: 'sha256sum: standard input: I/O error' });
+
+    await expect(
+      provisioner.provision({
+        source: copySource,
+        version: '0.1.2',
+        localBinaryPath: localBinary,
+        clientSha256: localSha,
+      })
+    ).rejects.toThrow(/could not hash the existing .* — a file we cannot account for is never replaced/);
+    expect(runner.ran('mv -f')).toBe(false);
+  });
+
+  it('9.7 RED: a transport failure during the target probe refuses instead of treating the file as absent', async () => {
+    const { runner, provisioner, localBinary, localSha } = createHarness();
+    runner.register(`sha256sum '${STAGING}'`, { stdout: `${localSha}  ${STAGING}` });
+    const realRun = runner.run.bind(runner);
+    vi.spyOn(runner, 'run').mockImplementation(async (command: string) => {
+      if (command.includes(`sha256sum '${TARGET}'`)) throw new Error('connection dropped');
+      return realRun(command);
+    });
+
+    await expect(
+      provisioner.provision({
+        source: copySource,
+        version: '0.1.2',
+        localBinaryPath: localBinary,
+        clientSha256: localSha,
+      })
+    ).rejects.toThrow(/could not hash the existing .*(connection dropped)/s);
+    expect(runner.ran('mv -f')).toBe(false);
+  });
+
+  it('9.7 RED: a failing sha256sum on the staged upload fails the copy path explicitly (unhashable, not "missing")', async () => {
+    const { runner, provisioner, localBinary, localSha } = createHarness();
+    runner.register(`sha256sum '${STAGING}'`, { exitCode: 1, stderr: 'sha256sum: write error' });
+    runner.register(`sha256sum '${TARGET}'`, { exitCode: 1, stderr: `sha256sum: ${TARGET}: No such file or directory` });
+
+    await expect(
+      provisioner.provision({
+        source: copySource,
+        version: '0.1.2',
+        localBinaryPath: localBinary,
+        clientSha256: localSha,
+      })
+    ).rejects.toThrow(/sha256 mismatch after upload — local .* vs remote unhashable: sha256sum exited 1: sha256sum: write error/);
+    expect(runner.ran('mv -f')).toBe(false);
   });
 });
 
@@ -209,7 +265,7 @@ describe('HybridBinaryProvisioner — Releases download fallback (arch mismatch)
     const { runner, provisioner } = createHarness();
     const assetSha = 'bbbb'.repeat(16);
     registerDownload(runner, assetSha, assetSha);
-    runner.register(`sha256sum '${TARGET}' 2>/dev/null`, { exitCode: 1 });
+    runner.register(`sha256sum '${TARGET}'`, { exitCode: 1, stderr: `sha256sum: ${TARGET}: No such file or directory` });
 
     const result = await provisioner.provision({ source: downloadSource(), version: '0.1.2' });
 
@@ -263,7 +319,7 @@ describe('HybridBinaryProvisioner — Releases download fallback (arch mismatch)
     const { runner, provisioner } = createHarness();
     const assetSha = 'bbbb'.repeat(16);
     registerDownload(runner, assetSha, assetSha);
-    runner.register(`sha256sum '${TARGET}' 2>/dev/null`, { stdout: `${'d'.repeat(64)}  ${TARGET}` });
+    runner.register(`sha256sum '${TARGET}'`, { stdout: `${'d'.repeat(64)}  ${TARGET}` });
 
     await expect(provisioner.provision({ source: downloadSource(), version: '0.1.2' })).rejects.toThrow(
       /refusing to overwrite/
