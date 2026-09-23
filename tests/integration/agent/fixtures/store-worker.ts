@@ -169,33 +169,24 @@ async function metaAssert(databasePath: string): Promise<void> {
   console.log(JSON.stringify(payload));
 }
 
+/** One handler per worker command — adding a command is one entry, not a new case. */
+const commands: Record<string, (workerDbPath: string, workerArg?: string) => Promise<void>> = {
+  setup: workerDbPath => setup(workerDbPath),
+  assert: workerDbPath => assertDb(workerDbPath),
+  tamper: (workerDbPath, workerArg) => tamper(workerDbPath, workerArg as string),
+  'seed-scheduler': (workerDbPath, workerArg) => seedScheduler(workerDbPath, workerArg as string),
+  'count-schedulers': workerDbPath => countSchedulers(workerDbPath),
+  'meta-setup': workerDbPath => metaSetup(workerDbPath),
+  'meta-assert': workerDbPath => metaAssert(workerDbPath),
+};
+
 try {
-  switch (command) {
-    case 'setup':
-      await setup(dbPath as string);
-      break;
-    case 'assert':
-      await assertDb(dbPath as string);
-      break;
-    case 'tamper':
-      await tamper(dbPath as string, arg as string);
-      break;
-    case 'seed-scheduler':
-      await seedScheduler(dbPath as string, arg as string);
-      break;
-    case 'count-schedulers':
-      await countSchedulers(dbPath as string);
-      break;
-    case 'meta-setup':
-      await metaSetup(dbPath as string);
-      break;
-    case 'meta-assert':
-      await metaAssert(dbPath as string);
-      break;
-    default:
-      console.error(`unknown command: ${command ?? '(none)'}`);
-      process.exit(2);
+  const handler = command !== undefined ? commands[command] : undefined;
+  if (handler === undefined || dbPath === undefined) {
+    console.error(`unknown command: ${command ?? '(none)'}`);
+    process.exit(2);
   }
+  await handler(dbPath, arg);
   // Standalone CLI worker: exit deterministically (bunqueue keeps timers).
   process.exit(0);
 } catch (error) {

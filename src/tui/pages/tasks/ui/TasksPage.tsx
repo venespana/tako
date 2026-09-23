@@ -74,8 +74,8 @@ export function TasksPage({ gateway }: TasksPageProps): React.ReactElement {
         r: () => {
           if (selected !== null) void trigger(selected.job.id, 'dry-run');
         },
+        // Explicit, separate apply — only meaningful after a reviewed report.
         a: () => {
-          // Explicit, separate apply — only meaningful after a reviewed report.
           if (selected !== null && latestDryRun !== null) void trigger(selected.job.id, 'apply');
         },
         t: () => {
