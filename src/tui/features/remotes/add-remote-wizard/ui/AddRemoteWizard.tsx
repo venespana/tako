@@ -100,6 +100,24 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
   const activeField = backField ?? stepField;
   const isEditing = activeField !== null;
 
+  // STABLE onChange handlers — @inkjs/ui's TextInput re-runs its onChange
+  // effect whenever the handler identity changes (onChange is in the effect's
+  // dependency list), so an inline arrow here becomes an infinite
+  // onChange → setState → re-render → onChange loop while typing (task 9.10,
+  // real-world finding: "Maximum update depth exceeded" after one keystroke).
+  const updateDraft = useCallback((field: FieldId, value: string) => {
+    setDraft(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const onNameChange = useCallback((v: string) => updateDraft('name', v), [updateDraft]);
+  const onUsernameChange = useCallback((v: string) => updateDraft('username', v), [updateDraft]);
+  const onHostChange = useCallback((v: string) => updateDraft('host', v), [updateDraft]);
+  const onPortChange = useCallback((v: string) => updateDraft('port', v), [updateDraft]);
+  const onKeyPathChange = useCallback((v: string) => updateDraft('keyPath', v), [updateDraft]);
+  const onPasswordChange = useCallback((v: string) => updateDraft('password', v), [updateDraft]);
+  // `setType` is a stable zustand action extracted from the model object.
+  const onCredentialTypeChange = useCallback((v: string) => wizard.setType(v as SshCredentialType), [wizard.setType]);
+
   // Back-navigation conceals everything after the field being edited; without
   // it, the store's step decides what is revealed.
   const revealed = backField ? FIELD_ORDER.indexOf(backField) : STEP_INDEX[wizard.step];
@@ -249,7 +267,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               <TextInput
                 defaultValue={draft.name ?? data.name}
                 placeholder='e.g. nas-backup'
-                onChange={v => setDraft(prev => ({ ...prev, name: v }))}
+                onChange={onNameChange}
                 onSubmit={advance}
               />
             </Box>
@@ -265,7 +283,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               <TextInput
                 defaultValue={draft.username ?? data.username}
                 placeholder='e.g. ops'
-                onChange={v => setDraft(prev => ({ ...prev, username: v }))}
+                onChange={onUsernameChange}
                 onSubmit={advance}
               />
             </Box>
@@ -281,7 +299,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               <TextInput
                 defaultValue={draft.host ?? data.host}
                 placeholder='e.g. 10.0.0.5'
-                onChange={v => setDraft(prev => ({ ...prev, host: v }))}
+                onChange={onHostChange}
                 onSubmit={advance}
               />
             </Box>
@@ -297,7 +315,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               <TextInput
                 defaultValue={draft.port ?? String(data.port)}
                 placeholder='22'
-                onChange={v => setDraft(prev => ({ ...prev, port: v }))}
+                onChange={onPortChange}
                 onSubmit={advance}
               />
             </Box>
@@ -316,7 +334,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
                   { label: 'SSH key', value: 'ssh-key' },
                   { label: 'Ask every session — never stored', value: 'interactive' },
                 ]}
-                onChange={v => wizard.setType(v as SshCredentialType)}
+                onChange={onCredentialTypeChange}
               />
             </Box>
           ) : (
@@ -331,7 +349,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               <TextInput
                 defaultValue={draft.keyPath ?? data.keyPath ?? ''}
                 placeholder='~/.ssh/id_rsa'
-                onChange={v => setDraft(prev => ({ ...prev, keyPath: v }))}
+                onChange={onKeyPathChange}
                 onSubmit={advance}
               />
             </Box>
@@ -349,7 +367,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               </Text>
               <PasswordInput
                 placeholder='Enter password'
-                onChange={v => setDraft(prev => ({ ...prev, password: v }))}
+                onChange={onPasswordChange}
                 onSubmit={value => wizard.setPassword(value)}
               />
             </Box>
