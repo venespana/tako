@@ -11,6 +11,12 @@ jobs:
   release:
     name: Release ${{ matrix.asset }}
     runs-on: ubuntu-latest
+    # Build inside Debian 12 so the compiled binaries carry a LOW glibc floor
+    # (bookworm = glibc 2.36): a binary built on a newer distro than the target
+    # server fails there with "GLIBC_x.y not found" (task 9.11, real-world
+    # finding on homeserver). arm64 is cross-compiled from the same container.
+    container:
+      image: debian:bookworm
     strategy:
       fail-fast: false
       matrix:
@@ -20,6 +26,9 @@ jobs:
           - target: bun-linux-arm64
             asset: tako-linux-arm64
     steps:
+      - name: Install git (checkout requirement)
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+
       - uses: actions/checkout@v4
 
       - name: Setup Bun

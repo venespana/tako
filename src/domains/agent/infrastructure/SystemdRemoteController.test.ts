@@ -7,12 +7,21 @@ import { describe, expect, it, vi, type Mock } from 'vitest';
 import type { RemoteCommandResult, RemoteCommandRunner } from '../../remotes/application/RemoteCommandRunner.js';
 import { SystemdRemoteController } from './SystemdRemoteController.js';
 
-const UNIT_PATH = '$HOME/.config/systemd/user/tako-agent.service';
+// Remote home canned by the fake runner for the home probe (`printf %s "$HOME"`).
+// 9.10 follow-up: unit paths MUST be absolute — a literal `$HOME` inside single
+// quotes is not expanded by the remote shell and the unit lands outside
+// systemd's user search path ("Unit does not exist" on enable).
+const REMOTE_HOME = '/home/ops';
+const UNIT_PATH = `${REMOTE_HOME}/.config/systemd/user/tako-agent.service`;
+const HOME_PROBE = 'printf %s "$HOME"';
 
 function createRunner(
   impl: (command: string) => RemoteCommandResult | Promise<RemoteCommandResult>
 ): { runner: RemoteCommandRunner; run: Mock<(command: string) => Promise<RemoteCommandResult>> } {
-  const run = vi.fn(async (command: string) => impl(command));
+  const run = vi.fn(async (command: string) => {
+    if (command === HOME_PROBE) return ok(REMOTE_HOME);
+    return impl(command);
+  });
   return { runner: { run }, run };
 }
 
@@ -54,6 +63,20 @@ describe('SystemdRemoteController — unit file (fixed template, foreign-unit gu
     expect(write).toContain('RestartSec=3');
     expect(write).toContain('Environment=TAKO_AGENT=1');
     expect(write).toContain(`'${UNIT_PATH}'`);
+    // 9.10 follow-up: the resolved home must be EXPANDED in the command — a
+    // literal `$HOME` inside the single-quoted path is what broke `enable`.
+    expect(write).not.toContain('$HOME');
+  });
+
+  it('9.10: probes the remote home first and refuses to place the unit when it cannot be resolved', async () => {
+    const run = vi.fn(async (command: string): Promise<RemoteCommandResult> =>
+      command === HOME_PROBE ? ok('') : fail('unexpected command')
+    );
+    const controller = new SystemdRemoteController({ runner: { run } });
+
+    await expect(controller.writeUnitFile()).rejects.toThrow(/cannot resolve the remote home directory/);
+    // Fatal: no unit write attempted without a resolved absolute path.
+    expect(run.mock.calls.some(([command]) => (command as string).includes('cat >'))).toBe(false);
   });
 
   it('overwrites a foreign unit file only when its ExecStart references %h/.tako/tako', async () => {

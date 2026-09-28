@@ -125,6 +125,28 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
       }),
     });
     log(`binary placed at ${provision.remotePath} (sha256 ${provision.sha256.slice(0, 12)}…)`);
+    // Record the placement sha IMMEDIATELY: it is the prior-install witness
+    // for the decoy guard on RETRY. Writing it only at the end left a window
+    // where a failed later step (unit/linger/probe) stranded a Tako-placed
+    // binary with no witness — and the retry refused it as a decoy (task 9.10
+    // follow-up, real-world finding on homeserver).
+    await records.writeInstalledSha256(provision.sha256);
+
+    // 2b. Runnability probe: the placed binary must EXECUTE on the target.
+    // A binary built on a newer distro than the server dies here with a GLIBC
+    // error; abort NOW — before any unit/linger mutation — with a diagnosis
+    // naming the missing version instead of a dead unit (task 9.11).
+    const runProbe = await deps.runner.run(`'${provision.remotePath}' --version`);
+    if (runProbe.exitCode !== 0) {
+      const glibc = /GLIBC_[0-9.]+['`]? not found/.exec(runProbe.stderr)?.[0]?.replace(/['`]/g, '');
+      throw new Error(
+        `the placed agent binary does not run on the target` +
+          (glibc !== undefined
+            ? ` — ${glibc}: the server's glibc is older than the build machine's. Build Tako in an older-glibc environment (see docs/distribution.md) or upgrade the server, then retry`
+            : ` — stderr: ${runProbe.stderr.trim().slice(0, 200) || `exit code ${runProbe.exitCode}`}`) +
+          `. The binary stays in place for inspection; nothing else was modified`
+      );
+    }
 
     // 3. Unit + daemon-reload (fixed template; foreign units are refused).
     const controller = new SystemdRemoteController({ runner: deps.runner });
@@ -158,9 +180,9 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
       log('linger already enabled — kept as-is (not recorded as Tako-enabled)');
     }
 
-    // 5. Start the unit, then record the installed sha256.
+    // 5. Start the unit (the placement sha was already recorded in step 2,
+    //    so any failure from here on leaves a retryable witness).
     await controller.enableUnit();
-    await records.writeInstalledSha256(provision.sha256);
     log('tako-agent.service started');
 
     // 6. Mandatory survive-disconnect probe on connection B (never skipped).

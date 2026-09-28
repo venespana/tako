@@ -8,6 +8,16 @@
 
 ## Binary build
 
+> **glibc floor (task 9.11):** a `bun build --compile` binary requires the target server's
+> glibc to be **at least as new as the build machine's**. Building on a bleeding-edge
+> workstation (e.g. glibc 2.44) produces a binary that dies with
+> `GLIBC_x.y not found` on stable servers. Build inside an older-glibc environment when
+> the binary will be copied to other hosts — the release workflow builds in a
+> `debian:bookworm` container (glibc 2.36 floor); locally:
+> `docker run --rm -v "$PWD":/w -w /w oven/bun:debian sh -c "bun install --frozen-lockfile && bun run prebuild && bun run build"`.
+> `agent install` probes runnability right after placing the binary and refuses with an
+> actionable diagnosis when the target cannot execute it.
+
 ```bash
 # Bun compile (cross-platform). Release assets: tako-linux-x64, tako-linux-arm64.
 # (`-modern` on the x64 target is a compat alias for the canonical bun-linux-x64 target;

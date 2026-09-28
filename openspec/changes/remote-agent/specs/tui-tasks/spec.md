@@ -52,6 +52,44 @@ For destructive jobs the TUI MUST offer a dry-run preview showing the report of 
 - WHEN the user selects dry-run preview
 - THEN a report renders and nothing is removed until the user explicitly applies
 
+### Requirement: Remote Workspace Entry Flow
+
+The TUI MUST treat the tasks workspace (/tasks) as the active remote's own menu: selecting a remote MUST navigate directly into its workspace; when the agent is not reachable there, the TUI MUST offer an in-app install of the agent; and returning to the home menu MUST leave the remote context entirely.
+
+#### Scenario: select enters the workspace
+
+- GIVEN a configured remote
+- WHEN the user selects it in the remotes list
+- THEN the TUI activates it and navigates directly to its tasks workspace (no separate home-menu Tasks entry exists)
+
+#### Scenario: unreachable agent offers in-TUI install
+
+- GIVEN the selected remote's agent is not reachable
+- WHEN the workspace shows the unreachable state
+- THEN the TUI offers an install that runs the agent install command with its output streamed live, reconnects the workspace on success, and offers retry on failure
+
+#### Scenario: home disconnects the remote
+
+- GIVEN a connected agent session for the active remote
+- WHEN the user returns to the home menu
+- THEN the active remote selection is cleared and the agent session is closed
+
+### Requirement: Session Header Shows Remote and Agent Version
+
+The app shell MUST render the active remote below the logo (stacked, not beside it), showing `remote · agent <version> (active)` once the workspace handshake has reported the agent version and the remote name alone until then.
+
+#### Scenario: version appears after handshake
+
+- GIVEN a remote whose agent handshake has succeeded
+- WHEN any screen of the session is shown
+- THEN the header line under the logo names the remote with its agent version and an active marker
+
+#### Scenario: name before handshake
+
+- GIVEN a remote selected whose agent version is not yet known
+- WHEN the header renders
+- THEN only the remote name appears under the logo
+
 ## Out of Scope
 
 - Cross-server bulk job management; job editing without an installed agent.

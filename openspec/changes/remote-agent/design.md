@@ -158,6 +158,10 @@ Uninstall (order matters): read `linger_enabled_by_tako` via the agent transport
 - `src/tui/entities/job/` — `JobRow` view component (type from `agent/domain`).
 - Zustand store `features/tasks/job-list/model/tasks-store.ts` (zustand is already a dependency):
 
+> **AMENDED (task 9.14, 2026-09-24):** the reshaped UX supersedes parts of this section — (1) there is NO `/tasks` entry in the home menu ("Menu entry `/tasks` on the app shell" below is dropped); Select activates the remote and enters `/tasks` directly (the remote's menu IS its workspace); (2) the unreachable-agent state is now an in-TUI install pane (spawn `agent install <remote>` with live output, reconnect on exit 0) rather than only a terminal hint; (3) the shell header stacks the active remote + agent version BELOW the logo; (4) returning home clears the remote and disconnects the session.
+
+Menu entry `/tasks` on the app shell when a remote is active (AMENDED by 9.14: removed — see the amendment note above); push events update store live (`job.state_changed`, `run.completed`).
+
 ```ts
 interface TasksState {
   status: 'idle' | 'connecting' | 'ready' | 'warning' | 'error';
@@ -169,7 +173,7 @@ interface TasksState {
 }
 ```
 
-Menu entry `/tasks` on the app shell when a remote is active; push events update store live (`job.state_changed`, `run.completed`).
+Menu entry `/tasks` on the app shell when a remote is active (AMENDED by 9.14: removed — see the amendment note above); push events update store live (`job.state_changed`, `run.completed`).
 
 ## Domain Architecture & Ports
 

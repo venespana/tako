@@ -292,6 +292,51 @@ describe('runAgentInstall — linger and polkit', () => {
     expect(output).toMatch(/linger disabled again to restore the pre-install state/);
   });
 
+  // 9.10 follow-up (real-world finding on homeserver): the placement sha must
+  // be recorded BEFORE unit/enable — a failed enable used to strand a
+  // Tako-placed binary with no witness, and the retry refused it as a decoy.
+  it('9.10 fix: placement sha is recorded BEFORE the enable step (failed enable leaves a retryable witness)', async () => {
+    const harness = createHarness({
+      'systemctl --user enable --now tako-agent.service': FAIL('unit failed to activate', 1),
+    });
+    const captured = capture(harness.deps);
+
+    const exitCode = await runAgentInstall(captured);
+
+    expect(exitCode).toBe(1);
+    const shaWriteIndex = harness.runner.calls.findIndex(
+      call => call.includes('installed.sha256') && call.includes('printf')
+    );
+    const enableIndex = harness.runner.calls.findIndex(call => call.includes('enable --now tako-agent'));
+    expect(shaWriteIndex).toBeGreaterThan(-1);
+    expect(enableIndex).toBeGreaterThan(shaWriteIndex);
+  });
+
+  // 9.11 (real-world finding on homeserver): a binary built on a newer distro
+  // than the target dies with a GLIBC error — the install must abort BEFORE
+  // any unit/linger mutation, naming the missing glibc version.
+  it('9.11: a placed binary that cannot execute (GLIBC mismatch) aborts before unit mutations', async () => {
+    const harness = createHarness({
+      "'/home/ops/.tako/tako' --version": {
+        stdout: '',
+        stderr: "/home/venespana/.tako/tako: /usr/lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.44' not found (required by /home/venespana/.tako/tako)",
+        exitCode: 1,
+      },
+    });
+    const captured = capture(harness.deps);
+
+    const exitCode = await runAgentInstall(captured);
+
+    expect(exitCode).toBe(1);
+    const output = captured.errorLines.join('\n');
+    expect(output).toMatch(/GLIBC_2\.44/);
+    expect(output).toMatch(/older than the build machine's/);
+    expect(output).toMatch(/nothing else was modified/);
+    // Fatal: no unit or linger mutation may happen for a non-runnable binary.
+    expect(harness.runner.calls.some(call => call.includes('systemd/user'))).toBe(false);
+    expect(harness.runner.calls.some(call => call.includes('enable-linger'))).toBe(false);
+  });
+
   it('9.7 RED: unreadable linger state still enables linger but does NOT write the by-tako marker', async () => {
     const harness = createHarness({
       'loginctl show-user "$USER" --property=Linger': FAIL('could not read state', 1),
