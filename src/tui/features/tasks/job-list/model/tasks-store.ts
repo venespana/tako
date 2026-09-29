@@ -33,6 +33,13 @@ export interface TasksAgentInfo {
 }
 
 /**
+ * Terminal outcome of one in-process agent install attempt (9.19): the
+ * pipeline reports every progress line through onLine; failures come back
+ * here (never thrown) so the panel can render the reason.
+ */
+export type AgentInstallOutcome = { readonly ok: true } | { readonly ok: false; readonly error: string };
+
+/**
  * Port over the active remote: fresh sessions + the per-remote reconcile
  * cursor. Implemented in the route shim over SshConnectionManager →
  * StreamLocalAgentChannel → StreamLocalAgentTransport and conf.
@@ -42,6 +49,15 @@ export interface TasksGateway {
   readonly remote: string;
   /** Open a new agent session (handshake completed by the transport). */
   connect(): Promise<AgentSession>;
+  /**
+   * Run the agent install IN-PROCESS over this remote (9.19): the shim
+   * composes the shared install pipeline (InstallAgent preflight →
+   * HybridBinaryProvisioner → SystemdRemoteController → SurviveDisconnectProber)
+   * over the same SSH stack as connect() and reports each progress line
+   * through onLine — the same lines the CLI prints. Resolves when the attempt
+   * settles; it never throws (failures arrive in the outcome).
+   */
+  install(onLine: (line: string) => void): Promise<AgentInstallOutcome>;
   /** Persisted reconcile cursor for this remote (0 = full resync). */
   loadCursor(): number;
   saveCursor(seq: number): void;

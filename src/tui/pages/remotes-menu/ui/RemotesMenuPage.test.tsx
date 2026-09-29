@@ -5,7 +5,7 @@
 // session's active-remote state so tests can drive the real transition
 // (select with Enter → submenu). Logo and footer are app-shell chrome.
 // MemoryRouter supplies the router context.
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
 import { render } from 'ink-testing-library';
 import { Text } from 'ink';
@@ -14,6 +14,7 @@ import { MemoryRouter, useLocation } from 'react-router';
 import type { RemoteRepository } from '../../../../domains/remotes/application/RemoteRepository.js';
 import type { ValidateSshConnection } from '../../../../domains/remotes/application/ValidateSshConnection.js';
 import type { Remote, RemoteSummary, SshTestConfig } from '../../../../domains/remotes/domain/types.js';
+import { useEditingStore } from '../../../shared/lib/editing-store.js';
 import { KEY_FLUSH_MS, pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
 import { RemotesMenuPage } from './RemotesMenuPage.js';
 
@@ -116,7 +117,16 @@ const renderRemotes = (repository: RemoteRepository, initialActive?: string) =>
     <MemoryRouter initialEntries={['/remotes']}>
       <Harness repository={repository} initialActive={initialActive} />
     </MemoryRouter>
-  );describe('RemotesMenuPage (selection screen)', () => {
+  );
+
+beforeEach(() => {
+  // 9.20: the editing flag is a module-scope zustand store now — a leaked
+  // password-gate mount (EditingGuard isEditing) must not dead-key the next
+  // test's menu bindings (these tests never unmount their instances).
+  useEditingStore.setState({ isEditing: false });
+});
+
+describe('RemotesMenuPage (selection screen)', () => {
   it('lists the configured remotes with name and endpoint', async () => {
     const { lastFrame } = renderRemotes(fakeRepository(REMOTES));
     const frame = await settle(lastFrame, f => f.includes('Select a remote'), 1000);

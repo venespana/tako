@@ -10,14 +10,14 @@ import { useApp } from 'ink';
 
 import { useLocation, useNavigate } from 'react-router';
 
-import { useEditing } from './editing-context.js';
+import { useEditingStore } from './editing-store.js';
 import { useKeyBindings } from './use-key-bindings.js';
 
 export function useGlobalKeys(isActive: boolean = true): void {
   const { exit } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isEditing } = useEditing();
+  const isEditing = useEditingStore(state => state.isEditing);
 
   const active = isActive && !isEditing;
 

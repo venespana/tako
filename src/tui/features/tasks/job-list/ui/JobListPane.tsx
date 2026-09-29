@@ -10,7 +10,7 @@ import { Box, Text } from 'ink';
 
 import type { JobView } from '../../../../../domains/agent/domain/types.js';
 import { JobRow } from '../../../../entities/job/index.js';
-import { useEditing } from '../../../../shared/lib/editing-context.js';
+import { useEditingStore } from '../../../../shared/lib/editing-store.js';
 import { useKeyBindings } from '../../../../shared/lib/use-key-bindings.js';
 
 export interface JobListPaneProps {
@@ -20,7 +20,7 @@ export interface JobListPaneProps {
 
 export function JobListPane({ jobs, onSelect }: JobListPaneProps): React.ReactElement {
   const [cursor, setCursor] = useState(0);
-  const { isEditing } = useEditing();
+  const isEditing = useEditingStore(state => state.isEditing);
 
   const move = useCallback(
     (delta: number) => {
@@ -47,7 +47,8 @@ export function JobListPane({ jobs, onSelect }: JobListPaneProps): React.ReactEl
   if (jobs.length === 0) {
     return (
       <Box flexDirection='column'>
-        <Text dimColor>No jobs yet — press n to create one.</Text>
+        {/* 9.15a: the create hint (n new) lives in the footer. */}
+        <Text dimColor>No jobs yet.</Text>
       </Box>
     );
   }

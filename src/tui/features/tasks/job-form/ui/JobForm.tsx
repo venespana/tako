@@ -1,22 +1,28 @@
-// features/tasks/job-form/ui/JobForm.tsx — create/edit job form (task 8.6).
-// Single-screen form driven by the closed job taxonomy: type toggle (t),
-// lifecycle op cycle (o), scope toggles (1/2/3), Tab between text fields,
-// Enter submits, Esc cancels. Validation feedback is the model's
-// validateJobForm — invalid forms simply cannot submit (buildJobDefinition
-// returns null).
-import { useMemo, useState } from 'react';
+// features/tasks/job-form/ui/JobForm.tsx — create/edit job form (task 8.6,
+// reworked by 9.15b to the AddRemoteWizard progressive-disclosure pattern):
+// ONE field at a time (id → type → the chosen type's branch → schedule), the
+// first field focused on entry, each step confirmed with Enter, completed
+// fields collapsed into one-line done rows. The quick-edit char bindings
+// (t/o/1-3) are GONE — 9.15c: with the form open, character keys are data
+// entry for the focused input alone, and Esc is the ONLY cancel (bound below;
+// EditingGuard keeps the app-level/global handlers off while the form is
+// open). The Select/MultiSelect steps commit on their own Enter handling, so
+// the form binds no Enter of its own — a keypress is never processed twice.
+// Validation feedback stays the model's validateJobForm: an invalid step
+// cannot be confirmed, so submit is only reachable with a fully valid form.
+import { useCallback, useMemo, useState } from 'react';
 
 import { Box, Text } from 'ink';
 
-import { TextInput } from '@inkjs/ui';
+import { MultiSelect, Select, TextInput } from '@inkjs/ui';
 
 import type { JobDefinition, StackLifecycleOp, PruneScopes } from '../../../../../domains/agent/domain/types.js';
 import { useKeyBindings } from '../../../../shared/lib/use-key-bindings.js';
 import { EditingGuard } from '../../../../shared/ui/EditingGuard.js';
 import {
+  LIFECYCLE_OP_OPTIONS,
   SCOPE_OPTIONS,
   buildJobDefinition,
-  toggleScope,
   validateJobForm,
   type JobFormType,
   type JobFormValues,
@@ -30,152 +36,199 @@ export interface JobFormProps {
   readonly onSubmit: (job: JobDefinition) => void;
 }
 
-type TextField = 'id' | 'stackDir' | 'cron';
+/** The wizard steps; the type step decides which branch follows it. */
+type Step = 'id' | 'type' | 'op' | 'stackDir' | 'scopes' | 'schedule';
 
-const OP_CYCLE: readonly StackLifecycleOp[] = ['up', 'down', 'pull', 'restart'];
+/** Steps revealed after the type step, per job type. */
+function stepsForType(type: JobFormType): Step[] {
+  return type === 'prune' ? ['scopes', 'schedule'] : ['op', 'stackDir', 'schedule'];
+}
+
+const STEP_LABELS: Record<Step, string> = {
+  id: 'id:',
+  type: 'type:',
+  op: 'op:',
+  stackDir: 'stack dir:',
+  scopes: 'scopes:',
+  schedule: 'schedule:',
+};
+
+/** One-line row for a completed field (the wizard's DoneRow). */
+function DoneRow({ label, value }: { label: string; value: string }) {
+  return (
+    <Text dimColor>
+      {label} {value}
+    </Text>
+  );
+}
+
+/** Value a completed step shows on its done row. */
+function doneValue(step: Step, values: JobFormValues): string {
+  switch (step) {
+    case 'id':
+      return values.id === '' ? '—' : values.id;
+    case 'type':
+      return values.type;
+    case 'op':
+      return values.op;
+    case 'stackDir':
+      return values.stackDir === '' ? '—' : values.stackDir;
+    case 'scopes':
+      return values.scopes.length === 0 ? '—' : values.scopes.join(', ');
+    case 'schedule':
+      return values.cron;
+  }
+}
+
+// Select steps follow the AddRemoteWizard pattern: NO defaultValue — the
+// component's Enter handler only fires onChange when the committed value
+// CHANGES, so seeding it would make "Enter keeps the current value" a no-op.
+// The current value is offered FIRST instead: Select always highlights its
+// first option, so plain Enter keeps the existing choice and the arrow keys
+// switch it (edit-friendly; create starts on the canonical default).
+function typeOptions(current: JobFormType): { label: string; value: JobFormType }[] {
+  const prune = { label: 'prune — safe scopes only', value: 'prune' as const };
+  const lifecycle = {
+    label: 'stack-lifecycle — up/down/pull/restart one stack',
+    value: 'stack-lifecycle' as const,
+  };
+  return current === 'prune' ? [prune, lifecycle] : [lifecycle, prune];
+}
+
+function opOptions(current: StackLifecycleOp): { label: string; value: StackLifecycleOp }[] {
+  const currentOption = LIFECYCLE_OP_OPTIONS.find(option => option.value === current);
+  const rest = LIFECYCLE_OP_OPTIONS.filter(option => option.value !== current);
+  return currentOption === undefined ? [...rest] : [currentOption, ...rest];
+}
 
 export function JobForm({ initial, onCancel, onSubmit }: JobFormProps): React.ReactElement {
   const [values, setValues] = useState<JobFormValues>(initial);
-  const [activeField, setActiveField] = useState<TextField | null>(null);
+  const [step, setStep] = useState<Step>('id');
   const errors = useMemo(() => validateJobForm(values), [values]);
-  const isLifecycle = values.type === 'stack-lifecycle';
-  const isPrune = values.type === 'prune';
 
-  const cycleType = (): void => {
-    setValues(previous => ({
-      ...previous,
-      type: (previous.type === 'prune' ? 'stack-lifecycle' : 'prune') as JobFormType,
-    }));
-  };
+  // Esc is the ONLY cancel (9.15c). Deliberately NO char bindings and no Tab
+  // navigation: one field is active at a time, so there is nothing to cycle.
+  useKeyBindings({ cancel: onCancel }, { isActive: true });
 
-  const cycleOp = (): void => {
-    setValues(previous => {
-      const index = OP_CYCLE.indexOf(previous.op);
-      return { ...previous, op: OP_CYCLE[(index + 1) % OP_CYCLE.length] ?? 'up' };
-    });
-  };
-
-  const toggleScopeValue = (scope: PruneScopes): void => {
-    setValues(previous => ({ ...previous, scopes: toggleScope(previous.scopes, scope) }));
-  };
-
-  const submit = (): void => {
-    const job = buildJobDefinition(values);
-    if (job === null) return; // errors are already on screen — fix and retry
-    onSubmit(job);
-  };
-
-  // Tab navigation over the form's fields (Shift-Tab goes back; from no
-  // active field, Tab enters the first).
-  const advanceField = (back: boolean): void => {
-    const fields: TextField[] = isLifecycle ? ['id', 'stackDir', 'cron'] : ['id', 'cron'];
-    const index = activeField === null ? -1 : fields.indexOf(activeField);
-    const next = back ? (index <= 0 ? fields.length - 1 : index - 1) : (index + 1) % fields.length;
-    setActiveField(fields[next] ?? 'id');
-  };
-
-  const toggleScopeByDigit = (digit: 1 | 2 | 3): void => {
-    if (!isPrune) return;
-    const scope = SCOPE_OPTIONS[digit - 1]?.value;
-    if (scope !== undefined) toggleScopeValue(scope);
-  };
-
-  // When no text field is active the hotkeys own the keyboard (dispatched by
-  // the shared useKeyBindings hook, 9.9). Char bindings carry their own
-  // context guards: 'o' only makes sense for lifecycle jobs, digits only for
-  // prune jobs — an unguarded context is a no-op, like the unbound case.
-  useKeyBindings(
-    {
-      tab: () => advanceField(false),
-      shiftTab: () => advanceField(true),
-      cancel: onCancel,
-      confirm: submit,
-      chars: {
-        t: cycleType,
-        o: () => {
-          if (isLifecycle) cycleOp();
-        },
-        '1': () => toggleScopeByDigit(1),
-        '2': () => toggleScopeByDigit(2),
-        '3': () => toggleScopeByDigit(3),
-      },
-    },
-    { isActive: activeField === null }
+  // STABLE onChange handlers (9.10): @inkjs/ui's TextInput re-runs its onChange
+  // effect whenever the handler identity changes — inline arrows here would
+  // loop onChange → setState → re-render → onChange while typing.
+  const onIdChange = useCallback((id: string) => setValues(previous => ({ ...previous, id })), []);
+  const onStackDirChange = useCallback((stackDir: string) => setValues(previous => ({ ...previous, stackDir })), []);
+  const onCronChange = useCallback((cron: string) => setValues(previous => ({ ...previous, cron })), []);
+  const onScopesChange = useCallback(
+    (scopes: string[]) => setValues(previous => ({ ...previous, scopes: scopes as PruneScopes[] })),
+    []
   );
+  // Select commits on Enter; the type commit also opens the type's branch.
+  const onTypeChange = useCallback((value: string) => {
+    const type = value as JobFormType;
+    setValues(previous => ({ ...previous, type }));
+    setStep(stepsForType(type)[0] ?? 'schedule');
+  }, []);
+  const onOpChange = useCallback((value: string) => {
+    setValues(previous => ({ ...previous, op: value as StackLifecycleOp }));
+    setStep('stackDir');
+  }, []);
+
+  const submit = useCallback((): void => {
+    const job = buildJobDefinition(values);
+    if (job === null) return; // unreachable: every step gates its own error
+    onSubmit(job);
+  }, [values, onSubmit]);
+
+  const confirmId = useCallback((): void => {
+    if (errors.id === undefined) setStep('type');
+  }, [errors.id]);
+  const confirmStackDir = useCallback((): void => {
+    if (errors.stackDir === undefined) setStep('schedule');
+  }, [errors.stackDir]);
+  const confirmScopes = useCallback((): void => {
+    if (errors.scopes === undefined) setStep('schedule');
+  }, [errors.scopes]);
+  const confirmSchedule = useCallback((): void => {
+    if (errors.cron === undefined) submit();
+  }, [errors.cron, submit]);
+
+  // Reveal order for the CURRENT type; done rows are everything before step.
+  const order = useMemo<readonly Step[]>(() => ['id', 'type', ...stepsForType(values.type)], [values.type]);
+  const stepIndex = order.indexOf(step);
+  const doneSteps = order.slice(0, stepIndex);
 
   return (
-    <EditingGuard isEditing={activeField !== null}>
+    <EditingGuard isEditing={true}>
       <Box flexDirection='column' gap={0}>
         <Text bold>{initial.id === '' ? 'New job' : `Edit job ${initial.id}`}</Text>
 
-        <Text dimColor>id (lowercase-digits-dashes)</Text>
-        {activeField === 'id' ? (
-          <TextInput
-            defaultValue={values.id}
-            placeholder='nightly-prune'
-            onChange={id => setValues(previous => ({ ...previous, id }))}
-            onSubmit={() => setActiveField(null)}
-          />
-        ) : (
-          <Text> {values.id === '' ? '—' : values.id}</Text>
+        {doneSteps.map(done => (
+          <DoneRow key={done} label={STEP_LABELS[done]} value={doneValue(done, values)} />
+        ))}
+
+        {step === 'id' && (
+          <Box flexDirection='column'>
+            <Text>Job id (lowercase letters, digits, inner dashes):</Text>
+            <TextInput
+              defaultValue={values.id}
+              placeholder='nightly-prune'
+              onChange={onIdChange}
+              onSubmit={confirmId}
+            />
+            {errors.id !== undefined && <Text color='red'> {errors.id}</Text>}
+          </Box>
         )}
-        {errors.id !== undefined && <Text color='red'> {errors.id}</Text>}
 
-        <Text>
-          type: {values.type} <Text dimColor>(t to toggle)</Text>
-        </Text>
+        {step === 'type' && (
+          <Box flexDirection='column'>
+            <Text>Job type:</Text>
+            <Select options={typeOptions(values.type)} onChange={onTypeChange} />
+          </Box>
+        )}
 
-        {isLifecycle && (
-          <>
-            <Text>
-              op: {values.op} <Text dimColor>(o to cycle)</Text>
-            </Text>
-            <Text dimColor>stack dir</Text>
-            {activeField === 'stackDir' ? (
-              <TextInput
-                defaultValue={values.stackDir}
-                placeholder='/srv/stacks/caddy'
-                onChange={stackDir => setValues(previous => ({ ...previous, stackDir }))}
-                onSubmit={() => setActiveField(null)}
-              />
-            ) : (
-              <Text> {values.stackDir === '' ? '—' : values.stackDir}</Text>
-            )}
+        {step === 'op' && (
+          <Box flexDirection='column'>
+            <Text>Operation:</Text>
+            <Select options={opOptions(values.op)} onChange={onOpChange} />
+          </Box>
+        )}
+
+        {step === 'stackDir' && (
+          <Box flexDirection='column'>
+            <Text>Compose stack directory:</Text>
+            <TextInput
+              defaultValue={values.stackDir}
+              placeholder='/srv/stacks/caddy'
+              onChange={onStackDirChange}
+              onSubmit={confirmStackDir}
+            />
             {errors.stackDir !== undefined && <Text color='red'> {errors.stackDir}</Text>}
-          </>
+          </Box>
         )}
 
-        {isPrune && (
-          <>
-            <Text dimColor>scopes — 1/2/3 toggles; unsafe scopes do not exist in this list</Text>
-            {SCOPE_OPTIONS.map((option, index) => (
-              <Text key={option.value}>
-                {' '}
-                {values.scopes.includes(option.value) ? '[x]' : '[ ]'} ({index + 1}) {option.label}
-              </Text>
-            ))}
+        {step === 'scopes' && (
+          <Box flexDirection='column'>
+            <Text>Prune scopes (at least one):</Text>
+            <MultiSelect
+              defaultValue={values.scopes}
+              options={[...SCOPE_OPTIONS]}
+              onChange={onScopesChange}
+              onSubmit={confirmScopes}
+            />
             {errors.scopes !== undefined && <Text color='red'> {errors.scopes}</Text>}
-          </>
+          </Box>
         )}
 
-        <Text dimColor>schedule (5-field cron, server local time)</Text>
-        {activeField === 'cron' ? (
-          <TextInput
-            defaultValue={values.cron}
-            placeholder='0 4 * * *'
-            onChange={cron => setValues(previous => ({ ...previous, cron }))}
-            onSubmit={() => setActiveField(null)}
-          />
-        ) : (
-          <Text> {values.cron === '' ? '—' : values.cron}</Text>
+        {step === 'schedule' && (
+          <Box flexDirection='column'>
+            <Text>Schedule (5-field cron, server local time):</Text>
+            <TextInput
+              defaultValue={values.cron}
+              placeholder='0 4 * * *'
+              onChange={onCronChange}
+              onSubmit={confirmSchedule}
+            />
+            {errors.cron !== undefined && <Text color='red'> {errors.cron}</Text>}
+          </Box>
         )}
-        {errors.cron !== undefined && <Text color='red'> {errors.cron}</Text>}
-
-        <Box height={1} />
-        <Text dimColor>
-          tab fields · enter submit · esc cancel
-          {activeField !== null ? ' · enter confirms field' : ' · t/o/1-3 quick edits'}
-        </Text>
       </Box>
     </EditingGuard>
   );

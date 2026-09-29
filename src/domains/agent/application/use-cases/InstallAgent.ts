@@ -47,6 +47,25 @@ export function decideBinarySource(clientArch: AgentArch, serverArch: AgentArch)
     : { kind: 'download-release-asset', asset: serverArch === 'arm64' ? 'tako-linux-arm64' : 'tako-linux-x64' };
 }
 
+/**
+ * Distribution decision for the RUNNING client binary (never copy cross-OS).
+ * A non-linux client binary cannot run on the server even when the CPU arch
+ * matches, so it forces the per-arch Releases download path. Shared by the
+ * CLI handler and the TUI's in-process install (9.19).
+ */
+export function decideClientInstallSource(
+  clientPlatform: string,
+  clientArch: string,
+  serverArch: AgentArch
+): BinarySource {
+  if (clientPlatform !== 'linux') {
+    const mismatchedClientArch: AgentArch = serverArch === 'arm64' ? 'x64' : 'arm64';
+    return decideBinarySource(mismatchedClientArch, serverArch);
+  }
+  const client = clientArch === 'arm64' ? 'arm64' : 'x64';
+  return decideBinarySource(client, serverArch);
+}
+
 /** Install-time linger decision (D8): by-Tako is recorded, never guessed. */
 export interface LingerInstallDecision {
   readonly action: 'enable-linger' | 'keep-linger';

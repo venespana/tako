@@ -17,7 +17,8 @@ export function DryRunPreviewPane({ run }: DryRunPreviewPaneProps): React.ReactE
   if (run === null) {
     return (
       <Box flexDirection='column'>
-        <Text dimColor>No dry-run yet — press r to preview this job.</Text>
+        {/* 9.15a: the trigger hint (r dry-run) lives in the footer. */}
+        <Text dimColor>No dry-run yet for this job.</Text>
       </Box>
     );
   }
@@ -34,7 +35,7 @@ export function DryRunPreviewPane({ run }: DryRunPreviewPaneProps): React.ReactE
         </Text>
       ))}
       <Text> </Text>
-      <Text>press a to APPLY this job now (separate, explicit action)</Text>
+      <Text dimColor>applying is a separate, explicit action — review this report first</Text>
     </Box>
   );
 }

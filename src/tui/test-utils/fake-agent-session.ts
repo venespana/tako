@@ -4,7 +4,7 @@
 // importable only from test files.
 import type { AgentHandshake, AgentSession } from '../../domains/agent/application/AgentTransport.js';
 import type { AgentFrame, AgentRequestMap, AgentRequestType } from '../../domains/agent/domain/protocol.js';
-import type { TasksGateway } from '../features/tasks/job-list/model/tasks-store.js';
+import type { AgentInstallOutcome, TasksGateway } from '../features/tasks/job-list/model/tasks-store.js';
 
 export class FakeAgentSession implements AgentSession {
   handshake: AgentHandshake = { ack: { agentVersion: '0.1.2', protocol: 1, agentStartId: 'start-test' } };
@@ -48,6 +48,13 @@ export class FakeTasksGateway implements TasksGateway {
   cursor = 0;
   readonly savedCursors: number[] = [];
   connectError: Error | null = null;
+  /** Number of install() attempts (auto or r-retry). */
+  installCalls = 0;
+  /**
+   * Scripted install behavior (9.19): receives the gateway's onLine sink and
+   * resolves the outcome. Default — no lines, immediate success.
+   */
+  installScript: ((onLine: (line: string) => void) => Promise<AgentInstallOutcome>) | null = null;
 
   constructor(remote = 'nas') {
     this.remote = remote;
@@ -61,6 +68,12 @@ export class FakeTasksGateway implements TasksGateway {
     this.connectCalls += 1;
     if (this.connectError !== null) throw this.connectError;
     return this.session;
+  }
+
+  async install(onLine: (line: string) => void): Promise<AgentInstallOutcome> {
+    this.installCalls += 1;
+    if (this.installScript !== null) return this.installScript(onLine);
+    return { ok: true };
   }
 
   loadCursor(): number {

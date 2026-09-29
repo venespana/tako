@@ -28,6 +28,7 @@ import {
   applyRunCompleted,
   mergeRuns,
   useTasksStore,
+  type AgentInstallOutcome,
   type TasksGateway,
 } from './tasks-store.js';
 
@@ -100,6 +101,13 @@ class FakeGateway implements TasksGateway {
     this.connectCalls += 1;
     if (this.connectError !== null) throw this.connectError;
     return this.session;
+  }
+
+  // 9.19: part of the port — irrelevant to the store tests (no install path
+  // runs here), so a never-used stub satisfies the interface honestly.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async install(_onLine: (line: string) => void): Promise<AgentInstallOutcome> {
+    return { ok: true };
   }
 
   loadCursor(): number {

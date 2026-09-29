@@ -2,7 +2,7 @@
 // while a text input is active. Wraps any text-input-consuming component.
 import { useEffect } from 'react';
 
-import { useEditing } from '../../shared/lib/editing-context.js';
+import { useEditingStore } from '../lib/editing-store.js';
 
 interface EditingGuardProps {
   children: React.ReactElement;
@@ -11,7 +11,7 @@ interface EditingGuardProps {
 }
 
 export function EditingGuard({ children, isEditing }: EditingGuardProps): React.ReactElement {
-  const { setEditing } = useEditing();
+  const setEditing = useEditingStore(state => state.setEditing);
 
   useEffect(() => {
     setEditing(isEditing);

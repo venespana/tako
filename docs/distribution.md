@@ -13,8 +13,9 @@
 > workstation (e.g. glibc 2.44) produces a binary that dies with
 > `GLIBC_x.y not found` on stable servers. Build inside an older-glibc environment when
 > the binary will be copied to other hosts — the release workflow builds in a
-> `debian:bookworm` container (glibc 2.36 floor); locally:
-> `docker run --rm -v "$PWD":/w -w /w oven/bun:debian sh -c "bun install --frozen-lockfile && bun run prebuild && bun run build"`.
+> `debian:bookworm` container (glibc 2.36 floor); locally, `bun run build:linux`
+> (or `build:linux:arm64`) runs the same compile inside that container, so a local
+> build has the identical floor as CI.
 > `agent install` probes runnability right after placing the binary and refuses with an
 > actionable diagnosis when the target cannot execute it.
 

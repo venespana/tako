@@ -26,7 +26,9 @@
     "start": "bun ./src/index.tsx",
     "prebuild": "bun scripts/generate-version.ts",
     "prestart": "bun scripts/generate-routes.ts",
-    "build": "bun build src/index.tsx --compile --target=bun-linux-x64-modern --outfile dist/tako-linux-x64"
+    "build": "bun build src/index.tsx --compile --target=bun-linux-x64-modern --outfile dist/tako-linux-x64",
+    "build:linux": "docker run --rm -v \"$PWD\":/w -w /w oven/bun:debian sh -c \"bun install --frozen-lockfile && bun run prebuild && bun build src/index.tsx --compile --target=bun-linux-x64-modern --outfile dist/tako-linux-x64\"",
+    "build:linux:arm64": "docker run --rm -v \"$PWD\":/w -w /w oven/bun:debian sh -c \"bun install --frozen-lockfile && bun run prebuild && bun build src/index.tsx --compile --target=bun-linux-arm64 --outfile dist/tako-linux-arm64\""
   },
   "dependencies": {
     "@inkjs/ui": "^2.0.0",

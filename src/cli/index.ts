@@ -3,6 +3,8 @@
 
 import { Command } from 'commander';
 
+import { SESSION_PASSWORD_ENV } from '../shared/lib/session-password.js';
+
 /**
  * Build the CLI program with every command registered LAZILY: command
  * handlers load via dynamic import() inside their actions, so no TUI/Ink
@@ -70,7 +72,11 @@ export function buildProgram(): Command {
 
   agent
     .command('install')
-    .description('Install (or upgrade) the agent on a remote: preflight → binary → unit + linger → probe')
+    .description(
+      `Install (or upgrade) the agent on a remote: preflight → binary → unit + linger → probe. ` +
+        `Interactive-credential remotes read the session password from ${SESSION_PASSWORD_ENV} in the environment ` +
+        '(terminal runs; the TUI installs in-process and needs no env var); passwords are never passed on the command line'
+    )
     .argument('<remote>', 'configured remote name')
     .action(async (remoteName: string) => {
       try {

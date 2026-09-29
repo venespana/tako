@@ -16,4 +16,5 @@ export type {
   TasksActions,
   TasksAgentInfo,
   TasksGateway,
+  AgentInstallOutcome,
 } from './model/tasks-store.js';

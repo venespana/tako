@@ -26,18 +26,13 @@ describe('getRegistry', () => {
     expect(local.items[0]!.enabledWhen).toBe('always');
   });
 
-  it('Remote group contains Select, Add, Delete and the gated Tasks entry', () => {
+  it('Remote group contains Select, Add and Delete only — no home Tasks entry (9.14d)', () => {
     const remote = getRegistry().find(g => g.id === 'remote')!;
-    expect(remote.items.map(i => i.id)).toEqual(['remote-select', 'remote-add', 'remote-delete', 'remote-tasks']);
+    expect(remote.items.map(i => i.id)).toEqual(['remote-select', 'remote-add', 'remote-delete']);
     expect(remote.items.every(i => i.kind === 'action')).toBe(true);
-    // Tasks needs an active remote; the other three are always selectable.
-    expect(remote.items.filter(i => i.enabledWhen === 'always').map(i => i.id)).toEqual([
-      'remote-select',
-      'remote-add',
-      'remote-delete',
-    ]);
-    const tasks = remote.items.find(i => i.id === 'remote-tasks')!;
-    expect(tasks.enabledWhen).toBe('hasActiveRemote');
+    // The tasks workspace is the REMOTE's menu (9.14d): every home remote
+    // entry is unconditionally selectable.
+    expect(remote.items.every(i => i.enabledWhen === 'always')).toBe(true);
   });
 
   it('Remote items route correctly', () => {
@@ -45,11 +40,14 @@ describe('getRegistry', () => {
     const select = remote.items.find(i => i.id === 'remote-select')!;
     const add = remote.items.find(i => i.id === 'remote-add')!;
     const deleteItem = remote.items.find(i => i.id === 'remote-delete')!;
-    const tasks = remote.items.find(i => i.id === 'remote-tasks')!;
     expect(select.route).toBe('/remotes');
     expect(add.route).toBe('/remotes/add');
     expect(deleteItem.route).toBe('/remotes/rm');
-    expect(tasks.route).toBe('/tasks');
+  });
+
+  it('no registry item routes to /tasks — the workspace is reached via Select (9.14d)', () => {
+    const allItems = getRegistry().flatMap(g => g.items);
+    expect(allItems.filter(i => i.route === '/tasks')).toEqual([]);
   });
 
   it('doctor action has handlerKey', () => {
@@ -60,7 +58,7 @@ describe('getRegistry', () => {
   it('no hidden unimplemented commands appear', () => {
     const allItems = getRegistry().flatMap(g => g.items);
     const ids = allItems.map(i => i.id);
-    const hidden = ['install', 'update', 'status', 'logs', 'cleanup', 'rollback', 'list', 'use', 'test'];
+    const hidden = ['install', 'update', 'status', 'logs', 'cleanup', 'rollback', 'list', 'use', 'test', 'tasks'];
     hidden.forEach(id => {
       expect(ids).not.toContain(id);
     });

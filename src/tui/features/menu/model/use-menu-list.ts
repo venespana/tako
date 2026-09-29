@@ -13,7 +13,7 @@ import { useState } from 'react';
 
 import type { ActionItem } from './menu-items.js';
 import { moveCursor } from './menu-navigation.js';
-import { useEditing } from '../../../shared/lib/editing-context.js';
+import { useEditingStore } from '../../../shared/lib/editing-store.js';
 import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 
 export interface UseMenuListOptions {
@@ -33,7 +33,7 @@ export function useMenuList(
   isActive: boolean = true
 ): MenuListController {
   const [cursor, setCursor] = useState(0);
-  const { isEditing } = useEditing();
+  const isEditing = useEditingStore(state => state.isEditing);
 
   const active = isActive && !isEditing;
 

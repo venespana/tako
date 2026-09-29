@@ -2,7 +2,7 @@
 // convention: the route handle contract, the route module contract, and the
 // helper the generated tree uses to attach components + handles. The pure
 // build-time generator functions live in scripts/generate-routes.ts.
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactElement } from 'react';
 
 import type { RouteObject } from 'react-router';
 
@@ -27,6 +27,14 @@ export interface RouteMatchLike {
 export interface RouteModule {
   default: ComponentType<unknown>;
   routeMeta?: RouteHandle;
+  /**
+   * Ink-safe error boundary for the route branch (task 9.22): react-router's
+   * DEFAULT error element renders raw text ("Unexpected Application Error!"),
+   * which crashes Ink — every route error must render inside <Text>. Declare
+   * it as a ReactElement (e.g. `<RouteErrorScreen />`); the nearest
+   * errorElement up the tree catches loader/action/render errors.
+   */
+  errorElement?: ReactElement;
 }
 
 export interface DefineRouteOptions {
@@ -52,6 +60,9 @@ export function defineRoute({ path, index, module, children }: DefineRouteOption
   if (module !== undefined) {
     route.Component = module.default;
     route.handle = module.routeMeta ?? {};
+    // 9.22: the module's Ink-safe error boundary (never react-router's
+    // default — it renders raw text and crashes Ink).
+    if (module.errorElement !== undefined) route.errorElement = module.errorElement;
   }
   if (children !== undefined) route.children = children;
   return route;
