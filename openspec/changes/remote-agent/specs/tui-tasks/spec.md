@@ -66,7 +66,7 @@ The TUI MUST treat the tasks workspace (/tasks) as the active remote's own menu:
 
 - GIVEN the selected remote's agent is not reachable
 - WHEN the workspace shows the unreachable state
-- THEN the TUI offers an install that runs the agent install command with its output streamed live, reconnects the workspace on success, and offers retry on failure
+- THEN the TUI offers an install that runs the install pipeline in-process (no child process) with its output streamed live, reconnects the workspace on success, and offers retry on failure
 
 #### Scenario: home disconnects the remote
 
@@ -89,6 +89,66 @@ The app shell MUST render the active remote below the logo (stacked, not beside 
 - GIVEN a remote selected whose agent version is not yet known
 - WHEN the header renders
 - THEN only the remote name appears under the logo
+
+### Requirement: Footer-Only Key Hints
+
+All key hints MUST render exclusively in the footer bar, ordered left-to-right as declared per page, with `back` and `quit` always last. Page bodies MUST NOT embed key instructions. While a form is open, the footer MUST suppress `back`/`quit` (character keys are data entry; Esc is the only cancel).
+
+#### Scenario: back and quit always last
+
+- GIVEN any page with key hints
+- WHEN the footer renders
+- THEN every hint appears in the footer bar in declared order and `back` and `quit` are the last two hints
+
+#### Scenario: no key instructions in page bodies
+
+- GIVEN the tasks workspace shows an empty job list
+- WHEN the body renders
+- THEN it shows only the state ("No jobs yet") and the creation hint lives in the footer, not the body
+
+#### Scenario: form mode suppresses back and quit
+
+- GIVEN a job form is open
+- WHEN the footer renders
+- THEN `back` and `quit` are absent, character keys reach the input as data, and Esc is the only cancel
+
+### Requirement: Progressive Job Form
+
+The job form MUST follow the wizard pattern: one field at a time, the first field focused on entry, Enter confirming each step, and completed fields collapsing above the active one.
+
+#### Scenario: first field focused on entry
+
+- GIVEN the user opens the job form
+- WHEN it renders
+- THEN the first field (id) is the single active prompt
+
+#### Scenario: enter confirms each step
+
+- GIVEN the job form is mid-flow
+- WHEN the user confirms a field with Enter
+- THEN that field collapses as completed and the next field becomes the active prompt
+
+#### Scenario: completed fields collapse
+
+- GIVEN the job form has confirmed fields
+- WHEN a later field is active
+- THEN earlier fields render as collapsed summaries, not editable prompts
+
+### Requirement: In-Process Install from the Workspace
+
+The tasks workspace's install MUST run the same install pipeline as the CLI, in-process (no child process), streaming each progress line into the install panel; the session password MUST travel as connection material only (never argv, never environment).
+
+#### Scenario: same pipeline as the CLI
+
+- GIVEN the agent is not installed on the active remote
+- WHEN the user starts the install from the workspace
+- THEN the install runs in-process through the same pipeline the CLI uses, with its progress lines streamed live into the panel
+
+#### Scenario: session password is connection material only
+
+- GIVEN an interactive-credential remote with a session password held by the TUI
+- WHEN the in-process install runs
+- THEN the password is passed as connection material inside the process and never appears in argv or environment variables
 
 ## Out of Scope
 

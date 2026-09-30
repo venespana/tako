@@ -46,6 +46,10 @@ const POLL_INTERVAL_MS = 1_000;
 const MAX_POLL_ATTEMPTS = 3;
 const DIAGNOSTIC_COMMANDS = [
   'systemctl --user status tako-agent.service --no-pager -l',
+  // 9.13: the ~/.tako listing NAMES a missing agent.sock in the failure
+  // report (the deleted-socket scenario fails the channel open, and without
+  // the listing nothing in the diagnostics points at the socket).
+  'ls -la "$HOME/.tako/"',
   'journalctl --user -u tako-agent.service -n 50 --no-pager',
   'loginctl show-user "$USER" --property=Linger',
   'busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager KillUserProcesses',

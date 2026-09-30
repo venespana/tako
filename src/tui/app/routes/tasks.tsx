@@ -28,6 +28,7 @@ import { SshRemoteCommandRunner } from '../../../domains/remotes/infrastructure/
 import { StreamLocalAgentChannel } from '../../../domains/remotes/infrastructure/StreamLocalAgentChannel.js';
 import { VERSION } from '../../../shared/lib/version.js';
 import type { AgentInstallOutcome, TasksGateway } from '../../features/tasks/job-list/index.js';
+import { assertAgentSocketPresent } from '../../features/tasks/job-list/index.js';
 import { TasksPage } from '../../pages/tasks/index.js';
 import { useAppRuntimeStore } from '../providers/app-runtime-store.js';
 
@@ -127,6 +128,17 @@ function buildTasksGateway(remote: string, sessionPassword: string | undefined):
       };
       const manager = new SshConnectionManager(config);
       const runner = new SshRemoteCommandRunner(manager);
+      // 9.17: probe the socket over exec BEFORE opening the transport channel
+      // — a missing socket is the EXPECTED pre-install state, and it must
+      // surface as the typed friendly error (the install panel consumes it),
+      // not the cryptic channel-open failure. Other transport failures keep
+      // their own messages.
+      try {
+        await assertAgentSocketPresent(runner, remote);
+      } catch (error) {
+        await manager.end();
+        throw error;
+      }
       const transport = new StreamLocalAgentTransport({
         channel: new StreamLocalAgentChannel(manager, runner),
         clientVersion: VERSION,

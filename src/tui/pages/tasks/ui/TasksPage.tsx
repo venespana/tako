@@ -48,15 +48,19 @@ export function TasksPage({ gateway, onAgentVersion }: TasksPageProps): React.Re
   const remove = useTasksStore(state => state.remove);
   const trigger = useTasksStore(state => state.trigger);
   const upsert = useTasksStore(state => state.upsert);
+  // 9.21: actions come from selector hooks (zustand actions are
+  // identity-stable) — components use hooks, never getState().
+  const connect = useTasksStore(state => state.connect);
+  const disconnect = useTasksStore(state => state.disconnect);
 
   // Connect on mount, disconnect on unmount (session lifetime == page life).
   useEffect(() => {
     if (gateway === null) return;
-    void useTasksStore.getState().connect(gateway);
+    void connect(gateway);
     return () => {
-      void useTasksStore.getState().disconnect();
+      void disconnect();
     };
-  }, [gateway]);
+  }, [gateway, connect, disconnect]);
 
   // 9.14a: the handshake's agent version rides up to the shell header.
   const publishAgentVersion = useCallback((version: string) => onAgentVersion?.(version), [onAgentVersion]);
@@ -93,8 +97,8 @@ export function TasksPage({ gateway, onAgentVersion }: TasksPageProps): React.Re
   // 9.14b reconnect: a fresh handshake over a NEW connection (the gateway
   // builds a fresh SSH stack per connect call).
   const handleInstalled = useCallback(() => {
-    if (gateway !== null) void useTasksStore.getState().connect(gateway);
-  }, [gateway]);
+    if (gateway !== null) void connect(gateway);
+  }, [gateway, connect]);
 
   // 9.19: the install runs IN-PROCESS through the gateway (the shim composes
   // the shared agent pipeline over the same SSH stack) — the panel only sees

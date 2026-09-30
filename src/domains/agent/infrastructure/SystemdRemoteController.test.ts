@@ -133,6 +133,17 @@ describe('SystemdRemoteController — systemd commands', () => {
     expect(commands.some(command => command.startsWith('rm -f'))).toBe(true);
   });
 
+  it('9.13: tryRestartUnit issues systemctl --user try-restart (revives a stale ACTIVE unit; no-ops when inactive)', async () => {
+    const { run } = createRunner(() => ok());
+    const controller = new SystemdRemoteController({ runner: { run } });
+
+    await controller.tryRestartUnit();
+
+    expect(run.mock.calls.map(([command]) => command as string)).toContain(
+      'systemctl --user try-restart tako-agent.service'
+    );
+  });
+
   it('surfaces systemctl failures with stderr and the remedy hint', async () => {
     const { run } = createRunner(command =>
       command.includes('enable') ? fail('Failed to connect to bus: $XDG_RUNTIME_DIR not set') : ok()

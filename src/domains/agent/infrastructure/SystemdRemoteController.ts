@@ -124,6 +124,22 @@ export class SystemdRemoteController {
     await this.#run(`systemctl --user enable --now ${AGENT_UNIT_NAME}`);
   }
 
+  /**
+   * 9.13: restart the unit ONLY when it is already active (`try-restart`
+   * no-ops otherwise). `enable --now` cannot revive a stale ACTIVE unit
+   * serving a deleted socket path — the reinstall must restart it to pick up
+   * the fresh binary and re-create the socket listener.
+   */
+  async tryRestartUnit(): Promise<void> {
+    await this.#run(`systemctl --user try-restart ${AGENT_UNIT_NAME}`);
+  }
+
+  /** Enable WITHOUT starting — pairs with try-restart to preserve boot-start
+   * for a unit that was running but manually started (not enabled). */
+  async enableUnitForBoot(): Promise<void> {
+    await this.#run(`systemctl --user enable ${AGENT_UNIT_NAME}`);
+  }
+
   async disableUnit(): Promise<void> {
     await this.#run(`systemctl --user disable --now ${AGENT_UNIT_NAME}`);
   }

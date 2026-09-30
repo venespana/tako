@@ -204,6 +204,45 @@ describe('SurviveDisconnectProber — failure paths (never report success)', () 
     expect(result.reason).toMatch(/handshake|connect/i);
   });
 
+  it('9.13: diagnostics include the ~/.tako listing so a missing socket is NAMED in the failure report', async () => {
+    const prober = new SurviveDisconnectProber({
+      closeInstaller: async () => undefined,
+      openVerifier: async () => ({
+        runner: createRunner(command => {
+          if (command.includes('is-active')) return ok('active\n');
+          if (command.startsWith('ls -la')) {
+            return ok('total 20\ndrwx------ 3 ops ops 4096 Sep 28 22:10 .\n-rw-r--r-- 1 ops ops 65 Sep 28 22:10 installed.sha256');
+          }
+          return ok('');
+        }),
+        // The real-world failure shape: the unit is active but the channel
+        // cannot open because the socket file is gone (deleted ~/.tako).
+        channel: {
+          open: async () => {
+            throw new Error('(SSH) Channel open failure: open failed');
+          },
+          close: async () => undefined,
+        },
+        close: async () => undefined,
+      }),
+      clientVersion: AGENT_VERSION,
+      delays: FAST_DELAYS,
+      maxPollAttempts: 1,
+      sleep: instantSleep,
+    });
+
+    const result = await prober.probe();
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.reason).toMatch(/handshake|Channel open/i);
+    // The listing command AND its output are in the report — the ABSENT
+    // agent.sock is visible by comparison (the fake dir has no socket).
+    expect(result.diagnostics).toContain('ls -la "$HOME/.tako/"');
+    expect(result.diagnostics).toContain('installed.sha256');
+    expect(result.diagnostics).not.toContain('agent.sock');
+  });
+
   it('waits after closing connection A before polling (delays honored)', async () => {
     const waited: number[] = [];
     const prober = new SurviveDisconnectProber({

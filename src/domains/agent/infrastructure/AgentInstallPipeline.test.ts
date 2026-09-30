@@ -355,6 +355,159 @@ describe('runAgentInstall — linger and polkit', () => {
   });
 });
 
+describe('runAgentInstall — 9.12 Releases fallback + 9.13 stale-unit restart', () => {
+  // 9.12: when the copy-path binary cannot execute (GLIBC floor), the
+  // per-arch Releases asset is downloaded through the SAME fallback path the
+  // arch mismatch uses, and the probe re-runs on the downloaded binary.
+  it('9.12: probe fails → Releases download succeeds → re-probe passes → install completes', async () => {
+    const DOWNLOAD_SHA = 'f'.repeat(64);
+    const harness = createHarness();
+    // Phase the fake on the number of runnability probes: probe #1 is the
+    // copy-path binary (GLIBC failure); from the record re-read onward the
+    // fallback phase is live; probe #2 sees the downloaded binary (pass).
+    let probes = 0;
+    const stateful = new ScriptedRunner(command => {
+      const isProbe = command === "'/home/ops/.tako/tako' --version";
+      if (isProbe) probes += 1;
+      const fallbackPhase = probes >= 1;
+      const fallbackPlaced = probes >= 2;
+      return happyResponses(command, {
+        "'/home/ops/.tako/tako' --version": fallbackPlaced
+          ? OK('tako agent 0.1.2\n')
+          : {
+              stdout: '',
+              stderr:
+                "/home/ops/.tako/tako: /usr/lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.44' not found (required by /home/ops/.tako/tako)",
+              exitCode: 1,
+            },
+        "sha256sum '/home/ops/.tako/tako.new'": fallbackPhase
+          ? OK(`${DOWNLOAD_SHA}  /home/ops/.tako/tako.new`)
+          : OK(`${LOCAL_SHA}  /home/ops/.tako/tako.new`),
+        "sha256sum '/home/ops/.tako/tako'": fallbackPhase
+          ? OK(`${LOCAL_SHA}  /home/ops/.tako/tako`)
+          : FAIL('No such file or directory'),
+        "cat '/home/ops/.tako/tako.new.sha256'": OK(`${DOWNLOAD_SHA}  tako-linux-x64`),
+        "cat '/home/ops/.tako/installed.sha256'": fallbackPhase
+          ? OK(`${LOCAL_SHA}  /home/ops/.tako/installed.sha256`)
+          : FAIL('No such file or directory'),
+      });
+    });
+    const captured = capture({ ...harness.deps, runner: stateful });
+
+    const exitCode = await runAgentInstall(captured);
+
+    expect(exitCode).toBe(0);
+    // The fallback downloaded the per-arch asset for the SERVER arch…
+    expect(stateful.calls).toContainEqual(
+      "curl -fsSL 'https://github.com/venespana/tako/releases/download/v0.1.2/tako-linux-x64' -o '/home/ops/.tako/tako.new'"
+    );
+    // …the runnability probe ran on BOTH binaries (copy, then downloaded)…
+    expect(stateful.calls.filter(call => call === "'/home/ops/.tako/tako' --version")).toHaveLength(2);
+    // …the flow continued past runnability (unit enabled, probe ran).
+    expect(stateful.calls.some(call => call.includes('enable --now tako-agent'))).toBe(true);
+    expect(captured.logLines.some(line => line.includes('Releases fallback'))).toBe(true);
+  });
+
+  it('9.12: download succeeds but the re-probe on the downloaded binary fails → explicit both-fail error', async () => {
+    const DOWNLOAD_SHA = 'e'.repeat(64);
+    const harness = createHarness();
+    let probes = 0;
+    const stateful = new ScriptedRunner(command => {
+      const isProbe = command === "'/home/ops/.tako/tako' --version";
+      if (isProbe) probes += 1;
+      const fallbackPhase = probes >= 1;
+      const fallbackPlaced = probes >= 2;
+      return happyResponses(command, {
+        "'/home/ops/.tako/tako' --version": fallbackPlaced
+          ? FAIL('cannot execute binary file: Exec format error')
+          : {
+              stdout: '',
+              stderr:
+                "/home/ops/.tako/tako: /usr/lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.44' not found (required by /home/ops/.tako/tako)",
+              exitCode: 1,
+            },
+        "sha256sum '/home/ops/.tako/tako.new'": fallbackPhase
+          ? OK(`${DOWNLOAD_SHA}  /home/ops/.tako/tako.new`)
+          : OK(`${LOCAL_SHA}  /home/ops/.tako/tako.new`),
+        "sha256sum '/home/ops/.tako/tako'": fallbackPhase
+          ? OK(`${LOCAL_SHA}  /home/ops/.tako/tako`)
+          : FAIL('No such file or directory'),
+        "cat '/home/ops/.tako/tako.new.sha256'": OK(`${DOWNLOAD_SHA}  tako-linux-x64`),
+        "cat '/home/ops/.tako/installed.sha256'": fallbackPhase
+          ? OK(`${LOCAL_SHA}  /home/ops/.tako/installed.sha256`)
+          : FAIL('No such file or directory'),
+      });
+    });
+    const captured = capture({ ...harness.deps, runner: stateful });
+
+    const exitCode = await runAgentInstall(captured);
+
+    console.log('DEBUG calls:', JSON.stringify(stateful.calls));
+    console.log('DEBUG errorLines:', JSON.stringify(captured.errorLines));
+    expect(exitCode).toBe(1);
+    // The downloaded binary was placed and probed…
+    expect(stateful.calls.filter(call => call === "'/home/ops/.tako/tako' --version")).toHaveLength(2);
+    // …and the explicit error names BOTH attempted paths.
+    const output = captured.errorLines.join('\n');
+    expect(output).toMatch(/Copy path/);
+    expect(output).toMatch(/Releases fallback/);
+  });
+
+  it('9.12: probe fails AND the Releases download fails → explicit error naming arch + both attempted paths', async () => {
+    const harness = createHarness();
+    const stateful = new ScriptedRunner(command =>
+      happyResponses(command, {
+        'curl -fsSL': FAIL('curl: (22) The requested URL returned error: 404'),
+        "'/home/ops/.tako/tako' --version": {
+          stdout: '',
+          stderr:
+            "/home/ops/.tako/tako: /usr/lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.44' not found (required by /home/ops/.tako/tako)",
+          exitCode: 1,
+        },
+      })
+    );
+    const captured = capture({ ...harness.deps, runner: stateful });
+
+    const exitCode = await runAgentInstall(captured);
+
+    expect(exitCode).toBe(1);
+    const output = captured.errorLines.join('\n');
+    expect(output).toContain('arch x64');
+    expect(output).toContain('Copy path');
+    expect(output).toContain('Releases fallback (tako-linux-x64)');
+    expect(output).toContain('GLIBC_2.44');
+    // Still fatal before any unit/linger mutation (9.11 semantics preserved).
+    expect(stateful.calls.some(call => call.includes('systemd/user'))).toBe(false);
+    expect(stateful.calls.some(call => call.includes('enable-linger'))).toBe(false);
+  });
+
+  // 9.13: `enable --now` no-ops on an ACTIVE unit — the stale-unit scenario
+  // (orphan process serving a deleted socket) must be revived by try-restart.
+  it('9.13: an ALREADY-ACTIVE unit is try-restarted; enable --now is skipped', async () => {
+    const harness = createHarness({
+      'systemctl --user is-active tako-agent.service': OK('active\n'),
+    });
+    const captured = capture(harness.deps);
+
+    const exitCode = await runAgentInstall(captured);
+
+    expect(exitCode).toBe(0);
+    expect(harness.runner.calls).toContainEqual('systemctl --user try-restart tako-agent.service');
+    expect(harness.runner.calls.some(call => call.includes('enable --now tako-agent'))).toBe(false);
+    expect(captured.logLines.some(line => line.includes('was already active'))).toBe(true);
+  });
+
+  it('9.13: a fresh (inactive) unit still gets enable --now, never try-restart', async () => {
+    const harness = createHarness();
+
+    const exitCode = await runAgentInstall(harness.deps);
+
+    expect(exitCode).toBe(0);
+    expect(harness.runner.calls).toContainEqual('systemctl --user enable --now tako-agent.service');
+    expect(harness.runner.calls.some(call => call.includes('try-restart'))).toBe(false);
+  });
+});
+
 describe('runAgentInstall — happy path and 6.8 tilde resolution', () => {
   it('6.8 RED: upload goes to an ABSOLUTE home-resolved staging path (sftp does not expand ~)', async () => {
     const harness = createHarness();

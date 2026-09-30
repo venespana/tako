@@ -15,7 +15,7 @@
 // and any later uninstall trust a RECORDED flag instead of guessing.
 import { RemoteInstallRecords } from './AgentInstallRecords.js';
 import { HybridBinaryProvisioner } from './HybridBinaryProvisioner.js';
-import { SurviveDisconnectProber, type VerifierConnection } from './SurviveDisconnectProber.js';
+import { SurviveDisconnectProber, isUnitActive, type VerifierConnection } from './SurviveDisconnectProber.js';
 import { SystemdRemoteController } from './SystemdRemoteController.js';
 import type { RemoteCommandRunner } from '../../remotes/application/RemoteCommandRunner.js';
 import type { RemoteFileTransfer } from '../../remotes/application/RemoteFileTransfer.js';
@@ -94,7 +94,7 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
     //    a legitimate upgrade apart from a foreign file.
     const priorInstallSha256 = await records.readInstalledSha256();
     const provisioner = new HybridBinaryProvisioner(deps.runner, deps.transfer);
-    const provision = await provisioner.provision({
+    let provision = await provisioner.provision({
       source: decideClientInstallSource(process.platform, process.arch, preflight.arch),
       version: deps.clientVersion,
       priorInstallSha256,
@@ -115,24 +115,63 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
 
     // 2b. Runnability probe: the placed binary must EXECUTE on the target.
     // A binary built on a newer distro than the server dies here with a GLIBC
-    // error; abort NOW — before any unit/linger mutation — with a diagnosis
-    // naming the missing version instead of a dead unit (task 9.11).
-    const runProbe = await deps.runner.run(`'${provision.remotePath}' --version`);
-    if (runProbe.exitCode !== 0) {
+    // error (9.11). Since 9.12 that is no longer fatal on its own: the
+    // per-arch Releases asset (built on debian:bookworm, low glibc floor) is
+    // downloaded through the SAME path the arch-mismatch fallback uses, and
+    // the probe re-runs on the downloaded binary. Only when BOTH paths fail
+    // does the install abort — naming the arch and both attempted paths —
+    // still BEFORE any unit/linger mutation.
+    const probeRunnability = async (): Promise<string> => {
+      const runProbe = await deps.runner.run(`'${provision.remotePath}' --version`);
+      if (runProbe.exitCode === 0) return '';
       const glibc = /GLIBC_[0-9.]+['`]? not found/.exec(runProbe.stderr)?.[0]?.replace(/['`]/g, '');
-      throw new Error(
-        `the placed agent binary does not run on the target` +
-          (glibc !== undefined
-            ? ` — ${glibc}: the server's glibc is older than the build machine's. Build Tako in an older-glibc environment (see docs/distribution.md) or upgrade the server, then retry`
-            : ` — stderr: ${runProbe.stderr.trim().slice(0, 200) || `exit code ${runProbe.exitCode}`}`) +
-          `. The binary stays in place for inspection; nothing else was modified`
-      );
+      return glibc !== undefined
+        ? `${glibc}: the server's glibc is older than the build machine's. Build Tako in an older-glibc environment (see docs/distribution.md) or upgrade the server`
+        : `stderr: ${runProbe.stderr.trim().slice(0, 200) || `exit code ${runProbe.exitCode}`}`;
+    };
+
+    const copyPathFailure = await probeRunnability();
+    if (copyPathFailure !== '') {
+      const asset = preflight.arch === 'arm64' ? 'tako-linux-arm64' : 'tako-linux-x64';
+      log(`the placed binary does not run on the target — attempting the Releases fallback (${asset})`);
+      let downloadFailure: string | undefined;
+      try {
+        provision = await provisioner.provision({
+          source: { kind: 'download-release-asset', asset },
+          version: deps.clientVersion,
+          // Re-read the record: it now names the binary we JUST placed, so
+          // the decoy guard sees a known prior install and allows the
+          // replacement (a stale value would refuse it as a decoy).
+          priorInstallSha256: await records.readInstalledSha256(),
+        });
+        await records.writeInstalledSha256(provision.sha256);
+        log(`fallback binary placed at ${provision.remotePath} (sha256 ${provision.sha256.slice(0, 12)}…)`);
+        const reProbeFailure = await probeRunnability();
+        if (reProbeFailure !== '') {
+          downloadFailure = `the downloaded binary also failed the runnability probe — ${reProbeFailure}`;
+        }
+      } catch (fallbackError) {
+        downloadFailure = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      }
+      if (downloadFailure !== undefined) {
+        throw new Error(
+          `the agent binary does not run on the target (arch ${preflight.arch}) — both distribution paths failed. ` +
+            `Copy path (uploaded client binary): ${copyPathFailure}. ` +
+            `Releases fallback (${asset}): ${downloadFailure}. ` +
+            `The binary stays in place for inspection; nothing else was modified`
+        );
+      }
     }
 
     // 3. Unit + daemon-reload (fixed template; foreign units are refused).
+    //    9.13: remember whether the unit was ALREADY active — read AFTER the
+    //    unit write (so the freshness of the file is settled) and BEFORE any
+    //    start mutation, because `enable --now` no-ops on an active unit and
+    //    would leave a stale process serving a deleted socket in place.
     const controller = new SystemdRemoteController({ runner: deps.runner });
     await controller.writeUnitFile();
     await controller.daemonReload();
+    const unitWasActive = await isUnitActive(deps.runner);
 
     // 4. Linger — enable only when the host did not already have it; record
     //    the by-tako marker so uninstall never has to guess (D8). If the
@@ -163,8 +202,18 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
 
     // 5. Start the unit (the placement sha was already recorded in step 2,
     //    so any failure from here on leaves a retryable witness).
-    await controller.enableUnit();
-    log('tako-agent.service started');
+    //    9.13: an ALREADY-ACTIVE unit gets try-restart (revives a stale unit
+    //    serving a deleted socket); `enable --now` stays for the fresh case.
+    if (unitWasActive) {
+      await controller.tryRestartUnit();
+      // Preserve boot-start: a unit that was running but manually started is
+      // not enabled — try-restart alone would leave it dead after a reboot.
+      await controller.enableUnitForBoot();
+      log('tako-agent.service was already active — restarted to pick up the fresh binary and socket');
+    } else {
+      await controller.enableUnit();
+      log('tako-agent.service started');
+    }
 
     // 6. Mandatory survive-disconnect probe on connection B (never skipped).
     proberRan = true;

@@ -20,16 +20,19 @@ export interface RemotesAddPageProps {
 
 export function RemotesAddPage({ addRemoteUc }: RemotesAddPageProps): React.ReactElement {
   const navigate = useNavigate();
+  // 9.21: the reset action comes from a selector hook (zustand actions are
+  // identity-stable) — components use hooks, never getState().
+  const resetWizard = useWizardStore(state => state.reset);
 
   // Fresh wizard state for every page entry (the CLI entry point does the
   // same reset before its render; unmount reset leaves the store clean for
   // the next entry).
   useEffect(() => {
-    useWizardStore.getState().reset();
+    resetWizard();
     return () => {
-      useWizardStore.getState().reset();
+      resetWizard();
     };
-  }, []);
+  }, [resetWizard]);
 
   return (
     <Box flexDirection='column' alignItems='flex-start' paddingLeft={2}>

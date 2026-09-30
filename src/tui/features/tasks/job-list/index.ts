@@ -9,6 +9,11 @@ export {
   applyRunCompleted,
   initialTasksState,
 } from './model/tasks-store.js';
+export {
+  assertAgentSocketPresent,
+  AgentNotInstalledError,
+  resolveAgentSocketPath,
+} from './model/agent-socket-probe.js';
 export type {
   TasksStore,
   TasksState,
