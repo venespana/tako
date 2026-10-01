@@ -1,6 +1,6 @@
 # CLI Spec — Commands
 
-Tako has 9 commands. The public contract is closed.
+Tako has 10 commands. The public contract is closed. (`agent` added per ADR-0015.)
 
 ## Command set
 
@@ -15,6 +15,7 @@ tako status [--host X]            # non-interactive table
 tako logs <stack> [--host X] [-f]
 tako cleanup [--host X]           # safe prune
 tako rollback <stack> [--to <tag>]
+tako agent <run|install|uninstall|status>
 ```
 
 ## Detail per command
@@ -89,6 +90,17 @@ Safe prune:
 ### `tako rollback <stack> [--to <tag>]`
 
 Redeploy of a previous tag. If `--to` is not specified, it offers a list of available tags.
+
+### `tako agent <subcommand>`
+
+Persistent agent family on managed servers (ADR-0015). One subcommand runs on the server; three manage it from the client over SSH.
+
+- `run`: agent-mode daemon (server). Started by the `systemd --user` unit (`tako-agent.service`): binds `~/.tako/agent.sock`, opens the job database, and serves the protocol the client uses. Never imports the TUI.
+- `install <remote>` (client): pre-flight checks → distributes the binary (SFTP copy on arch match, GitHub Releases download with sha256 verification otherwise) → installs the unit and enables linger → starts the agent → verifies it on a **second** SSH connection. Idempotent: re-running on an existing install performs the upgrade.
+- `uninstall <remote>` (client): stops and removes the unit, disables linger only if it was enabled by Tako, removes `~/.tako/`, and verifies residue on a second connection.
+- `status <remote>` (client): text table with unit state, linger (+ whether Tako enabled it), agent/client versions and protocol, job count, and socket handshake result.
+
+Plain console output — no TUI.
 
 ## Usage model
 

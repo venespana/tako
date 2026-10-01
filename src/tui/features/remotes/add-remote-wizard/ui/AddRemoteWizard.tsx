@@ -6,13 +6,13 @@
 // global handler only manages Tab navigation so Enter is never processed twice.
 import { useState, useCallback } from 'react';
 
-import { Box, Text, useInput } from 'ink';
-import type { Key } from 'ink';
+import { Box, Text } from 'ink';
 
 import { TextInput, PasswordInput, Select } from '@inkjs/ui';
 
 import type { AddRemote } from '../../../../../domains/remotes/application/AddRemote.js';
 import type { AddRemoteResult, SshCredentialType } from '../../../../../domains/remotes/domain/types.js';
+import { useKeyBindings } from '../../../../shared/lib/use-key-bindings.js';
 import { EditingGuard } from '../../../../shared/ui/EditingGuard.js';
 import { useAddRemoteWizard } from '../model/use-add-remote-wizard.js';
 import type { WizardStep } from '../model/wizard-store.js';
@@ -99,6 +99,24 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
   const stepField = STEP_FIELD[wizard.step];
   const activeField = backField ?? stepField;
   const isEditing = activeField !== null;
+
+  // STABLE onChange handlers — @inkjs/ui's TextInput re-runs its onChange
+  // effect whenever the handler identity changes (onChange is in the effect's
+  // dependency list), so an inline arrow here becomes an infinite
+  // onChange → setState → re-render → onChange loop while typing (task 9.10,
+  // real-world finding: "Maximum update depth exceeded" after one keystroke).
+  const updateDraft = useCallback((field: FieldId, value: string) => {
+    setDraft(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const onNameChange = useCallback((v: string) => updateDraft('name', v), [updateDraft]);
+  const onUsernameChange = useCallback((v: string) => updateDraft('username', v), [updateDraft]);
+  const onHostChange = useCallback((v: string) => updateDraft('host', v), [updateDraft]);
+  const onPortChange = useCallback((v: string) => updateDraft('port', v), [updateDraft]);
+  const onKeyPathChange = useCallback((v: string) => updateDraft('keyPath', v), [updateDraft]);
+  const onPasswordChange = useCallback((v: string) => updateDraft('password', v), [updateDraft]);
+  // `setType` is a stable zustand action extracted from the model object.
+  const onCredentialTypeChange = useCallback((v: string) => wizard.setType(v as SshCredentialType), [wizard.setType]);
 
   // Back-navigation conceals everything after the field being edited; without
   // it, the store's step decides what is revealed.
@@ -201,32 +219,31 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
     if (idx > 0) setBackField(nav[idx - 1]!);
   }, [activeField, data.credentialType, wizard]);
 
-  // Global handler: Tab navigation while editing; Esc cancels the wizard from
-  // ANY state (EditingGuard blocks the app-level Esc, so the wizard owns it);
-  // hostkey-confirm resolves with y/N. Enter belongs to each input
-  // (TextInput.onSubmit / Select.onChange) — handling it here too would commit
-  // every keypress twice.
-  useInput(
-    (input: string, key: Key) => {
-      if (wizard.step === 'hostkey-confirm') {
-        if (input === 'y' || input === 'Y') wizard.acceptHostkey();
-        else if (input === 'n' || input === 'N') wizard.declineHostkey();
-        return;
-      }
-      if (key.escape) {
-        if (wizard.step !== 'done') wizard.abort();
-        return;
-      }
-      if (!isEditing) return;
-      if (key.tab && !key.shift) {
-        advance();
-        return;
-      }
-      if (key.tab && key.shift) {
-        goBack();
-        return;
-      }
-    },
+  // Global handler dispatched through useKeyBindings (9.9), with the wizard's
+  // staged semantics preserved: in the hostkey-confirm step ONLY y/N respond
+  // (Esc is deliberately swallowed here — aborting the wizard from the
+  // hostkey prompt would discard all entered state); otherwise Esc cancels
+  // the wizard from ANY state (EditingGuard blocks the app-level Esc, so the
+  // wizard owns it), and Tab navigation is live only while a text field is
+  // active. Enter belongs to each input (TextInput.onSubmit / Select.onChange)
+  // — handling it here too would commit every keypress twice.
+  const isHostkeyStep = wizard.step === 'hostkey-confirm';
+  useKeyBindings(
+    isHostkeyStep
+      ? {
+          chars: {
+            y: wizard.acceptHostkey,
+            Y: wizard.acceptHostkey,
+            n: wizard.declineHostkey,
+            N: wizard.declineHostkey,
+          },
+        }
+      : {
+          cancel: () => {
+            if (wizard.step !== 'done') wizard.abort();
+          },
+          ...(isEditing ? { tab: advance, shiftTab: goBack } : {}),
+        },
     { isActive: true }
   );
 
@@ -250,7 +267,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               <TextInput
                 defaultValue={draft.name ?? data.name}
                 placeholder='e.g. nas-backup'
-                onChange={v => setDraft(prev => ({ ...prev, name: v }))}
+                onChange={onNameChange}
                 onSubmit={advance}
               />
             </Box>
@@ -266,7 +283,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               <TextInput
                 defaultValue={draft.username ?? data.username}
                 placeholder='e.g. ops'
-                onChange={v => setDraft(prev => ({ ...prev, username: v }))}
+                onChange={onUsernameChange}
                 onSubmit={advance}
               />
             </Box>
@@ -282,7 +299,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               <TextInput
                 defaultValue={draft.host ?? data.host}
                 placeholder='e.g. 10.0.0.5'
-                onChange={v => setDraft(prev => ({ ...prev, host: v }))}
+                onChange={onHostChange}
                 onSubmit={advance}
               />
             </Box>
@@ -298,7 +315,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               <TextInput
                 defaultValue={draft.port ?? String(data.port)}
                 placeholder='22'
-                onChange={v => setDraft(prev => ({ ...prev, port: v }))}
+                onChange={onPortChange}
                 onSubmit={advance}
               />
             </Box>
@@ -317,7 +334,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
                   { label: 'SSH key', value: 'ssh-key' },
                   { label: 'Ask every session — never stored', value: 'interactive' },
                 ]}
-                onChange={v => wizard.setType(v as SshCredentialType)}
+                onChange={onCredentialTypeChange}
               />
             </Box>
           ) : (
@@ -332,7 +349,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               <TextInput
                 defaultValue={draft.keyPath ?? data.keyPath ?? ''}
                 placeholder='~/.ssh/id_rsa'
-                onChange={v => setDraft(prev => ({ ...prev, keyPath: v }))}
+                onChange={onKeyPathChange}
                 onSubmit={advance}
               />
             </Box>
@@ -350,7 +367,7 @@ export function AddRemoteWizard({ addRemoteUc, onComplete }: AddRemoteWizardProp
               </Text>
               <PasswordInput
                 placeholder='Enter password'
-                onChange={v => setDraft(prev => ({ ...prev, password: v }))}
+                onChange={onPasswordChange}
                 onSubmit={value => wizard.setPassword(value)}
               />
             </Box>

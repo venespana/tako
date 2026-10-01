@@ -62,6 +62,8 @@ const REGISTRY: ActionGroup[] = deepFreeze([
         handlerKey: 'remotes.delete',
         route: '/remotes/rm',
       },
+      // 9.14d: no home Tasks entry — the tasks workspace is the REMOTE's menu,
+      // reached by selecting a remote (Select → /tasks), never from home.
     ],
   },
   {

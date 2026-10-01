@@ -1,0 +1,700 @@
+{
+  "version": "2.19",
+  "children": [
+    {
+      "type": "frame",
+      "id": "EEptB",
+      "x": 880,
+      "y": 0,
+      "name": "Logo",
+      "reusable": true,
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "text",
+          "id": "bLGOu",
+          "name": "Wordmark",
+          "fill": "$accent",
+          "textGrowth": "fixed-width",
+          "width": 380,
+          "content": "████████╗ █████╗ ██╗  ██╗ ██████╗\n╚══██╔══╝██╔══██╗██║ ██╔╝██╔═══██╗\n   ██║   ███████║█████╔╝ ██║   ██║\n   ██║   ██╔══██║██╔═██╗ ██║   ██║\n   ██║   ██║  ██║██║  ██╗╚██████╔╝\n   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝",
+          "lineHeight": 1.05,
+          "fontFamily": "$font-mono",
+          "fontSize": 16,
+          "fontWeight": "700"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "rqyIH",
+      "x": 860,
+      "y": -462,
+      "name": "Brand - Tako Mascot",
+      "clip": true,
+      "width": 400,
+      "height": 400,
+      "fill": [
+        "#0a0e1a",
+        {
+          "type": "image",
+          "enabled": true,
+          "url": "design-assets/tako-logo.jpg",
+          "mode": "fit"
+        }
+      ],
+      "cornerRadius": 12,
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "xKiLO",
+      "x": 880,
+      "y": 180,
+      "name": "Menu Item / Focused",
+      "reusable": true,
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "text",
+          "id": "lA64Y",
+          "name": "Cursor",
+          "fill": "$accent",
+          "content": "❯",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "700"
+        },
+        {
+          "type": "text",
+          "id": "YGJej",
+          "name": "Label",
+          "fill": "$text-primary",
+          "content": " Doctor",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "As5GX",
+      "x": 1080,
+      "y": 180,
+      "name": "Menu Item / Default",
+      "reusable": true,
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "text",
+          "id": "FMDFk",
+          "name": "Cursor",
+          "fill": "$text-primary",
+          "content": "  ",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "Dj4ws",
+          "name": "Label",
+          "fill": "$text-primary",
+          "content": "Doctor",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "gM34b",
+      "x": 1280,
+      "y": 180,
+      "name": "Menu Group",
+      "reusable": true,
+      "slot": [
+        "xKiLO",
+        "As5GX"
+      ],
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "text",
+          "id": "AN2Rt",
+          "name": "Group Label",
+          "fill": "$text-primary",
+          "content": "Local",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "700"
+        },
+        {
+          "type": "frame",
+          "id": "YjUD4",
+          "name": "Items",
+          "width": "fit_content(100)",
+          "height": "fit_content(21)",
+          "layout": "vertical"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "zBl6P",
+      "x": 1480,
+      "y": 180,
+      "name": "Footer",
+      "reusable": true,
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "Qfnk1",
+          "name": "Key Hints",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "U9sSJ",
+              "name": "Hint 0 label",
+              "fill": "$muted",
+              "content": "↑↓/j k  ",
+              "lineHeight": 1.6,
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "gn9j9",
+              "name": "Hint 1 keys",
+              "fill": "$muted",
+              "content": "Enter/l",
+              "lineHeight": 1.6,
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "700"
+            },
+            {
+              "type": "text",
+              "id": "zZPWs",
+              "name": "Hint 2 label",
+              "fill": "$muted",
+              "content": " select  ",
+              "lineHeight": 1.6,
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "wRRQv",
+              "name": "Hint 3 keys",
+              "fill": "$muted",
+              "content": "h/Esc",
+              "lineHeight": 1.6,
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "700"
+            },
+            {
+              "type": "text",
+              "id": "dG52I",
+              "name": "Hint 4 label",
+              "fill": "$muted",
+              "content": " back  ",
+              "lineHeight": 1.6,
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "K18gQt",
+              "name": "Hint 5 keys",
+              "fill": "$muted",
+              "content": "q",
+              "lineHeight": 1.6,
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "700"
+            },
+            {
+              "type": "text",
+              "id": "a21hd",
+              "name": "Hint 6 label",
+              "fill": "$muted",
+              "content": " quit",
+              "lineHeight": 1.6,
+              "fontFamily": "$font-mono",
+              "fontSize": 13,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": "Wu2nR",
+          "name": "Version",
+          "fill": "$muted",
+          "content": "v0.2.0",
+          "lineHeight": 1.6,
+          "fontFamily": "$font-mono",
+          "fontSize": 13,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "EvV3N",
+      "x": 880,
+      "y": 480,
+      "name": "Screen - Home",
+      "clip": true,
+      "width": 1040,
+      "height": 640,
+      "fill": "$bg",
+      "layout": "vertical",
+      "padding": [
+        28,
+        36
+      ],
+      "justifyContent": "space_between",
+      "children": [
+        {
+          "type": "frame",
+          "id": "N1KyL",
+          "name": "Header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "id": "r8SkAA",
+              "type": "ref",
+              "ref": "EEptB",
+              "name": "Tako Logo"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "R99hz",
+          "name": "Menu",
+          "layout": "vertical",
+          "gap": 8,
+          "children": [
+            {
+              "id": "zGDMH",
+              "type": "ref",
+              "ref": "gM34b",
+              "name": "Group Local",
+              "descendants": {
+                "YjUD4": {
+                  "children": [
+                    {
+                      "id": "LMvli",
+                      "type": "ref",
+                      "ref": "xKiLO",
+                      "name": "Doctor"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": "nia4s",
+              "type": "ref",
+              "ref": "gM34b",
+              "name": "Group Remote",
+              "descendants": {
+                "AN2Rt": {
+                  "content": "Remote"
+                },
+                "YjUD4": {
+                  "children": [
+                    {
+                      "id": "BouGS",
+                      "type": "ref",
+                      "ref": "As5GX",
+                      "name": "Select",
+                      "descendants": {
+                        "Dj4ws": {
+                          "content": "Select"
+                        }
+                      }
+                    },
+                    {
+                      "id": "pMrsw",
+                      "type": "ref",
+                      "ref": "As5GX",
+                      "name": "Add",
+                      "descendants": {
+                        "Dj4ws": {
+                          "content": "Add"
+                        }
+                      }
+                    },
+                    {
+                      "id": "P5V3E",
+                      "type": "ref",
+                      "ref": "As5GX",
+                      "name": "Delete",
+                      "descendants": {
+                        "Dj4ws": {
+                          "content": "Delete"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": "Y1vlmB",
+              "type": "ref",
+              "ref": "gM34b",
+              "name": "Group Config",
+              "descendants": {
+                "AN2Rt": {
+                  "content": "Config"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "FdjqZ",
+          "type": "ref",
+          "ref": "zBl6P",
+          "name": "Footer",
+          "width": "fill_container"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "ZPVX6",
+      "x": 1700,
+      "y": 180,
+      "name": "Doctor Tool Line",
+      "reusable": true,
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "text",
+          "id": "e0fnKl",
+          "name": "Glyph",
+          "fill": "$success",
+          "content": "✓",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "RNhMC",
+          "name": "Label",
+          "fill": "$text-primary",
+          "content": " ssh",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "haMfr",
+          "name": "Version",
+          "fill": "$muted",
+          "content": " 9.6p1",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "KWNqE",
+      "x": 2000,
+      "y": 480,
+      "name": "Screen - Doctor",
+      "clip": true,
+      "width": 1040,
+      "height": 640,
+      "fill": "$bg",
+      "layout": "vertical",
+      "padding": [
+        28,
+        36
+      ],
+      "justifyContent": "space_between",
+      "children": [
+        {
+          "type": "frame",
+          "id": "xCWf1",
+          "name": "Header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "id": "yfAAu",
+              "type": "ref",
+              "ref": "WRhSe",
+              "name": "App Header"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "dxb5l",
+          "name": "Tool Checks",
+          "layout": "vertical",
+          "children": [
+            {
+              "id": "heCun",
+              "type": "ref",
+              "ref": "ZPVX6",
+              "name": "ssh",
+              "descendants": {
+                "e0fnKl": {
+                  "content": "✓",
+                  "fill": "$success"
+                },
+                "RNhMC": {
+                  "content": " ssh"
+                },
+                "haMfr": {
+                  "content": " 9.6p1"
+                }
+              }
+            },
+            {
+              "id": "kM3RU",
+              "type": "ref",
+              "ref": "ZPVX6",
+              "name": "ssl",
+              "descendants": {
+                "e0fnKl": {
+                  "content": "✓",
+                  "fill": "$success"
+                },
+                "RNhMC": {
+                  "content": " ssl (from ssh)"
+                },
+                "haMfr": {
+                  "content": " OpenSSL 3.3.1"
+                }
+              }
+            },
+            {
+              "id": "mvVZJ",
+              "type": "ref",
+              "ref": "ZPVX6",
+              "name": "git",
+              "descendants": {
+                "e0fnKl": {
+                  "content": "✓",
+                  "fill": "$success"
+                },
+                "RNhMC": {
+                  "content": " git"
+                },
+                "haMfr": {
+                  "content": " 2.45.1"
+                }
+              }
+            },
+            {
+              "id": "prbbZ",
+              "type": "ref",
+              "ref": "ZPVX6",
+              "name": "docker",
+              "descendants": {
+                "e0fnKl": {
+                  "content": "✓",
+                  "fill": "$success"
+                },
+                "RNhMC": {
+                  "content": " docker"
+                },
+                "haMfr": {
+                  "content": " 27.0.3"
+                }
+              }
+            },
+            {
+              "id": "F4UnJj",
+              "type": "ref",
+              "ref": "ZPVX6",
+              "name": "docker compose",
+              "descendants": {
+                "e0fnKl": {
+                  "content": "✖",
+                  "fill": "$error"
+                },
+                "RNhMC": {
+                  "content": " docker compose"
+                },
+                "haMfr": {
+                  "content": " not found"
+                }
+              }
+            },
+            {
+              "type": "text",
+              "id": "u925z",
+              "name": "Summary",
+              "fill": "$muted",
+              "content": "4/5 tools found",
+              "lineHeight": 1.5,
+              "fontFamily": "$font-mono",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "id": "yrNGO",
+          "type": "ref",
+          "ref": "zBl6P",
+          "name": "Footer",
+          "width": "fill_container",
+          "descendants": {
+            "U9sSJ": {
+              "enabled": false
+            },
+            "gn9j9": {
+              "enabled": false
+            },
+            "zZPWs": {
+              "enabled": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "JryQH",
+      "x": 1960,
+      "y": 180,
+      "name": "Breadcrumb",
+      "reusable": true,
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "text",
+          "id": "JZHW3",
+          "name": "Parent",
+          "fill": "$muted",
+          "content": "Local",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "dRQIQ",
+          "name": "Separator",
+          "fill": "$muted",
+          "content": " > ",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "normal"
+        },
+        {
+          "type": "text",
+          "id": "LyU39",
+          "name": "Current",
+          "fill": "$text-primary",
+          "content": "Doctor",
+          "lineHeight": 1.5,
+          "fontFamily": "$font-mono",
+          "fontSize": 14,
+          "fontWeight": "700"
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "WRhSe",
+      "x": 1784,
+      "y": -74,
+      "name": "App Header",
+      "reusable": true,
+      "layout": "vertical",
+      "gap": 2,
+      "children": [
+        {
+          "id": "aB6b7",
+          "type": "ref",
+          "ref": "EEptB",
+          "name": "Tako Logo"
+        },
+        {
+          "id": "bfIHb",
+          "type": "ref",
+          "ref": "JryQH",
+          "name": "Breadcrumb",
+          "padding": [
+            24,
+            0,
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "bg": {
+      "type": "color",
+      "value": "#0D1117"
+    },
+    "text-primary": {
+      "type": "color",
+      "value": "#E6EDF3"
+    },
+    "muted": {
+      "type": "color",
+      "value": "#8B949E"
+    },
+    "accent": {
+      "type": "color",
+      "value": "#22D3EE"
+    },
+    "success": {
+      "type": "color",
+      "value": "#3FB950"
+    },
+    "error": {
+      "type": "color",
+      "value": "#F85149"
+    },
+    "warning": {
+      "type": "color",
+      "value": "#D29922"
+    },
+    "font-mono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    }
+  },
+  "fileToken": "9e3280e9-32eb-4560-80b2-3186f91b041a"
+}

@@ -1,7 +1,8 @@
 // App.test.tsx — Integration tests for the App component.
-// App is prop-free: it wires the runtime/editing contexts and mounts the
-// memory router. These tests exercise the composed shell (AppShell chrome +
-// routed HomePage) through real keypresses via ink-testing-library.
+// App is prop-free: it mounts the memory router — all session state lives in
+// zustand module-scope stores (9.20). These tests exercise the composed shell
+// (AppShell chrome + routed HomePage) through real keypresses via
+// ink-testing-library.
 import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import { App } from './App.js';

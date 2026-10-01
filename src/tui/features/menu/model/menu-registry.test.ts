@@ -26,10 +26,12 @@ describe('getRegistry', () => {
     expect(local.items[0]!.enabledWhen).toBe('always');
   });
 
-  it('Remote group contains Select, Add, Delete as direct action items', () => {
+  it('Remote group contains Select, Add and Delete only — no home Tasks entry (9.14d)', () => {
     const remote = getRegistry().find(g => g.id === 'remote')!;
     expect(remote.items.map(i => i.id)).toEqual(['remote-select', 'remote-add', 'remote-delete']);
     expect(remote.items.every(i => i.kind === 'action')).toBe(true);
+    // The tasks workspace is the REMOTE's menu (9.14d): every home remote
+    // entry is unconditionally selectable.
     expect(remote.items.every(i => i.enabledWhen === 'always')).toBe(true);
   });
 
@@ -43,6 +45,11 @@ describe('getRegistry', () => {
     expect(deleteItem.route).toBe('/remotes/rm');
   });
 
+  it('no registry item routes to /tasks — the workspace is reached via Select (9.14d)', () => {
+    const allItems = getRegistry().flatMap(g => g.items);
+    expect(allItems.filter(i => i.route === '/tasks')).toEqual([]);
+  });
+
   it('doctor action has handlerKey', () => {
     const local = getRegistry().find(g => g.id === 'local')!;
     expect(local.items[0]!.handlerKey).toBe('doctor');
@@ -51,7 +58,7 @@ describe('getRegistry', () => {
   it('no hidden unimplemented commands appear', () => {
     const allItems = getRegistry().flatMap(g => g.items);
     const ids = allItems.map(i => i.id);
-    const hidden = ['install', 'update', 'status', 'logs', 'cleanup', 'rollback', 'list', 'use', 'test'];
+    const hidden = ['install', 'update', 'status', 'logs', 'cleanup', 'rollback', 'list', 'use', 'test', 'tasks'];
     hidden.forEach(id => {
       expect(ids).not.toContain(id);
     });

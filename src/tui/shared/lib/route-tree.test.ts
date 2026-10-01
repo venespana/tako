@@ -1,5 +1,6 @@
 // route-tree.test.ts — Unit tests for the route-tree infrastructure helpers.
 import { describe, expect, it } from 'vitest';
+import { createElement } from 'react';
 
 import { defineRoute, hasMenuHandle } from './route-tree.js';
 import type { RouteModule } from './route-tree.js';
@@ -36,6 +37,21 @@ describe('defineRoute', () => {
     const route = defineRoute({ path: 'remotes', module: moduleWith(), children: [child] });
 
     expect(route.children).toEqual([child]);
+  });
+
+  it('propagates the module errorElement onto the built route (9.22)', () => {
+    // Identity matters: the generated tree mounts THIS element as the branch's
+    // Ink-safe error boundary (never react-router's raw-text default).
+    const errorElement = createElement(Screen);
+    const route = defineRoute({ path: 'tasks', module: { default: Screen, errorElement } });
+
+    expect(route.errorElement).toBe(errorElement);
+  });
+
+  it('leaves errorElement unset when the module declares none', () => {
+    const route = defineRoute({ path: 'doctor', module: moduleWith() });
+
+    expect(route.errorElement).toBeUndefined();
   });
 });
 

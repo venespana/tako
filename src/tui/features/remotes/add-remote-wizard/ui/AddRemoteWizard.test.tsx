@@ -42,6 +42,24 @@ describe('AddRemoteWizard smoke tests', () => {
     }).not.toThrow();
   });
 
+  // 9.10 regression: typing used to loop "Maximum update depth exceeded"
+  // because the inline onChange arrow was re-created every render and
+  // @inkjs/ui's TextInput re-runs its onChange effect whenever the handler
+  // identity changes. Stable useCallback handlers must keep typing settled
+  // (no throw) and Enter must commit the exact typed value exactly once.
+  it('9.10: typing settles without looping and Enter commits the value once', async () => {
+    const fakeUc = createFakeAddRemote({ saved: false, reason: 'abort' });
+    const instance = renderInk(React.createElement(AddRemoteWizard, { addRemoteUc: fakeUc, onComplete }));
+
+    instance.stdin.write('nas');
+    await new Promise(resolve => setTimeout(resolve, 60));
+    instance.stdin.write('\r');
+    await new Promise(resolve => setTimeout(resolve, 60));
+
+    expect(useWizardStore.getState().data.name).toBe('nas');
+    instance.unmount();
+  });
+
   // (d) validation-fail → form re-shown with error, no save
   it('6.3 RED: validation-fail → onComplete not called, wizard stays in form', () => {
     const failResult: AddRemoteResult = { saved: false, reason: 'validation' };

@@ -2,19 +2,34 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: Release
+    name: Release ${{ matrix.asset }}
     runs-on: ubuntu-latest
+    # Build inside Debian 12 so the compiled binaries carry a LOW glibc floor
+    # (bookworm = glibc 2.36): a binary built on a newer distro than the target
+    # server fails there with "GLIBC_x.y not found" (task 9.11, real-world
+    # finding on homeserver). arm64 is cross-compiled from the same container.
+    container:
+      image: debian:bookworm
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: bun-linux-x64-modern
+            asset: tako-linux-x64
+          - target: bun-linux-arm64
+            asset: tako-linux-arm64
     steps:
+      - name: Install git (checkout requirement)
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -22,35 +37,23 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
-      - name: Read version from package.json
-        id: version
-        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Typecheck, lint and test
+        run: bun run prebuild && bun run typecheck && bun run lint && bun run test
 
-      - name: Check if tag already exists
-        id: tag-check
-        run: |
-          if git rev-parse -q --verify "refs/tags/v${{ steps.version.outputs.version }}" > /dev/null; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Build binary (${{ matrix.asset }})
+        run: bun build src/index.tsx --compile --target=${{ matrix.target }} --outfile dist/${{ matrix.asset }}
 
-      - name: Build binary
-        if: steps.tag-check.outputs.exists == 'false'
-        run: bun run build
+      - name: Generate checksum sidecar
+        run: sha256sum dist/${{ matrix.asset }} > dist/${{ matrix.asset }}.sha256
 
-      - name: Create tag and GitHub Release
-        if: steps.tag-check.outputs.exists == 'false'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          MAJOR="${VERSION%%.*}"
-          EXTRA_ARGS=()
-          if [ "$MAJOR" = "0" ]; then
-            EXTRA_ARGS+=(--prerelease)
-          fi
-          # gh release create creates the git tag if it does not exist yet.
-          gh release create "v${VERSION}" dist/tako-linux-x64 --title "v${VERSION}" --generate-notes "${EXTRA_ARGS[@]}"
+      - name: Attach assets to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: |
+            dist/${{ matrix.asset }}
+            dist/${{ matrix.asset }}.sha256
+          prerelease: ${{ startsWith(github.ref_name, 'v0.') }}
+          generate_release_notes: true

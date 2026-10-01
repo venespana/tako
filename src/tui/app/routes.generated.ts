@@ -19,6 +19,7 @@ import * as route_remotes_rm from './routes/remotes/rm.js';
 import * as route_remotes_test from './routes/remotes/test.js';
 import * as route_remotes_use from './routes/remotes/use.js';
 import * as route_status from './routes/status.js';
+import * as route_tasks from './routes/tasks.js';
 import { defineRoute } from '../shared/lib/route-tree.js';
 
 export const routeTree: RouteObject[] = [
@@ -31,6 +32,7 @@ export const routeTree: RouteObject[] = [
       defineRoute({ path: 'doctor', module: route_doctor }),
       defineRoute({ path: 'logs', module: route_logs }),
       defineRoute({ path: 'status', module: route_status }),
+      defineRoute({ path: 'tasks', module: route_tasks }),
       defineRoute({
         path: 'remotes',
         children: [

@@ -6,7 +6,7 @@
 // import app/, per FSD).
 import { useCallback, useMemo } from 'react';
 
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 
 import { PasswordInput } from '@inkjs/ui';
 import { useNavigate } from 'react-router';
@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router';
 import type { RemoteRepository } from '../../../../domains/remotes/application/RemoteRepository.js';
 import type { ValidateSshConnection } from '../../../../domains/remotes/application/ValidateSshConnection.js';
 import { withEnablement } from '../../../features/menu/index.js';
+import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 import { EditingGuard } from '../../../shared/ui/EditingGuard.js';
 import { ActionMenu } from '../../../widgets/action-menu/index.js';
 import { useRemotesSelection } from '../model/remotes-selection.js';
@@ -45,12 +46,7 @@ export function RemotesMenuPage({
   const gated = selection.gate !== null;
 
   // Esc aborts the connect-time prompt; the model restores the list.
-  useInput(
-    (_input, key) => {
-      if (key.escape) selection.cancelPrompt();
-    },
-    { isActive: gated }
-  );
+  useKeyBindings({ cancel: () => selection.cancelPrompt() }, { isActive: gated });
 
   // Render-ready selection groups: every listed remote is selectable.
   const selectionGroups = useMemo(

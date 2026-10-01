@@ -5,7 +5,7 @@
 // session's active-remote state so tests can drive the real transition
 // (select with Enter → submenu). Logo and footer are app-shell chrome.
 // MemoryRouter supplies the router context.
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
 import { render } from 'ink-testing-library';
 import { Text } from 'ink';
@@ -14,6 +14,7 @@ import { MemoryRouter, useLocation } from 'react-router';
 import type { RemoteRepository } from '../../../../domains/remotes/application/RemoteRepository.js';
 import type { ValidateSshConnection } from '../../../../domains/remotes/application/ValidateSshConnection.js';
 import type { Remote, RemoteSummary, SshTestConfig } from '../../../../domains/remotes/domain/types.js';
+import { useEditingStore } from '../../../shared/lib/editing-store.js';
 import { KEY_FLUSH_MS, pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
 import { RemotesMenuPage } from './RemotesMenuPage.js';
 
@@ -116,7 +117,16 @@ const renderRemotes = (repository: RemoteRepository, initialActive?: string) =>
     <MemoryRouter initialEntries={['/remotes']}>
       <Harness repository={repository} initialActive={initialActive} />
     </MemoryRouter>
-  );describe('RemotesMenuPage (selection screen)', () => {
+  );
+
+beforeEach(() => {
+  // 9.20: the editing flag is a module-scope zustand store now — a leaked
+  // password-gate mount (EditingGuard isEditing) must not dead-key the next
+  // test's menu bindings (these tests never unmount their instances).
+  useEditingStore.setState({ isEditing: false });
+});
+
+describe('RemotesMenuPage (selection screen)', () => {
   it('lists the configured remotes with name and endpoint', async () => {
     const { lastFrame } = renderRemotes(fakeRepository(REMOTES));
     const frame = await settle(lastFrame, f => f.includes('Select a remote'), 1000);
@@ -142,13 +152,16 @@ const renderRemotes = (repository: RemoteRepository, initialActive?: string) =>
     expect(frame).toContain('❯ web');
   });
 
-  it('Enter activates the remote and keeps showing the selection list', async () => {
+  it('Enter activates a store remote directly (9.14: the route shim then enters /tasks)', async () => {
     const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, storeWithPassword));
     await settle(lastFrame, f => f.includes('❯ nas'), 1000);
 
-    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('❯ nas'));
-    // After activation, selection list is still visible
-    expect(lastFrame()).toContain('nas (ops@10.0.0.5:22)');
+    // The page's contract is the activation callback (mirrored by the harness
+    // echo); entering /tasks is the route shim's glue
+    // (app/routes/remotes/activate-and-enter.ts), not the page's.
+    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('active:nas'));
+    const frame = await settle(lastFrame, f => f.includes('active:nas'), 2000);
+    expect(frame).toContain('active:nas');
   });
 
   it('redirects to /remotes/add when no remotes are configured', async () => {
@@ -196,22 +209,33 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
     expect(frame).not.toContain('Select a remote');
   });
 
-  it('4.8 RED: correct password activates the remote, selection list remains visible', async () => {
-    const { lastFrame, stdin } = render(
-      <MemoryRouter initialEntries={['/remotes']}>
-        <Harness repository={fakeRepository(REMOTES, interactiveRemote)} validateConnection={fakeValidator(SECRET)} />
-      </MemoryRouter>
-    );
-    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
-    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
+  // Timeout above the 5s default: the password is ACK-per-char (each char up
+  // to 2 × KEY_FLUSH_MS of settle) and React 19 delays passive effects under
+  // full-suite parallel load — this test once exceeded 5s that way.
+  it(
+    '4.8 RED: correct password activates the remote, selection list remains visible',
+    { timeout: 15_000 },
+    async () => {
+      const { lastFrame, stdin } = render(
+        <MemoryRouter initialEntries={['/remotes']}>
+          <Harness repository={fakeRepository(REMOTES, interactiveRemote)} validateConnection={fakeValidator(SECRET)} />
+        </MemoryRouter>
+      );
+      await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+      await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
-    await typePassword(stdin, lastFrame, SECRET);
+      await typePassword(stdin, lastFrame, SECRET);
 
-    // After activation, selection list is still shown (no submenu)
-    const frame = await settle(lastFrame, f => f.includes('nas (ops@10.0.0.5:22)'), 2000);
-    expect(frame).toContain('nas (ops@10.0.0.5:22)');
-    expect(frame).not.toContain(SECRET);
-  });
+      // Deterministic activation signal: the harness echo appears only after
+      // validation succeeded (the endpoint label alone matches pre-activation
+      // frames). The gate must be closed (list restored, no submenu) and the
+      // secret never echoed.
+      const frame = await settle(lastFrame, f => f.includes('active:nas'), 2000);
+      expect(frame).toContain('active:nas');
+      expect(frame).toContain('nas (ops@10.0.0.5:22)');
+      expect(frame).not.toContain(SECRET);
+    }
+  );
 
   it('4.8 RED: wrong password re-prompts with an auth message, remote stays inactive', async () => {
     const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, interactiveRemote));
