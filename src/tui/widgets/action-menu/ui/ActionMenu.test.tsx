@@ -118,7 +118,6 @@ describe('ActionMenu', () => {
       label: cmd,
       command: cmd,
       kind: 'action',
-      handlerKey: `remotes.${cmd}`,
       enabled: true,
     });
 

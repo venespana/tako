@@ -29,7 +29,6 @@ export function buildRemotesSelectable(remotesItem: ActionItem | undefined): Act
     command: cmd,
     kind: 'action' as const,
     enabledWhen: 'always' as const,
-    handlerKey: `remotes.${cmd}`,
     route: routeFor(cmd),
   }));
 }

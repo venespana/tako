@@ -29,8 +29,6 @@ export interface ActionItem {
   submenu?: string[];
   /** When to show this item as enabled (selectable) */
   enabledWhen?: EnableCondition;
-  /** Key looked up in the DispatchMap at runtime */
-  handlerKey?: string;
   /** Target path for route-based navigation */
   route?: string;
 }
@@ -41,10 +39,3 @@ export interface ActionGroup {
   label: string;
   items: ActionItem[];
 }
-
-// ---------------------------------------------------------------------------
-// Dispatch
-// ---------------------------------------------------------------------------
-
-/** Map from handlerKey (string) to an async handler function */
-export type DispatchMap = Record<string, () => Promise<void>>;

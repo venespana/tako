@@ -50,11 +50,6 @@ describe('getRegistry', () => {
     expect(allItems.filter(i => i.route === '/tasks')).toEqual([]);
   });
 
-  it('doctor action has handlerKey', () => {
-    const local = getRegistry().find(g => g.id === 'local')!;
-    expect(local.items[0]!.handlerKey).toBe('doctor');
-  });
-
   it('no hidden unimplemented commands appear', () => {
     const allItems = getRegistry().flatMap(g => g.items);
     const ids = allItems.map(i => i.id);

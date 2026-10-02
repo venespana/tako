@@ -20,9 +20,6 @@ export interface ActionItem {
   submenu?: string[];
   /** When to show this item as enabled (selectable) */
   enabledWhen?: EnableCondition;
-  /** Stable action identifier for kind === 'action' (command namespacing; the
-   * old dispatch-map lookup was removed when routing replaced dispatching) */
-  handlerKey?: string;
   /** Target path (e.g. '/remotes/list') when kind === 'submenu'; also used by
    * action items that navigate. A plain path string on purpose: features stay
    * decoupled from the route tree; the router simply does not match unknown
