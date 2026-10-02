@@ -34,21 +34,26 @@ Notes:
 
 ## Architecture
 
-Hybrid architecture: Feature-Sliced Design (FSD) for the TUI, Clean Architecture per domain for the backend, plus a shared kernel. `src/index.tsx` is the bootstrap only: no arguments → Ink TUI; any arguments → Commander CLI.
+Hybrid architecture: Feature-Sliced Design (FSD) for the TUI, Clean Architecture per domain for the backend, plus a shared kernel, with an in-process services API layer consumed by both presentations (ADR-0019; arrives in phase F3). `src/index.tsx` is the bootstrap only: no arguments → Ink TUI; any arguments → Commander CLI.
 
-| Path                  | Role                                                                                                                                                                          |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.tsx`       | Entry point bootstrap (TUI vs CLI). No business logic.                                                                                                                        |
-| `src/cli/`            | Commander CLI (`doctor`, `remote add`). Commands are lazy-imported to keep Ink out of compiled CLI paths.                                                                     |
-| `src/domains/<name>/` | Backend domains (`docker`, `remotes`, `system`), each split into `domain/` (types, pure logic), `application/` (use cases + ports), `infrastructure/` (adapters: ssh2, conf). |
-| `src/shared/`         | Shared kernel (`lib`, `types`, `errors`, `ui`).                                                                                                                               |
-| `src/tui/`            | FSD layers: `app/` (providers, routes), `pages/`, `widgets/`, `features/`, `entities/`, `shared/`. Ink 7 + React 19 + react-router + zustand.                                 |
+| Path                  | Role                                                                                                                                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.tsx`       | Entry point bootstrap (TUI vs CLI). No business logic.                                                                                                                                                        |
+| `src/cli/`            | Commander CLI (`doctor`, `remote add`, agent provisioning: `install`, `uninstall`, `status`, `run`). Commands are lazy-imported to keep Ink out of compiled CLI paths.                                        |
+| `src/services/`       | In-process API layer (ADR-0019): complete domain functions consumed by cli and tui; all wiring private. Arrives in phase F3.                                                                                  |
+| `src/domains/<name>/` | Backend domains (`docker`, `remotes`, `system`, `agent`), each split into `domain/` (types, pure logic), `application/` (use cases + ports), `infrastructure/` (adapters: ssh2, conf, dockerode, bun:sqlite). |
+| `src/shared/`         | Shared kernel (`lib/` only, 2 files: session password + version helpers).                                                                                                                                     |
+| `src/tui/`            | FSD layers: `app/` (providers, routes), `pages/`, `widgets/`, `features/`, `entities/`, `shared/`. Ink 7 + React 19 + react-router + zustand.                                                                 |
 
-Dependency rules (enforced by ESLint `import-x/no-restricted-paths`; documented in `docs/architecture.md`):
+Dependency rules (documented in `docs/architecture.md`; target model in ADR-0019). Any rule without a mechanical check is explicitly marked `review-only` — mechanical enforcement lands in phase F4:
 
-- `shared` imports from nothing; `domains` may import `shared`; `cli`/`tui` may import `domains` + `shared`.
-- `src/tui/` must not import from `src/cli/`; `src/cli/` must not import from `src/tui/` (only exceptions, per ADR-0014: `tui/features/remotes/add-remote-wizard` and `tui/features/doctor`).
-- `application` must not import infrastructure (e.g. `dockerode`) directly — it declares ports; `infrastructure` implements adapters.
+- `shared` imports from nothing (`review-only`); `domains` may import `shared` (`review-only`).
+- `services` import `domains` + `shared`; all wiring is private inside services (`review-only`; the layer arrives in phase F3).
+- `cli` may import `services` + `shared`; `tui` may import `services`, its own FSD layers, and `shared` (`review-only` until F4 zones).
+- `cli`/`tui` must not import `domains` directly — contract types re-export through `services` (`review-only`; rule arrives with F3).
+- `src/tui/` must not import from `src/cli/`; `src/cli/` must not import from `src/tui/` (enforced by ESLint zones). Transitional exception until F3, per ADR-0014 and superseded by ADR-0019: `cli` may import `tui/features/remotes/add-remote-wizard` and `tui/features/doctor`.
+- `services`/`domains` must not import presentation (`cli`/`tui`) (`review-only`).
+- `application` must not import infrastructure (e.g. `dockerode`) directly — it declares ports; `infrastructure` implements adapters (`review-only`).
 
 ## Conventions
 

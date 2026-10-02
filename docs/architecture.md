@@ -1,35 +1,26 @@
 # Architecture
 
-Tako combines two architectural styles:
-
-- **Frontend (TUI)**: Feature Sliced Design (FSD).
-- **Backend (CLI)**: Clean Architecture by domain.
-- **Shared kernel**: common layer consumed by both.
+Tako is **one server with two clients**, in-process: `src/services/` exposes complete
+domain functions, consumed equally by the interactive TUI (FSD) and the
+non-interactive CLI. All composition and adapter wiring is private inside
+`services/` and `domains/`. See [ADR-0019](decisions/0019-services-layer.md) for the
+model and [ADR-0018](decisions/0018-fsd-layer-policy.md) for the FSD layer policy.
 
 ## Structure
 
-```
+```text
 src/
-├── shared/                     # COMMON KERNEL CLI + TUI
-│   ├── ui/                     # ink base kit (Button, Badge, Text)
-│   ├── lib/                    # fs utils, logger, picocolors wrappers
-│   ├── types/                  # Result, Maybe
-│   └── errors/                 # TakoError classes
-├── domains/                    # CLEAN ARCH BY DOMAIN
-│   └── docker/                 # reference domain (MVP)
-│       ├── domain/             # types: Container, Stack, Image
-│       ├── application/        # use cases: ListStacks, DeployStack, GetLogs
-│       └── infrastructure/     # DockerodeClient (local), SshDockerClient (via SSH)
-├── cli/                        # CLI presentation
-│   ├── index.ts                # entry, parse argv
-│   └── commands/               # thin handlers: parse args → call use case → print
-└── tui/                        # TUI presentation (FSD)
-    ├── app/                    # App.tsx, app-router, generated route tree, providers
-    ├── pages/                  # screens
-    ├── widgets/                # composite blocks
-    ├── features/               # user-facing actions UI
-    ├── entities/               # entity views (React components)
-    └── shared/                 # TUI-specific shared (theme tokens, nav)
+├── tui/          # interactive client — Feature Sliced Design
+│   ├── app/      # App.tsx, app-router, generated route tree, providers
+│   ├── pages/    # screens; single-use code lives in its page
+│   ├── widgets/  # grandfathered composite blocks (ADR-0018: no new ones)
+│   ├── features/ # user-facing actions reused across pages
+│   ├── entities/ # business domain views (React components)
+│   └── shared/   # TUI-specific shared (theme tokens, nav)
+├── cli/          # non-interactive client — parse → call service → print
+├── services/     # in-process API layer (ADR-0019) — arrives in phase F3
+├── domains/      # Clean Architecture per domain
+└── shared/       # shared kernel (currently 2 files, see below)
 ```
 
 TUI routing is file-based: route shims live in `src/tui/app/routes/`
@@ -37,41 +28,105 @@ TUI routing is file-based: route shims live in `src/tui/app/routes/`
 and are wired into `src/tui/app/routes.generated.ts` by
 `bun run generate:routes`.
 
-## Dependency rules (strict)
+## Domains
 
-```
-shared      → (nobody)
-domains/*   → shared
-cli/*       → domains/* + shared
-tui/*       → domains/* + shared
-```
+Four domains are implemented, each split Clean-Architecture style:
 
-FORBIDDEN:
-
-- `tui/*` importing from `cli/*` (frontend does not know backend presentation).
-- `cli/*` importing from `tui/*` (the reverse).
-- `domains/*` importing from `cli/*` or `tui/*` (domain does not know presentations).
-
-## Managed tension: duplicated entities
-
-FSD wants `tui/entities/`. Clean Arch wants `domains/X/domain/`. They are NOT duplicated:
-
-- The **type** (TS interface) of an entity lives in `domains/X/domain/`.
-- The **React component** that renders it lives in `tui/entities/`. It imports the type from the domain.
-
-Same with features: the **use case** lives in `domains/X/application/`, the **UI flow** that invokes it lives in `tui/features/`.
-
-## The docker domain as reference
-
-For the MVP, only the docker domain is implemented. It is the most complex and the best template to replicate later. When you add a new domain (ssh, remotes, stacks, secrets, config), replicate the structure of docker.
+| Domain    | Responsibility                                           |
+| --------- | -------------------------------------------------------- |
+| `docker`  | stack lifecycle and prune over local Docker or SSH       |
+| `remotes` | SSH connection configurations, secrets, remote execution |
+| `system`  | host tool checks and dependencies                        |
+| `agent`   | unattended job execution (daemon, install, protocol)     |
 
 Each domain has:
 
 - `domain/`: pure types and rules. Zero external dependencies.
 - `application/`: use cases that orchestrate domain + infrastructure.
-- `infrastructure/`: external adapters. They implement domain interfaces.
+- `infrastructure/`: external adapters (ssh2, conf, dockerode, bun:sqlite). They implement domain interfaces.
 
-**Key rule**: `application/` declares interfaces (ports), `infrastructure/` implements them (adapters). `application/` never imports dockerode directly.
+**Key rule**: `application/` declares interfaces (ports), `infrastructure/` implements
+them (adapters). `application/` never imports adapter libraries directly.
+
+## Services layer (ADR-0019)
+
+`src/services/<domain>.ts` is the in-process API consumed by both clients. The
+contract:
+
+- **Minimal parameters in** (request-like), **typed results out** (response-like);
+  streaming results are `AsyncIterable`.
+- The public surface contains zero infrastructure or adapter types.
+- All wiring (auth resolution, SSH toolstack, `conf` stores) is private.
+
+> **Status**: this section describes the contract. The layout is delivered in
+> **phase F3** (plan: `odd/tasks/architecture-layers.md`); until then, cli and tui
+> compose domains directly at the sites scheduled for convergence.
+
+The CLI is a non-interactive endpoint: parameters via flags/stdin, parse → call →
+print, zero UX. Interactive flows live only in the TUI.
+
+## Shared kernel (real inventory)
+
+`src/shared/` currently holds two files:
+
+- `lib/session-password.ts`
+- `lib/version.ts`
+
+There is no `types/Result`, `types/Maybe`, or `errors/TakoError` — earlier drafts
+of this document described a larger kernel than the one that exists. Grow
+`shared/` only when two layers actually need the same code.
+
+## Dependency rules
+
+Allowed directions (ADR-0019 target model):
+
+```text
+tui/       → services/ + tui-internal layers + shared/
+cli/       → services/ + shared/
+services/  → domains/ + shared/
+domains/   → shared/
+```
+
+Enforcement, honestly stated — a rule is either mechanically enforced today or it is
+`review-only` (marked rules get mechanical checks in phase F4; FSD additionally gets
+[Steiger](https://github.com/feature-sliced/steiger), per ADR-0018):
+
+| Rule                                                                  | Enforcement                      |
+| --------------------------------------------------------------------- | -------------------------------- |
+| `tui` must not import `cli`                                           | enforced (ESLint zone)           |
+| `cli` must not import `tui`                                           | enforced (ESLint zone)¹          |
+| `agent` imports `remotes/application` ports type-only                 | enforced (ESLint zone + syntax)  |
+| `bun:sqlite` imports only in agent persistence + integration fixtures | enforced (ESLint resolver)       |
+| `shared` imports from nobody                                          | review-only (F4 zone)            |
+| `domains` must not import presentation (`cli`/`tui`)                  | review-only (F4 zone)            |
+| `application` must not import `infrastructure`                        | review-only (F4 zone)            |
+| `domain/` purity (zero external dependencies)                         | review-only (F4 zone)            |
+| FSD layer direction inside `tui`                                      | review-only (F4 zones + Steiger) |
+| `cli`/`tui` must not import `domains` directly (via `services`)       | review-only — arrives with F3    |
+| `services`/`domains` must not import presentation                     | review-only — arrives with F3    |
+
+¹ Transitional ADR-0014 exceptions are still active: `cli` may import
+`tui/features/remotes/add-remote-wizard` and `tui/features/doctor`. Superseded by
+ADR-0019; deleted in phase F3.
+
+## Managed tension: duplicated entities
+
+FSD wants `tui/entities/`. Clean Arch wants `domains/X/domain/`. They are NOT duplicated:
+
+- The **type** (TS interface) of an entity lives in `domains/X/domain/` (re-exported
+  through `services/` once F3 lands).
+- The **React component** that renders it lives in `tui/entities/`. It imports the type — never a copy.
+
+Same with features: the **use case** lives in `domains/X/application/`, the **UI flow**
+that invokes it lives in `tui/features/`.
+
+## TUI layer policy
+
+FSD layer policy — when a widget, feature, or entity slice may exist, and how
+same-layer cross-imports are resolved — is defined in
+[ADR-0018](decisions/0018-fsd-layer-policy.md). Summary: widgets are grandfathered
+(`app-shell`, `action-menu`), no new widget/feature/entity slice without a real second
+consumer, single-use code stays in its page.
 
 ## Related stack
 
