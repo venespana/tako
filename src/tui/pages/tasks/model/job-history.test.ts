@@ -1,4 +1,4 @@
-// features/tasks/job-history/model/job-history.test.ts — STRICT TDD RED phase (tasks 8.7/8.14)
+// pages/tasks/model/job-history.test.ts — STRICT TDD RED phase (tasks 8.7/8.14)
 //
 // History presentation model: rows are newest-first, every run status has a
 // glyph + color the UI can render directly, and result payloads (error,
@@ -7,7 +7,7 @@
 // reconcile and look exactly like any other run).
 import { describe, expect, it } from 'vitest';
 
-import type { RunStatus, RunView } from '../../../../../domains/agent/domain/types.js';
+import type { RunStatus, RunView } from '../../../../domains/agent/domain/types.js';
 import { formatRunStatus, summarizeRunResult, toHistoryRows } from './job-history.js';
 
 function run(overrides: Partial<RunView> & { seq: number }): RunView {

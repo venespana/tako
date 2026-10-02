@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { render } from 'ink-testing-library';
 import { MemoryRouter } from 'react-router';
 
-import { resetTasksStoreForTests, useTasksStore } from '../../features/tasks/job-list/index.js';
+import { resetTasksStoreForTests, useTasksStore } from '../../pages/tasks/index.js';
 import { FakeTasksGateway } from '../../test-utils/fake-agent-session.js';
 import { initialAppRuntimeState, useAppRuntimeStore } from '../providers/app-runtime-store.js';
 import HomeRoute from './index.js';

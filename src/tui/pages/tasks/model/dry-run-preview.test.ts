@@ -1,4 +1,4 @@
-// features/tasks/dry-run-preview/model/dry-run-preview.test.ts — STRICT TDD RED phase (tasks 8.9/8.14)
+// pages/tasks/model/dry-run-preview.test.ts — STRICT TDD RED phase (tasks 8.9/8.14)
 //
 // Dry-run preview model: a dry-run's recorded report renders as a readable
 // summary. The model NEVER applies anything — it only describes; applying is
@@ -7,7 +7,7 @@
 // applies").
 import { describe, expect, it } from 'vitest';
 
-import type { RunView } from '../../../../../domains/agent/domain/types.js';
+import type { RunView } from '../../../../domains/agent/domain/types.js';
 import { summarizeDryRun } from './dry-run-preview.js';
 
 function dryRun(result: unknown): RunView {

@@ -1,10 +1,10 @@
-// features/tasks/job-history/ui/JobHistoryPane.tsx — per-job history column
+// pages/tasks/ui/JobHistoryPane.tsx — per-job history column
 // (task 8.8). Renders the store's run views (already reconciled + live) as
 // rows: glyph, seq, mode, catchup marker, outcome summary. Runs that executed
 // while the client was disconnected appear exactly like any other run.
 import { Box, Text } from 'ink';
 
-import type { RunView } from '../../../../../domains/agent/domain/types.js';
+import type { RunView } from '../../../../domains/agent/domain/types.js';
 import { toHistoryRows } from '../model/job-history.js';
 
 export interface JobHistoryPaneProps {

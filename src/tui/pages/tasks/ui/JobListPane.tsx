@@ -1,17 +1,16 @@
-// features/tasks/job-list/ui/JobListPane.tsx — the job list column (task 8.4).
+// pages/tasks/ui/JobListPane.tsx — the job list column (task 8.4).
 // Owns the list cursor (up/k, down/j, Enter/l to select — dispatched by the
 // shared useKeyBindings hook, 9.9) — a local cursor mirrors features/menu's
-// useMenuList WITHOUT cross-importing the menu feature (FSD: same-layer
-// cross-slice imports are forbidden, Strategy D not justified for a hook this
-// small). Rows render through the job entity's JobRow.
+// useMenuList rather than importing the hook (one state value does not
+// justify the dependency). Rows render through the job entity's JobRow.
 import { useCallback, useState } from 'react';
 
 import { Box, Text } from 'ink';
 
-import type { JobView } from '../../../../../domains/agent/domain/types.js';
-import { JobRow } from '../../../../entities/job/index.js';
-import { useEditingStore } from '../../../../shared/lib/editing-store.js';
-import { useKeyBindings } from '../../../../shared/lib/use-key-bindings.js';
+import type { JobView } from '../../../../domains/agent/domain/types.js';
+import { JobRow } from '../../../entities/job/index.js';
+import { useEditingStore } from '../../../shared/lib/editing-store.js';
+import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 
 export interface JobListPaneProps {
   readonly jobs: readonly JobView[];

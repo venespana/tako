@@ -4,7 +4,7 @@
 // importable only from test files.
 import type { AgentHandshake, AgentSession } from '../../domains/agent/application/AgentTransport.js';
 import type { AgentFrame, AgentRequestMap, AgentRequestType } from '../../domains/agent/domain/protocol.js';
-import type { AgentInstallOutcome, TasksGateway } from '../features/tasks/job-list/model/tasks-store.js';
+import type { AgentInstallOutcome, TasksGateway } from '../pages/tasks/index.js';
 
 export class FakeAgentSession implements AgentSession {
   handshake: AgentHandshake = { ack: { agentVersion: '0.1.2', protocol: 1, agentStartId: 'start-test' } };

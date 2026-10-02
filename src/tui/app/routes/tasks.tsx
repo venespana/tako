@@ -27,9 +27,8 @@ import type { SshConnectAuth, SshConnectConfig } from '../../../domains/remotes/
 import { SshRemoteCommandRunner } from '../../../domains/remotes/infrastructure/SshRemoteCommandRunner.js';
 import { StreamLocalAgentChannel } from '../../../domains/remotes/infrastructure/StreamLocalAgentChannel.js';
 import { VERSION } from '../../../shared/lib/version.js';
-import type { AgentInstallOutcome, TasksGateway } from '../../features/tasks/job-list/index.js';
-import { assertAgentSocketPresent } from '../../features/tasks/job-list/index.js';
-import { TasksPage } from '../../pages/tasks/index.js';
+import { assertAgentSocketPresent, TasksPage } from '../../pages/tasks/index.js';
+import type { AgentInstallOutcome, TasksGateway } from '../../pages/tasks/index.js';
 import { useAppRuntimeStore } from '../providers/app-runtime-store.js';
 
 /** conf section for the per-remote reconcile cursor (agent.db seq, client-side). */

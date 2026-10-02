@@ -1,4 +1,4 @@
-// features/tasks/job-list/model/tasks-store.ts — Zustand store for the tasks
+// pages/tasks/model/tasks-store.ts — Zustand store for the tasks
 // workspace (task 8.3, design §TUI Layout).
 //
 // ONE store per session: connect() opens a long-lived agent session for the
@@ -14,13 +14,13 @@
 // persisted per remote through the gateway (conf on the shim side).
 import { create } from 'zustand';
 
-import type { AgentSession } from '../../../../../domains/agent/application/AgentTransport.js';
+import type { AgentSession } from '../../../../domains/agent/application/AgentTransport.js';
 import type {
   AgentFrame,
   JobStateChangedPayload,
   RunCompletedPayload,
-} from '../../../../../domains/agent/domain/protocol.js';
-import type { JobDefinition, JobView, RunMode, RunView, Slug } from '../../../../../domains/agent/domain/types.js';
+} from '../../../../domains/agent/domain/protocol.js';
+import type { JobDefinition, JobView, RunMode, RunView, Slug } from '../../../../domains/agent/domain/types.js';
 
 export type TasksStatus = 'idle' | 'connecting' | 'ready' | 'warning' | 'error';
 

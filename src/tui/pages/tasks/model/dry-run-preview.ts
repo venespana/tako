@@ -1,9 +1,9 @@
-// features/tasks/dry-run-preview/model/dry-run-preview.ts — dry-run report
+// pages/tasks/model/dry-run-preview.ts — dry-run report
 // summaries (task 8.9). Pure: turns a dry-run's recorded result into a
 // headline + detail lines. The model NEVER applies anything — the explicit
 // Apply action is wired separately by the page (spec tui-tasks#Dry-Run-
 // Preview: nothing is removed until the user explicitly applies).
-import type { RunView } from '../../../../../domains/agent/domain/types.js';
+import type { RunView } from '../../../../domains/agent/domain/types.js';
 
 export interface DryRunSummary {
   /** One-line take: what WOULD happen (or why no report exists). */

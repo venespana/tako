@@ -1,4 +1,4 @@
-// features/tasks/job-list/model/agent-socket-probe.test.ts — 9.17 connect
+// pages/tasks/model/agent-socket-probe.test.ts — 9.17 connect
 // guard: a missing agent socket is the EXPECTED pre-install state and must
 // fail the connect with the TYPED friendly error (the install panel consumes
 // it), never the raw channel-open failure; real transport failures keep
@@ -8,7 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type {
   RemoteCommandResult,
   RemoteCommandRunner,
-} from '../../../../../domains/remotes/application/RemoteCommandRunner.js';
+} from '../../../../domains/remotes/application/RemoteCommandRunner.js';
 import { AgentNotInstalledError, assertAgentSocketPresent, resolveAgentSocketPath } from './agent-socket-probe.js';
 
 const ok = (stdout = ''): RemoteCommandResult => ({ stdout, stderr: '', exitCode: 0 });

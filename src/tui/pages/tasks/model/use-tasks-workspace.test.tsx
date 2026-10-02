@@ -1,15 +1,16 @@
-// use-tasks-workspace.test.tsx — 9.16: the workspace rules moved out of
-// pages/tasks (FSD); the regressions that pin them moved with the logic.
-// The harness mounts the rules hook with injected deps (the store stays in
-// the job-list slice) and mirrors the page's hidden-while-connecting early
-// return, because that hiding is exactly what 9.14e guards against.
+// pages/tasks/model/use-tasks-workspace.test.tsx — 9.16: the workspace rules
+// are pinned by these regressions, which moved with the logic into the
+// page's model segment (ADR-0018 absorption). The harness mounts the rules
+// hook with injected deps (the store lives in model/tasks-store.ts) and
+// mirrors the page's hidden-while-connecting early return, because that
+// hiding is exactly what 9.14e guards against.
 import { describe, expect, it, vi } from 'vitest';
 
 import { render } from 'ink-testing-library';
 
 import { Text } from 'ink';
 
-import type { JobView, RunMode, RunView, Slug } from '../../../../../domains/agent/domain/types.js';
+import type { JobView, RunMode, RunView, Slug } from '../../../../domains/agent/domain/types.js';
 import { useTasksWorkspace, type TasksWorkspaceDeps, type TasksWorkspaceStatus } from './use-tasks-workspace.js';
 
 /** Poll until predicate() holds (Ink key flush + hook settle). */

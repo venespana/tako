@@ -2,30 +2,33 @@
 // Layout: job list (left) + detail pane (right) under an agent header; the
 // install panel replaces the workspace when the agent is unreachable (9.14b:
 // in-TUI install with live output, retry on failure, reconnect on success).
-// All state lives in the job-list store; the page only composes slices and
-// wires the explicit actions. Editing the form suspends page hotkeys via
-// EditingGuard. All deps arrive as props from the route shim (pages never
-// import app/, per FSD).
+// All state lives in the page's tasks store (model/tasks-store); the
+// component only composes panes and wires the explicit actions. Editing the
+// form suspends page hotkeys via EditingGuard. All deps arrive as props from
+// the route shim (pages never import app/, per FSD).
 //
 // 9.15a: the page publishes its key hints to the FOOTER (shared page-hints
 // context) instead of printing them in the body; 9.15c: while a form is open
 // the page publishes NO char hints — character keys are data entry only and
 // Esc is the only cancel.
 // 9.16: the workspace RULES (mode machine, hotkeys + gating, install
-// auto-start-once, hints) live in the features layer — useTasksWorkspace —
-// leaving this page pure composition: early returns, panes, layout.
+// auto-start-once, hints) live in the page's model segment —
+// useTasksWorkspace — leaving this component pure composition: early
+// returns, panes, layout.
 import { useCallback, useEffect } from 'react';
 
 import { Box, Text } from 'ink';
 
+import { AgentInstallPanel } from './AgentInstallPanel.js';
+import { DryRunPreviewPane } from './DryRunPreviewPane.js';
+import { JobForm } from './JobForm.js';
+import { JobHistoryPane } from './JobHistoryPane.js';
+import { JobListPane } from './JobListPane.js';
 import { formatSchedule } from '../../../entities/job/index.js';
-import { DryRunPreviewPane } from '../../../features/tasks/dry-run-preview/index.js';
-import { AgentInstallPanel, type InstallRunner } from '../../../features/tasks/install/index.js';
-import { EMPTY_JOB_FORM, JobForm, jobToForm } from '../../../features/tasks/job-form/index.js';
-import { JobHistoryPane } from '../../../features/tasks/job-history/index.js';
-import { JobListPane, useTasksStore } from '../../../features/tasks/job-list/index.js';
-import type { TasksGateway } from '../../../features/tasks/job-list/index.js';
-import { useTasksWorkspace } from '../../../features/tasks/workspace/index.js';
+import { EMPTY_JOB_FORM, jobToForm } from '../model/job-form.js';
+import { useTasksStore, type TasksGateway } from '../model/tasks-store.js';
+import type { InstallRunner } from '../model/use-agent-install.js';
+import { useTasksWorkspace } from '../model/use-tasks-workspace.js';
 
 export interface TasksPageProps {
   /** Composition-root gateway for the active remote (null → select hint). */
@@ -79,11 +82,11 @@ export function TasksPage({ gateway, onAgentVersion }: TasksPageProps): React.Re
   const runs = selectedJobId !== null ? (historyByJob[selectedJobId] ?? []) : [];
   // The preview shows the MOST RECENT dry-run — including queued ones, which
   // resolve their report through push events without any user action. This
-  // is also the reviewed-report the feature's apply gating (`a`) requires.
+  // is also the reviewed-report the workspace's apply gating (`a`) requires.
   const latestDryRun = runs.find(run => run.mode === 'dry-run') ?? null;
 
   // Workspace rules (mode machine, hotkeys, apply gating, footer hints) are
-  // the feature's; the page injects the store bits they gate on.
+  // the model's; the component injects the store bits they gate on.
   const workspace = useTasksWorkspace({
     status,
     hasGateway: gateway !== null,

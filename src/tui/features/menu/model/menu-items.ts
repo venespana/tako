@@ -34,18 +34,21 @@ export interface ActionGroup {
   items: ActionItem[];
 }
 
-/** Render-ready menu item: an ActionItem with its enablement pre-computed.
- * Pure renderers (widgets) consume this shape so they never evaluate the
- * enabledWhen business rule themselves. */
-export interface RenderableActionItem extends ActionItem {
+/**
+ * Feature-side gating result: an ActionItem with its enablement pre-computed
+ * (withEnablement). The ActionMenu widget owns the render-ready contract
+ * (RenderableActionGroup, ADR-0018 point 6); pages hand this shape to the
+ * widget — it is structurally compatible.
+ */
+export interface GatedActionItem extends ActionItem {
   /** Pre-computed by the menu feature (withEnablement): true when the item
    * passes the gating rule and is part of the selectable list. */
   enabled: boolean;
 }
 
-/** Render-ready group: same label structure, items carry `enabled`. */
-export interface RenderableActionGroup {
+/** Gated group: same label structure, items carry `enabled`. */
+export interface GatedActionGroup {
   id: string;
   label: string;
-  items: RenderableActionItem[];
+  items: GatedActionItem[];
 }

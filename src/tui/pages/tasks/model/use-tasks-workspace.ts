@@ -1,18 +1,19 @@
-// features/tasks/workspace/model/use-tasks-workspace.ts — The tasks
-// workspace RULES (9.16): the mode machine (browse/create/edit), the page
-// hotkeys with their business gating, the apply-after-reviewed-report rule,
-// and the footer-hints computation. Moved out of pages/tasks (FSD: pages
-// compose and render; features own user-interaction rules).
+// pages/tasks/model/use-tasks-workspace.ts — The tasks workspace RULES
+// (9.16): the mode machine (browse/create/edit), the page hotkeys with their
+// business gating, the apply-after-reviewed-report rule, and the
+// footer-hints computation. Formerly a feature slice (9.16); absorbed into
+// the page's model segment by ADR-0018's single-use rule — this page was its
+// only consumer.
 //
-// The tasks STORE stays in the job-list slice: this hook receives the
-// store-derived values and actions it gates on as injected deps from the
-// page (no cross-feature imports). Behavior contract: byte-identical to the
-// pre-9.16 page — same keys, same guards, same hints, same action order.
+// The tasks STORE lives next door in model/tasks-store.ts: this hook
+// receives the store-derived values and actions it gates on as injected deps
+// from the page. Behavior contract: byte-identical to the pre-9.16 page —
+// same keys, same guards, same hints, same action order.
 import { useCallback, useMemo, useState } from 'react';
 
-import type { JobDefinition, JobView, RunMode, RunView, Slug } from '../../../../../domains/agent/domain/types.js';
-import { usePageHints, type KeyHint } from '../../../../shared/lib/page-hints-store.js';
-import { useKeyBindings } from '../../../../shared/lib/use-key-bindings.js';
+import type { JobDefinition, JobView, RunMode, RunView, Slug } from '../../../../domains/agent/domain/types.js';
+import { usePageHints, type KeyHint } from '../../../shared/lib/page-hints-store.js';
+import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 
 /** Tasks-store status values the workspace rules gate on (job-list's union). */
 export type TasksWorkspaceStatus = 'idle' | 'connecting' | 'ready' | 'warning' | 'error';

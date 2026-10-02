@@ -1,7 +1,8 @@
-// use-agent-install.ts — The install pane's state machine (9.14b, model of
-// the install slice since 9.16; IN-PROCESS since 9.19): output-line buffer,
-// the idle/running/done phase machine, r-retry (a NOT-running install only),
-// autoStart-once per visit, and stale-run guards for late progress lines.
+// pages/tasks/model/use-agent-install.ts — The install pane's state machine
+// (9.14b, its model hook since 9.16; IN-PROCESS since 9.19): output-line
+// buffer, the idle/running/done phase machine, r-retry (a NOT-running
+// install only), autoStart-once per visit, and stale-run guards for late
+// progress lines.
 // The install itself is the gateway's async install() — composed in-process
 // by the route shim over the shared agent pipeline (no child process, no
 // watchdog: steps report progress by construction). This hook only
@@ -9,11 +10,11 @@
 // inside an Ink render body.
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { useKeyBindings } from '../../../../shared/lib/use-key-bindings.js';
+import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 
 /**
  * Terminal outcome of one install attempt (structural match for
- * TasksGateway.install — features/tasks slices must not import each other).
+ * TasksGateway.install in model/tasks-store.ts).
  */
 export type InstallOutcome = { readonly ok: true } | { readonly ok: false; readonly error: string };
 

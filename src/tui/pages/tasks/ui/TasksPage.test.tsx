@@ -6,12 +6,10 @@ import { render } from 'ink-testing-library';
 import { Text } from 'ink';
 
 import type { JobDefinition } from '../../../../domains/agent/domain/types.js';
-import { FakeTasksGateway } from '../../../test-utils/fake-agent-session.js';
-// Public API only (9.7): the slice index exports the test reset seam — no
-// test-only deep import into model/.
-import { resetTasksStoreForTests } from '../../../features/tasks/job-list/index.js';
 import { useEditingStore } from '../../../shared/lib/editing-store.js';
 import { usePageHintsStore } from '../../../shared/lib/page-hints-store.js';
+import { FakeTasksGateway } from '../../../test-utils/fake-agent-session.js';
+import { resetTasksStoreForTests } from '../model/tasks-store.js';
 import { TasksPage } from './TasksPage.js';
 
 const PRUNE_JOB: JobDefinition = {

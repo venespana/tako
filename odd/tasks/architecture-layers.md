@@ -102,7 +102,16 @@ single-file fix) and removed its own scratch prompt file.
   closed by parent, Prettier clean.
 - 2026-10-02: F0 committed as `999d1c2` (user-approved; 270+/64-).
 - 2026-10-02: F1 complete — 11 files deleted, 7 edited (1 companion test edit justified:
-  menu-registry.test.ts asserted handlerKey). Suite 760/760. Commit proposed.
+  menu-registry.test.ts asserted handlerKey). Suite 760/760. Committed as `ed582a0`
+  (user: "continua"; pre-commit hook had swept in 2 untracked files — amended to restore
+  the approved 18-path scope before finalizing).
+- 2026-10-02: hygiene commit `82ba55f` — .gitignore += .codegraph/, feature doc tracked.
+  Unblocked the review preflight (eligible untracked inventory was blocking START).
+- 2026-10-02: native review of slice F0+F1 (24 files, 925 lines): consent GRANTED by user
+  → lineage review-5998dff5d7a6544e, medium risk, 1 lens (review-reliability) → APPROVED
+  → acknowledged, authority burned. Advisory (non-blocking, informational): R3-001
+  doctor/index.ts deleted render bridge — recorded as follow-up context, no correction
+  offered. Reviewed boundary advances to `82ba55f`.
 
 ## Verification evidence
 - F0: writer verification report (prettier --write + --check, verbatim in session) + parent
@@ -115,6 +124,11 @@ single-file fix) and removed its own scratch prompt file.
 - F1: writer lint/typecheck/test verbatim + parent readback (git status = exactly 18
   expected paths; residue grep handlerKey|DispatchMap|buildDefaultDispatch|runDoctorScreen
   = 0 matches) + parent spot check `bun run typecheck` → clean.
+- F1 commit identity: ed582a0 (4+/466-). Hygiene: 82ba55f.
+- Review: consent/v3 relayed losslessly, granted; capture admitted (1 retry after
+  output_refused, same slot reoffered); state approved; acknowledge-approved burned
+  authority (review-acknowledged/v1, consumed_revision 2430ab99...).
 
 ## Next step
-F1 commit approval → commit → RDD assess (slice F0+F1 likely crosses ~400 authored) → F2.
+F2 writer: absorb features/tasks/* into pages/tasks + ActionMenu inversion → verify →
+commit → assess with --base-ref 82ba55f.

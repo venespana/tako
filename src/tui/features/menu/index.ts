@@ -6,8 +6,8 @@ export type {
   ActionItem,
   ActionItemKind,
   EnableCondition,
-  RenderableActionGroup,
-  RenderableActionItem,
+  GatedActionGroup,
+  GatedActionItem,
 } from './model/menu-items.js';
 export { getSelectable, moveCursor, withEnablement } from './model/menu-navigation.js';
 export { getRegistry } from './model/menu-registry.js';

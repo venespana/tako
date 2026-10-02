@@ -1,4 +1,4 @@
-// features/tasks/job-form/ui/JobForm.tsx — create/edit job form (task 8.6,
+// pages/tasks/ui/JobForm.tsx — create/edit job form (task 8.6,
 // reworked by 9.15b to the AddRemoteWizard progressive-disclosure pattern):
 // ONE field at a time (id → type → the chosen type's branch → schedule), the
 // first field focused on entry, each step confirmed with Enter, completed
@@ -16,9 +16,9 @@ import { Box, Text } from 'ink';
 
 import { MultiSelect, Select, TextInput } from '@inkjs/ui';
 
-import type { JobDefinition, StackLifecycleOp, PruneScopes } from '../../../../../domains/agent/domain/types.js';
-import { useKeyBindings } from '../../../../shared/lib/use-key-bindings.js';
-import { EditingGuard } from '../../../../shared/ui/EditingGuard.js';
+import type { JobDefinition, StackLifecycleOp, PruneScopes } from '../../../../domains/agent/domain/types.js';
+import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
+import { EditingGuard } from '../../../shared/ui/EditingGuard.js';
 import {
   LIFECYCLE_OP_OPTIONS,
   SCOPE_OPTIONS,

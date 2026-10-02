@@ -1,4 +1,4 @@
-// features/tasks/job-form/ui/JobForm.test.tsx — 9.15b/9.15c: the form follows
+// pages/tasks/ui/JobForm.test.tsx — 9.15b/9.15c: the form follows
 // the AddRemoteWizard progressive-disclosure pattern (ONE field at a time, id
 // focused on entry, Enter confirms each step, completed fields collapse into
 // done rows) and the Esc-only-cancel discipline (character keys are data
@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { render } from 'ink-testing-library';
 
-import type { JobDefinition, PruneScopes } from '../../../../../domains/agent/domain/types.js';
+import type { JobDefinition, PruneScopes } from '../../../../domains/agent/domain/types.js';
 import { EMPTY_JOB_FORM, type JobFormValues } from '../model/job-form.js';
 import { JobForm } from './JobForm.js';
 

@@ -1,4 +1,4 @@
-// features/tasks/job-list/model/tasks-store.test.ts — STRICT TDD RED phase (task 8.3/8.14)
+// pages/tasks/model/tasks-store.test.ts — STRICT TDD RED phase (task 8.3/8.14)
 //
 // The zustand tasks store: connect (handshake + agent.status + reconcile.sync
 // with the per-remote cursor), CRUD actions, trigger (queued run lands in
@@ -12,17 +12,17 @@ import type {
   AgentFrame,
   AgentRequestMap,
   AgentRequestType,
-} from '../../../../../domains/agent/domain/protocol.js';
+} from '../../../../domains/agent/domain/protocol.js';
 import type {
   JobDefinition,
   RunMode,
   RunView,
   Slug,
-} from '../../../../../domains/agent/domain/types.js';
+} from '../../../../domains/agent/domain/types.js';
 import type {
   AgentHandshake,
   AgentSession,
-} from '../../../../../domains/agent/application/AgentTransport.js';
+} from '../../../../domains/agent/application/AgentTransport.js';
 import {
   applyJobStateChanged,
   applyRunCompleted,

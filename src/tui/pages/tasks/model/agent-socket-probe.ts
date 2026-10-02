@@ -1,4 +1,4 @@
-// features/tasks/job-list/model/agent-socket-probe.ts — 9.17 connect guard.
+// pages/tasks/model/agent-socket-probe.ts — 9.17 connect guard.
 //
 // The agent transport needs the remote's ~/.tako/agent.sock to exist; when it
 // does not, the agent is simply NOT INSTALLED (the expected pre-install
@@ -9,8 +9,8 @@
 // they are real connection problems, not an absent agent.
 import { join } from 'node:path';
 
-import { DEFAULT_AGENT_SOCKET_PATH } from '../../../../../domains/remotes/application/AgentChannel.js';
-import type { RemoteCommandRunner } from '../../../../../domains/remotes/application/RemoteCommandRunner.js';
+import { DEFAULT_AGENT_SOCKET_PATH } from '../../../../domains/remotes/application/AgentChannel.js';
+import type { RemoteCommandRunner } from '../../../../domains/remotes/application/RemoteCommandRunner.js';
 
 /** Thrown when the agent socket does not exist on the remote (9.17). */
 export class AgentNotInstalledError extends Error {

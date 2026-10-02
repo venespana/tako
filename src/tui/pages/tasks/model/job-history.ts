@@ -1,8 +1,8 @@
-// features/tasks/job-history/model/job-history.ts — history presentation
+// pages/tasks/model/job-history.ts — history presentation
 // model (task 8.7). Pure: rows newest-first, status glyph/color pairs, and
 // one-line result summaries for the three result shapes the protocol can
 // deliver ({ error } / lifecycle report / prune report).
-import type { RunMode, RunStatus, RunView } from '../../../../../domains/agent/domain/types.js';
+import type { RunMode, RunStatus, RunView } from '../../../../domains/agent/domain/types.js';
 
 export interface RunStatusStyle {
   readonly glyph: string;

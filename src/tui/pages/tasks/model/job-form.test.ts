@@ -1,4 +1,4 @@
-// features/tasks/job-form/model/job-form.test.ts — STRICT TDD RED phase (task 8.5/8.14)
+// pages/tasks/model/job-form.test.ts — STRICT TDD RED phase (task 8.5/8.14)
 //
 // The create/edit job form model: the CLOSED job taxonomy drives the form —
 // forbidden prune scopes are not merely rejected, they are unrepresentable
@@ -7,8 +7,8 @@
 // mirrors the agent domain guards client-side (slug, stackDir, cron sanity).
 import { describe, expect, it } from 'vitest';
 
-import type { JobDefinition, PruneScopes } from '../../../../../domains/agent/domain/types.js';
-import { isValidCronExpr } from '../../../../../domains/agent/domain/schedule.js';
+import type { JobDefinition, PruneScopes } from '../../../../domains/agent/domain/types.js';
+import { isValidCronExpr } from '../../../../domains/agent/domain/schedule.js';
 import {
   EMPTY_JOB_FORM,
   SCOPE_OPTIONS,

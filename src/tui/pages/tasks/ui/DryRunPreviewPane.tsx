@@ -1,11 +1,11 @@
-// features/tasks/dry-run-preview/ui/DryRunPreviewPane.tsx — dry-run preview
-// slice (task 8.10). Pure renderer over the model's summary. This slice NEVER
+// pages/tasks/ui/DryRunPreviewPane.tsx — dry-run preview pane (task 8.10).
+// Pure renderer over the model's summary. This pane NEVER
 // applies anything: the explicit Apply action is wired by the page as a
 // separate key (spec tui-tasks#Dry-Run-Preview — apply is separate and
 // explicit, never a side effect of previewing).
 import { Box, Text } from 'ink';
 
-import type { RunView } from '../../../../../domains/agent/domain/types.js';
+import type { RunView } from '../../../../domains/agent/domain/types.js';
 import { summarizeDryRun } from '../model/dry-run-preview.js';
 
 export interface DryRunPreviewPaneProps {
