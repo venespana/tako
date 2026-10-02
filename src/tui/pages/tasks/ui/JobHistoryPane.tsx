@@ -4,7 +4,7 @@
 // while the client was disconnected appear exactly like any other run.
 import { Box, Text } from 'ink';
 
-import type { RunView } from '../../../../domains/agent/domain/types.js';
+import type { RunView } from '../../../../services/agent.js';
 import { toHistoryRows } from '../model/job-history.js';
 
 export interface JobHistoryPaneProps {

@@ -16,7 +16,7 @@ import { Box, Text } from 'ink';
 
 import { MultiSelect, Select, TextInput } from '@inkjs/ui';
 
-import type { JobDefinition, StackLifecycleOp, PruneScopes } from '../../../../domains/agent/domain/types.js';
+import type { JobDefinition, StackLifecycleOp, PruneScopes } from '../../../../services/agent.js';
 import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 import { EditingGuard } from '../../../shared/ui/EditingGuard.js';
 import {

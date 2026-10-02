@@ -7,7 +7,7 @@ import { useCallback, useState } from 'react';
 
 import { Box, Text } from 'ink';
 
-import type { JobView } from '../../../../domains/agent/domain/types.js';
+import type { JobView } from '../../../../services/agent.js';
 import { JobRow } from '../../../entities/job/index.js';
 import { useEditingStore } from '../../../shared/lib/editing-store.js';
 import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';

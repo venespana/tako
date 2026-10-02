@@ -4,33 +4,45 @@
 // with the per-remote cursor), CRUD actions, trigger (queued run lands in
 // history), history loading with merge, and the push-event handlers
 // (job.state_changed / run.completed / protocol.warning) that keep the store
-// live. All async behavior runs against a fake gateway + fake session — no
-// real transport, no conf.
-import { beforeEach, describe, expect, it } from 'vitest';
+// live. Per ADR-0019 the store talks to services/agent — mocked here with a
+// canned-response fake session (no real transport, no conf).
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  connectAgentSession,
+  loadReconcileCursor,
+  saveReconcileCursor,
+} from '../../../../services/agent.js';
 import type {
   AgentFrame,
   AgentRequestMap,
   AgentRequestType,
-} from '../../../../domains/agent/domain/protocol.js';
-import type {
+  AgentHandshake,
+  AgentSession,
   JobDefinition,
   RunMode,
   RunView,
   Slug,
-} from '../../../../domains/agent/domain/types.js';
-import type {
-  AgentHandshake,
-  AgentSession,
-} from '../../../../domains/agent/application/AgentTransport.js';
+} from '../../../../services/agent.js';
 import {
   applyJobStateChanged,
   applyRunCompleted,
   mergeRuns,
   useTasksStore,
-  type AgentInstallOutcome,
-  type TasksGateway,
 } from './tasks-store.js';
+
+vi.mock('../../../../services/agent.js', async importOriginal => {
+  // Spread the REAL module so the pure re-exports keep working; the store
+  // only consumes the three transport/cursor functions replaced below.
+  const actual = await importOriginal<typeof import('../../../../services/agent.js')>();
+  return {
+    ...actual,
+    connectAgentSession: vi.fn(),
+    installAgent: vi.fn(),
+    loadReconcileCursor: vi.fn(() => 0),
+    saveReconcileCursor: vi.fn(),
+  };
+});
 
 const PRUNE_JOB: JobDefinition = {
   id: 'nas-prune',
@@ -38,6 +50,8 @@ const PRUNE_JOB: JobDefinition = {
   scopes: ['dangling-images'],
   schedule: { kind: 'cron', expr: '0 4 * * *' },
 };
+
+const REMOTE: { readonly remote: string } = { remote: 'nas' };
 
 function jobView(job: JobDefinition, enabled = true) {
   return { job, enabled, createdAt: '2026-09-18T08:00:00.000Z', updatedAt: '2026-09-18T08:00:00.000Z' };
@@ -89,35 +103,10 @@ class FakeSession implements AgentSession {
   }
 }
 
-class FakeGateway implements TasksGateway {
-  readonly remote = 'nas';
-  readonly session = new FakeSession();
-  connectCalls = 0;
-  cursor = 3;
-  readonly savedCursors: number[] = [];
-  connectError: Error | null = null;
-
-  async connect(): Promise<AgentSession> {
-    this.connectCalls += 1;
-    if (this.connectError !== null) throw this.connectError;
-    return this.session;
-  }
-
-  // 9.19: part of the port — irrelevant to the store tests (no install path
-  // runs here), so a never-used stub satisfies the interface honestly.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async install(_onLine: (line: string) => void): Promise<AgentInstallOutcome> {
-    return { ok: true };
-  }
-
-  loadCursor(): number {
-    return this.cursor;
-  }
-
-  saveCursor(seq: number): void {
-    this.cursor = seq;
-    this.savedCursors.push(seq);
-  }
+/** Bind the mocked service to a session; `cursor` seeds loadReconcileCursor. */
+function connectSessionWith(session: FakeSession, cursor = 3): void {
+  vi.mocked(connectAgentSession).mockResolvedValue({ kind: 'connected', session });
+  vi.mocked(loadReconcileCursor).mockReturnValue(cursor);
 }
 
 function seedAgentAndSync(session: FakeSession, jobs: JobDefinition[] = [PRUNE_JOB], runs: RunView[] = []): void {
@@ -133,40 +122,43 @@ function seedAgentAndSync(session: FakeSession, jobs: JobDefinition[] = [PRUNE_J
   session.responses.set('reconcile.sync', { jobs: jobs.map(job => jobView(job)), runs, lastSeq: runs.at(-1)?.seq ?? 7 });
 }
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(loadReconcileCursor).mockReturnValue(0);
+  useTasksStore.getState().reset();
+});
+
 describe('tasks store — connect + reconcile (8.3/8.14)', () => {
-  let gateway: FakeGateway;
-
-  beforeEach(() => {
-    gateway = new FakeGateway();
-    useTasksStore.getState().reset();
-  });
-
   it('connect: handshake → agent info → reconcile.sync from the cursor; runs merge; cursor saves', async () => {
+    const session = new FakeSession();
+    connectSessionWith(session, 3);
     const run = runView({ id: 'r1', jobId: 'nas-prune', seq: 7 });
-    seedAgentAndSync(gateway.session, [PRUNE_JOB], [run]);
+    seedAgentAndSync(session, [PRUNE_JOB], [run]);
     const store = useTasksStore;
 
-    const ok = await store.getState().connect(gateway);
+    const ok = await store.getState().connect(REMOTE);
 
     expect(ok).toBe(true);
+    expect(connectAgentSession).toHaveBeenCalledWith({ remote: 'nas', sessionPassword: undefined });
     const state = store.getState();
     expect(state.status).toBe('ready');
     expect(state.agent).toMatchObject({ agentVersion: '0.1.2', unitState: 'active', linger: true, lingerByTako: true });
     expect(state.jobs).toHaveLength(1);
     expect(state.historyByJob['nas-prune']).toEqual([run]);
     expect(state.lastSeq).toBe(7);
-    expect(gateway.savedCursors).toEqual([7]);
+    expect(saveReconcileCursor).toHaveBeenCalledWith('nas', 7);
     // The client offered its persisted cursor (3) to the sync.
-    expect(gateway.session.requests).toEqual([
+    expect(session.requests).toEqual([
       { type: 'agent.status', payload: {} },
       { type: 'reconcile.sync', payload: { lastSeq: 3 } },
     ]);
     // Exactly one push-event subscription is live after connect.
-    expect(gateway.session.listeners).toHaveLength(1);
+    expect(session.listeners).toHaveLength(1);
   });
 
   it('connect: handshake warning downgrades to status warning with the detail, but the session continues', async () => {
-    gateway.session.handshake = {
+    const session = new FakeSession();
+    session.handshake = {
       ack: { agentVersion: '0.0.9', protocol: 1, agentStartId: 'start-1' },
       warning: {
         clientVersion: '0.1.2',
@@ -174,9 +166,10 @@ describe('tasks store — connect + reconcile (8.3/8.14)', () => {
         detail: 'agent version differs from client — re-run "tako agent install"',
       },
     };
-    seedAgentAndSync(gateway.session);
+    connectSessionWith(session);
+    seedAgentAndSync(session);
 
-    await expect(useTasksStore.getState().connect(gateway)).resolves.toBe(true);
+    await expect(useTasksStore.getState().connect(REMOTE)).resolves.toBe(true);
 
     const state = useTasksStore.getState();
     expect(state.status).toBe('warning');
@@ -185,9 +178,9 @@ describe('tasks store — connect + reconcile (8.3/8.14)', () => {
   });
 
   it('connect failure (agent unreachable / not installed): status error with the message', async () => {
-    gateway.connectError = new Error('channel open failed: ~/.tako/agent.sock');
+    vi.mocked(connectAgentSession).mockRejectedValue(new Error('channel open failed: ~/.tako/agent.sock'));
 
-    await expect(useTasksStore.getState().connect(gateway)).resolves.toBe(false);
+    await expect(useTasksStore.getState().connect(REMOTE)).resolves.toBe(false);
 
     const state = useTasksStore.getState();
     expect(state.status).toBe('error');
@@ -196,16 +189,31 @@ describe('tasks store — connect + reconcile (8.3/8.14)', () => {
     await expect(useTasksStore.getState().refresh()).resolves.toBe(false);
   });
 
+  it('a service refusal (unknown remote / no session password) is an error status, not a throw', async () => {
+    vi.mocked(connectAgentSession).mockResolvedValue({
+      kind: 'refused',
+      reason: 'unknown remote "nas" — add it first with "tako remote add"',
+    });
+
+    await expect(useTasksStore.getState().connect(REMOTE)).resolves.toBe(false);
+
+    const state = useTasksStore.getState();
+    expect(state.status).toBe('error');
+    expect(state.message).toContain('unknown remote "nas"');
+  });
+
   it('disconnect: closes the session, unsubscribes push events, resets to idle', async () => {
-    seedAgentAndSync(gateway.session);
+    const session = new FakeSession();
+    connectSessionWith(session);
+    seedAgentAndSync(session);
     const store = useTasksStore;
-    await store.getState().connect(gateway);
+    await store.getState().connect(REMOTE);
 
     await store.getState().disconnect();
 
     const state = store.getState();
-    expect(gateway.session.closed).toBe(true);
-    expect(gateway.session.listeners).toHaveLength(0);
+    expect(session.closed).toBe(true);
+    expect(session.listeners).toHaveLength(0);
     expect(state.status).toBe('idle');
     expect(state.jobs).toEqual([]);
     // No session bound → every subsequent action fails fast.
@@ -214,14 +222,14 @@ describe('tasks store — connect + reconcile (8.3/8.14)', () => {
 });
 
 describe('tasks store — job CRUD actions (8.14)', () => {
-  let gateway: FakeGateway;
+  let session: FakeSession;
 
   beforeEach(async () => {
-    gateway = new FakeGateway();
-    useTasksStore.getState().reset();
-    seedAgentAndSync(gateway.session);
-    await useTasksStore.getState().connect(gateway);
-    gateway.session.requests.length = 0;
+    session = new FakeSession();
+    connectSessionWith(session);
+    seedAgentAndSync(session);
+    await useTasksStore.getState().connect(REMOTE);
+    session.requests.length = 0;
   });
 
   it('refresh: jobs.list response replaces the job list', async () => {
@@ -232,7 +240,7 @@ describe('tasks store — job CRUD actions (8.14)', () => {
       stackDir: '/srv/stacks/caddy',
       schedule: { kind: 'cron', expr: '0 3 * * *' },
     };
-    gateway.session.responses.set('jobs.list', { jobs: [jobView(other)] });
+    session.responses.set('jobs.list', { jobs: [jobView(other)] });
 
     await expect(useTasksStore.getState().refresh()).resolves.toBe(true);
 
@@ -241,7 +249,7 @@ describe('tasks store — job CRUD actions (8.14)', () => {
 
   it('upsert: inserts a new job and replaces an existing one by id (idempotent identity)', async () => {
     const updated: JobDefinition = { ...PRUNE_JOB, scopes: ['build-cache'] };
-    gateway.session.responses.set('jobs.upsert', { job: jobView(updated), created: false });
+    session.responses.set('jobs.upsert', { job: jobView(updated), created: false });
 
     const saved = await useTasksStore.getState().upsert(updated);
 
@@ -251,18 +259,18 @@ describe('tasks store — job CRUD actions (8.14)', () => {
   });
 
   it('remove: drops the job only when the server confirms the deletion', async () => {
-    gateway.session.responses.set('jobs.delete', { deleted: true });
+    session.responses.set('jobs.delete', { deleted: true });
 
     await expect(useTasksStore.getState().remove('nas-prune')).resolves.toBe(true);
     expect(useTasksStore.getState().jobs).toEqual([]);
 
-    gateway.session.responses.set('jobs.delete', { deleted: false });
+    session.responses.set('jobs.delete', { deleted: false });
     await expect(useTasksStore.getState().remove('nas-prune')).resolves.toBe(false);
   });
 
   it('trigger: appends the queued pending run to history and advances the cursor', async () => {
     const queued = runView({ id: 'r9', jobId: 'nas-prune', seq: 9, mode: 'dry-run', status: 'pending' });
-    gateway.session.responses.set('jobs.trigger', { run: queued });
+    session.responses.set('jobs.trigger', { run: queued });
 
     const run = await useTasksStore.getState().trigger('nas-prune', 'dry-run');
 
@@ -270,7 +278,10 @@ describe('tasks store — job CRUD actions (8.14)', () => {
     expect(useTasksStore.getState().historyByJob['nas-prune']).toEqual([queued]);
     expect(useTasksStore.getState().lastSeq).toBe(9);
     // 7 was saved by connect's reconcile, 9 by the trigger's seq advance.
-    expect(gateway.savedCursors).toEqual([7, 9]);
+    expect(vi.mocked(saveReconcileCursor).mock.calls).toEqual([
+      ['nas', 7],
+      ['nas', 9],
+    ]);
   });
 
   it('loadHistory: merges server runs with locally known runs (reconcile after disconnect), newest first', async () => {
@@ -278,19 +289,22 @@ describe('tasks store — job CRUD actions (8.14)', () => {
     useTasksStore.setState({ historyByJob: { 'nas-prune': [local] } });
     const serverR7 = runView({ id: 'r7', jobId: 'nas-prune', seq: 7, status: 'succeeded', finishedAt: 't7' });
     const serverR8 = runView({ id: 'r8', jobId: 'nas-prune', seq: 8, status: 'failed', result: { error: 'boom' } });
-    gateway.session.responses.set('jobs.history', { runs: [serverR7, serverR8], lastSeq: 8 });
+    session.responses.set('jobs.history', { runs: [serverR7, serverR8], lastSeq: 8 });
 
     const merged = await useTasksStore.getState().loadHistory('nas-prune');
 
     expect(merged.map(row => row.id)).toEqual(['r8', 'r7']); // newest first
     expect(merged.find(row => row.id === 'r7')?.status).toBe('succeeded'); // server truth wins
     expect(useTasksStore.getState().lastSeq).toBe(8);
-    expect(gateway.savedCursors).toEqual([7, 8]); // reconcile's 7 + history's 8
+    expect(vi.mocked(saveReconcileCursor).mock.calls).toEqual([
+      ['nas', 7],
+      ['nas', 8],
+    ]); // reconcile's 7 + history's 8
   });
 
   it('select: lazily loads history for the newly selected job exactly once', async () => {
     const r1 = runView({ id: 'r1', jobId: 'nas-prune', seq: 1 });
-    gateway.session.responses.set('jobs.history', { runs: [r1], lastSeq: 1 });
+    session.responses.set('jobs.history', { runs: [r1], lastSeq: 1 });
 
     // select() auto-loads missing history (fire-and-forget) — settle it.
     useTasksStore.getState().select('nas-prune');
@@ -301,26 +315,26 @@ describe('tasks store — job CRUD actions (8.14)', () => {
     useTasksStore.getState().select('nas-prune');
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    expect(gateway.session.requests.filter(request => request.type === 'jobs.history')).toHaveLength(1);
+    expect(session.requests.filter(request => request.type === 'jobs.history')).toHaveLength(1);
   });
 });
 
 describe('tasks store — push events keep the store live (8.14)', () => {
-  let gateway: FakeGateway;
+  let session: FakeSession;
 
   beforeEach(async () => {
-    gateway = new FakeGateway();
-    useTasksStore.getState().reset();
-    seedAgentAndSync(gateway.session);
-    await useTasksStore.getState().connect(gateway);
-    gateway.session.requests.length = 0;
+    session = new FakeSession();
+    connectSessionWith(session);
+    seedAgentAndSync(session);
+    await useTasksStore.getState().connect(REMOTE);
+    session.requests.length = 0;
   });
 
   it('job.state_changed updates the run status in place (running → succeeded, finishedAt from at)', () => {
     const running = runView({ id: 'r1', jobId: 'nas-prune', seq: 1, status: 'running' });
     useTasksStore.setState({ historyByJob: { 'nas-prune': [running] } });
 
-    gateway.session.emit({
+    session.emit({
       v: 1,
       kind: 'event',
       type: 'job.state_changed',
@@ -336,7 +350,7 @@ describe('tasks store — push events keep the store live (8.14)', () => {
     const running = runView({ id: 'r2', jobId: 'nas-prune', seq: 2, status: 'running' });
     useTasksStore.setState({ historyByJob: { 'nas-prune': [running] } });
 
-    gateway.session.emit({
+    session.emit({
       v: 1,
       kind: 'event',
       type: 'run.completed',
@@ -349,7 +363,7 @@ describe('tasks store — push events keep the store live (8.14)', () => {
   });
 
   it('protocol.warning downgrades the store to warning with the detail', () => {
-    gateway.session.emit({
+    session.emit({
       v: 1,
       kind: 'event',
       type: 'protocol.warning',
@@ -362,14 +376,14 @@ describe('tasks store — push events keep the store live (8.14)', () => {
   });
 
   it('a failed request surfaces as status error and closes the dead session', async () => {
-    gateway.session.failNext = new Error('transport closed');
+    session.failNext = new Error('transport closed');
 
     await expect(useTasksStore.getState().refresh()).resolves.toBe(false);
 
     const state = useTasksStore.getState();
     expect(state.status).toBe('error');
     expect(state.message).toContain('transport closed');
-    expect(gateway.session.closed).toBe(true);
+    expect(session.closed).toBe(true);
   });
 });
 

@@ -11,10 +11,8 @@
 // Validation mirrors the agent domain guards client-side so feedback is
 // instant: Slug charset for the id, the stackDir guard, and the domain cron
 // validator. buildJobDefinition produces the exact union member or nothing.
-import { isValidStackDir } from '../../../../domains/agent/domain/job.js';
-import { isValidCronExpr } from '../../../../domains/agent/domain/schedule.js';
-import { SLUG_PATTERN } from '../../../../domains/agent/domain/types.js';
-import type { StackLifecycleOp, PruneScopes, Schedule, JobDefinition } from '../../../../domains/agent/domain/types.js';
+import { SLUG_PATTERN, isValidCronExpr, isValidStackDir } from '../../../../services/agent.js';
+import type { StackLifecycleOp, PruneScopes, Schedule, JobDefinition } from '../../../../services/agent.js';
 
 /** The form covers the two executable job types only (8.5). */
 export type JobFormType = 'stack-lifecycle' | 'prune';

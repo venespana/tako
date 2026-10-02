@@ -9,18 +9,25 @@
 // — history reflects runs that completed while the client was disconnected
 // because reconcile redelivers them and the merge is idempotent by run id.
 //
-// The gateway port is injected by the route shim (composition lives in app/;
-// pages and features never import app/, per FSD). The reconcile cursor is
-// persisted per remote through the gateway (conf on the shim side).
+// Since ADR-0019 the store is VIEW state: the transport comes from the
+// services layer (services/agent), imported directly — there is no injected
+// gateway and no infrastructure composition on this side of the fence. The
+// reconcile cursor is persisted per remote through the service (conf on the
+// services side).
 import { create } from 'zustand';
 
-import type { AgentSession } from '../../../../domains/agent/application/AgentTransport.js';
+import { connectAgentSession, loadReconcileCursor, saveReconcileCursor } from '../../../../services/agent.js';
 import type {
   AgentFrame,
   JobStateChangedPayload,
   RunCompletedPayload,
-} from '../../../../domains/agent/domain/protocol.js';
-import type { JobDefinition, JobView, RunMode, RunView, Slug } from '../../../../domains/agent/domain/types.js';
+  AgentSession,
+  JobDefinition,
+  JobView,
+  RunMode,
+  RunView,
+  Slug,
+} from '../../../../services/agent.js';
 
 export type TasksStatus = 'idle' | 'connecting' | 'ready' | 'warning' | 'error';
 
@@ -32,35 +39,10 @@ export interface TasksAgentInfo {
   readonly lingerByTako: boolean;
 }
 
-/**
- * Terminal outcome of one in-process agent install attempt (9.19): the
- * pipeline reports every progress line through onLine; failures come back
- * here (never thrown) so the panel can render the reason.
- */
-export type AgentInstallOutcome = { readonly ok: true } | { readonly ok: false; readonly error: string };
-
-/**
- * Port over the active remote: fresh sessions + the per-remote reconcile
- * cursor. Implemented in the route shim over SshConnectionManager →
- * StreamLocalAgentChannel → StreamLocalAgentTransport and conf.
- */
-export interface TasksGateway {
-  /** Remote this gateway is bound to (cursor key + user-facing hints). */
+/** Identifies the remote to bind the workspace to (session material rides along). */
+export interface TasksConnectRequest {
   readonly remote: string;
-  /** Open a new agent session (handshake completed by the transport). */
-  connect(): Promise<AgentSession>;
-  /**
-   * Run the agent install IN-PROCESS over this remote (9.19): the shim
-   * composes the shared install pipeline (InstallAgent preflight →
-   * HybridBinaryProvisioner → SystemdRemoteController → SurviveDisconnectProber)
-   * over the same SSH stack as connect() and reports each progress line
-   * through onLine — the same lines the CLI prints. Resolves when the attempt
-   * settles; it never throws (failures arrive in the outcome).
-   */
-  install(onLine: (line: string) => void): Promise<AgentInstallOutcome>;
-  /** Persisted reconcile cursor for this remote (0 = full resync). */
-  loadCursor(): number;
-  saveCursor(seq: number): void;
+  readonly sessionPassword?: string;
 }
 
 export interface TasksState {
@@ -78,8 +60,8 @@ export interface TasksState {
 
 export interface TasksActions {
   reset(): void;
-  /** Connect + reconcile for the given gateway; resolves false on failure. */
-  connect(gateway: TasksGateway): Promise<boolean>;
+  /** Connect + reconcile for the given remote; resolves false on failure. */
+  connect(request: TasksConnectRequest): Promise<boolean>;
   /** Close the session and drop all state. */
   disconnect(): Promise<void>;
   refresh(): Promise<boolean>;
@@ -164,7 +146,7 @@ export function applyRunCompleted(
 // add-remote wizard; reset() gives tests and route remounts a clean slate)
 // ---------------------------------------------------------------------------
 
-let activeGateway: TasksGateway | null = null;
+let activeRemote: string | null = null;
 let activeSession: AgentSession | null = null;
 let unsubscribe: (() => void) | null = null;
 
@@ -176,25 +158,30 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
   ...initialTasksState,
 
   reset: () => {
-    activeGateway = null;
+    activeRemote = null;
     void get().disconnect();
     set({ ...initialTasksState });
   },
 
-  connect: async gateway => {
-    activeGateway = gateway;
+  connect: async request => {
     set({ status: 'connecting', message: null });
     let session: AgentSession;
     try {
-      session = await gateway.connect();
+      const result = await connectAgentSession(request);
+      if (result.kind === 'refused') {
+        set({ status: 'error', message: result.reason });
+        return false;
+      }
+      session = result.session;
     } catch (error) {
       set({ status: 'error', message: describeError(error) });
       return false;
     }
+    activeRemote = request.remote;
     activeSession = session;
     try {
       const agent = await session.request('agent.status', {});
-      const cursor = gateway.loadCursor();
+      const cursor = loadReconcileCursor(request.remote);
       const sync = await session.request('reconcile.sync', { lastSeq: cursor });
 
       const historyByJob: Record<string, RunView[]> = {};
@@ -202,7 +189,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
         historyByJob[run.jobId] = mergeRuns(historyByJob[run.jobId] ?? [], [run]);
       }
       const lastSeq = Math.max(cursor, sync.lastSeq);
-      gateway.saveCursor(lastSeq);
+      saveReconcileCursor(request.remote, lastSeq);
 
       const warning = session.handshake.warning;
       unsubscribe = session.onEvent(frame => handleEventFrame(set, frame));
@@ -301,7 +288,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
         [jobId]: mergeRuns(state.historyByJob[jobId] ?? [], [run]),
       };
       const lastSeq = Math.max(state.lastSeq, run.seq);
-      activeGateway?.saveCursor(lastSeq);
+      if (activeRemote !== null) saveReconcileCursor(activeRemote, lastSeq);
       set({ historyByJob, lastSeq });
       return run;
     } catch (error) {
@@ -317,7 +304,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
       const state = get();
       const merged = mergeRuns(state.historyByJob[jobId] ?? [], response.runs);
       const lastSeq = Math.max(state.lastSeq, response.lastSeq);
-      activeGateway?.saveCursor(lastSeq);
+      if (activeRemote !== null) saveReconcileCursor(activeRemote, lastSeq);
       set({ historyByJob: { ...state.historyByJob, [jobId]: merged }, lastSeq });
       return merged;
     } catch (error) {

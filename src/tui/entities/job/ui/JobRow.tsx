@@ -3,7 +3,7 @@
 // the agent-domain job type (entities/job/model/job-label).
 import { Text } from 'ink';
 
-import type { JobView } from '../../../../domains/agent/domain/types.js';
+import type { JobView } from '../../../../services/agent.js';
 import { theme } from '../../../shared/ui/theme.js';
 import { formatJobDetail, formatSchedule } from '../model/job-label.js';
 

@@ -11,7 +11,7 @@
 // same keys, same guards, same hints, same action order.
 import { useCallback, useMemo, useState } from 'react';
 
-import type { JobDefinition, JobView, RunMode, RunView, Slug } from '../../../../domains/agent/domain/types.js';
+import type { JobDefinition, JobView, RunMode, RunView, Slug } from '../../../../services/agent.js';
 import { usePageHints, type KeyHint } from '../../../shared/lib/page-hints-store.js';
 import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 

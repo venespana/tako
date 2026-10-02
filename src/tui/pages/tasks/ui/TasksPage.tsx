@@ -4,8 +4,10 @@
 // in-TUI install with live output, retry on failure, reconnect on success).
 // All state lives in the page's tasks store (model/tasks-store); the
 // component only composes panes and wires the explicit actions. Editing the
-// form suspends page hotkeys via EditingGuard. All deps arrive as props from
-// the route shim (pages never import app/, per FSD).
+// form suspends page hotkeys via EditingGuard. Since ADR-0019 the page
+// imports the services layer DIRECTLY (no injected gateway): the route shim
+// hands over plain data — the remote name and its session password — and the
+// transport, the install pipeline, and the cursor live behind services/agent.
 //
 // 9.15a: the page publishes its key hints to the FOOTER (shared page-hints
 // context) instead of printing them in the body; 9.15c: while a form is open
@@ -24,15 +26,18 @@ import { DryRunPreviewPane } from './DryRunPreviewPane.js';
 import { JobForm } from './JobForm.js';
 import { JobHistoryPane } from './JobHistoryPane.js';
 import { JobListPane } from './JobListPane.js';
+import { installAgent } from '../../../../services/agent.js';
 import { formatSchedule } from '../../../entities/job/index.js';
 import { EMPTY_JOB_FORM, jobToForm } from '../model/job-form.js';
-import { useTasksStore, type TasksGateway } from '../model/tasks-store.js';
-import type { InstallRunner } from '../model/use-agent-install.js';
+import { useTasksStore } from '../model/tasks-store.js';
+import type { InstallOutcome, InstallRunner } from '../model/use-agent-install.js';
 import { useTasksWorkspace } from '../model/use-tasks-workspace.js';
 
 export interface TasksPageProps {
-  /** Composition-root gateway for the active remote (null → select hint). */
-  readonly gateway: TasksGateway | null;
+  /** The active remote (null → select hint). Plain data — the route's whole job. */
+  readonly remote: string | null;
+  /** Session password for interactive-credential remotes (captured at activation). */
+  readonly sessionPassword?: string;
   /**
    * Publishes the handshake's agent version to the app runtime so the shell
    * header can show it (9.14a). Injected by the route shim.
@@ -40,7 +45,7 @@ export interface TasksPageProps {
   readonly onAgentVersion?: (version: string) => void;
 }
 
-export function TasksPage({ gateway, onAgentVersion }: TasksPageProps): React.ReactElement {
+export function TasksPage({ remote, sessionPassword, onAgentVersion }: TasksPageProps): React.ReactElement {
   const status = useTasksStore(state => state.status);
   const message = useTasksStore(state => state.message);
   const agent = useTasksStore(state => state.agent);
@@ -58,12 +63,12 @@ export function TasksPage({ gateway, onAgentVersion }: TasksPageProps): React.Re
 
   // Connect on mount, disconnect on unmount (session lifetime == page life).
   useEffect(() => {
-    if (gateway === null) return;
-    void connect(gateway);
+    if (remote === null) return;
+    void connect({ remote, sessionPassword });
     return () => {
       void disconnect();
     };
-  }, [gateway, connect, disconnect]);
+  }, [remote, sessionPassword, connect, disconnect]);
 
   // 9.14a: the handshake's agent version rides up to the shell header.
   const publishAgentVersion = useCallback((version: string) => onAgentVersion?.(version), [onAgentVersion]);
@@ -89,7 +94,7 @@ export function TasksPage({ gateway, onAgentVersion }: TasksPageProps): React.Re
   // the model's; the component injects the store bits they gate on.
   const workspace = useTasksWorkspace({
     status,
-    hasGateway: gateway !== null,
+    hasGateway: remote !== null,
     selected,
     latestDryRun,
     removeJob: remove,
@@ -97,24 +102,32 @@ export function TasksPage({ gateway, onAgentVersion }: TasksPageProps): React.Re
     upsertJob: upsert,
   });
 
-  // 9.14b reconnect: a fresh handshake over a NEW connection (the gateway
-  // builds a fresh SSH stack per connect call).
+  // 9.14b reconnect: a fresh handshake over a NEW connection (the service
+  // resolves the remote fresh and builds a fresh SSH stack per connect).
   const handleInstalled = useCallback(() => {
-    if (gateway !== null) void connect(gateway);
-  }, [gateway, connect]);
+    if (remote !== null) void connect({ remote, sessionPassword });
+  }, [remote, sessionPassword, connect]);
 
-  // 9.19: the install runs IN-PROCESS through the gateway (the shim composes
-  // the shared agent pipeline over the same SSH stack) — the panel only sees
-  // this stable runner, never the session material behind it.
+  // 9.19: the install runs IN-PROCESS through the service (the shared agent
+  // pipeline over the same SSH stack) — the panel only sees this stable
+  // runner, never the session material behind it.
   const install = useCallback<InstallRunner>(
-    onLine => {
-      if (gateway === null) return Promise.resolve({ ok: false, error: 'no remote selected' });
-      return gateway.install(onLine);
+    async (onLine): Promise<InstallOutcome> => {
+      if (remote === null) return { ok: false, error: 'no remote selected' };
+      const result = await installAgent({ remote, sessionPassword, onLine });
+      switch (result.kind) {
+        case 'installed':
+          return { ok: true };
+        case 'refused':
+          return { ok: false, error: result.reason };
+        case 'failed':
+          return { ok: false, error: result.error };
+      }
     },
-    [gateway]
+    [remote, sessionPassword]
   );
 
-  if (gateway === null) {
+  if (remote === null) {
     return (
       <Box flexDirection='column' paddingLeft={2}>
         <Box height={2} />
@@ -127,7 +140,7 @@ export function TasksPage({ gateway, onAgentVersion }: TasksPageProps): React.Re
     return (
       <Box flexDirection='column' paddingLeft={2}>
         <Box height={2} />
-        <Text dimColor>Connecting to the agent on {gateway.remote}…</Text>
+        <Text dimColor>Connecting to the agent on {remote}…</Text>
       </Box>
     );
   }
@@ -137,7 +150,7 @@ export function TasksPage({ gateway, onAgentVersion }: TasksPageProps): React.Re
       <Box flexDirection='column' paddingLeft={2}>
         <Box height={2} />
         <AgentInstallPanel
-          remote={gateway.remote}
+          remote={remote}
           error={message}
           autoStart={!workspace.installStarted}
           onStart={workspace.noteInstallStart}

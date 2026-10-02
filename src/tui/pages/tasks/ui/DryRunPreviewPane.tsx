@@ -5,7 +5,7 @@
 // explicit, never a side effect of previewing).
 import { Box, Text } from 'ink';
 
-import type { RunView } from '../../../../domains/agent/domain/types.js';
+import type { RunView } from '../../../../services/agent.js';
 import { summarizeDryRun } from '../model/dry-run-preview.js';
 
 export interface DryRunPreviewPaneProps {

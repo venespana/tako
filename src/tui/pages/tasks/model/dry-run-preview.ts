@@ -3,7 +3,7 @@
 // headline + detail lines. The model NEVER applies anything — the explicit
 // Apply action is wired separately by the page (spec tui-tasks#Dry-Run-
 // Preview: nothing is removed until the user explicitly applies).
-import type { RunView } from '../../../../domains/agent/domain/types.js';
+import type { RunView } from '../../../../services/agent.js';
 
 export interface DryRunSummary {
   /** One-line take: what WOULD happen (or why no report exists). */

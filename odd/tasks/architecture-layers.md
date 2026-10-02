@@ -67,26 +67,52 @@ single-file fix) and removed its own scratch prompt file.
       test 760/760 (88 files; 5 deleted test files account for the count drop). Flaky
       remotes redaction test did not flake.
 
-### Fase 2 — absorb features/tasks into pages/tasks
-- [ ] F2-T1 Move 6 slices (workspace, job-list, job-form, job-history, dry-run-preview,
-      install) into pages/tasks as segments; public API at pages/tasks/index.ts.
-- [ ] F2-T2 Update external consumers: app/routes/index.tsx + index.test.tsx,
-      app/routes/tasks.tsx, test-utils/fake-agent-session.ts (deep import fix).
-- [ ] F2-T3 ActionMenu inversion: RenderableActionGroup defined in widgets/action-menu;
-      features/menu conforms; delete widgets→features imports (resolves violation 1.1).
-- [ ] F2-T4 Suite green.
+### Fase 2 — absorb features/tasks into pages/tasks (delegated writer ses_f02e15d23ffe3Ow932WorRRDj7)
+- [x] F2-T1 6 slices absorbed into pages/tasks model/+ui/ segments (20 tracked renames,
+      91-100% similarity), domain-based names, public API shrunk to externally-referenced
+      surface (TasksPage, useTasksStore, resetTasksStoreForTests, assertAgentSocketPresent,
+      TasksGateway, AgentInstallOutcome).
+- [x] F2-T2 Consumers rewired: app/routes/index.tsx + test, app/routes/tasks.tsx,
+      test-utils/fake-agent-session.ts (deep import eliminated — types via page API).
+      features/tasks/ deleted: 6 barrel index.ts files; 13 import statements rewired.
+- [x] F2-T3 ActionMenu inversion: widget owns RenderableActionItem {id,label,enabled} +
+      RenderableActionGroup via its index; zero widget→features imports; features/menu
+      keeps richer GatedAction* types (structural compatibility); pages compose both
+      (home-menu.ts, remotes-menu.ts type-annotate with widget's contract — 2 minimal
+      out-of-surface edits, reported and parent-verified as exactly that).
+- [x] F2-T4 Suite green: lint 0 errors (2 pre-existing warnings), typecheck clean,
+      test 760/760 (88 files) — identical to F1 baseline.
+- Commit: `5817eca` (191+/210-, 42 paths with rename detection).
 
-### Fase 3 — services layer
-- [ ] F3-T1 Create src/services/{remotes,agent,docker,system}.ts: complete domain functions,
-      minimal params, typed results, AsyncIterable streams; all wiring private.
-- [ ] F3-T2 Push down: agent-socket-probe, assertAgentSocketPresent (tui→services.agent).
-- [ ] F3-T3 Unify decideRemoteAuth (refusal-object style wins); thin CLI commands
-      (parse → service → print); extract buildSshToolstack + conf triple to services.
-- [ ] F3-T4 TUI consumes services only: entities/job type via services; route shims direct
-      imports; tasks-store keeps view-state only.
-- [ ] F3-T5 Delete ADR-0014 exceptions (eslint except globs + docs); ADR-0014 marked
-      superseded by 0019.
-- [ ] F3-T6 Suite green + new unit tests for pushed-down use cases where meaningful.
+### Fase 3 — services layer (delegated writer ses_f02a0c272ffeiHQk3oxVJ0jy3f)
+- [x] F3-T1 src/services/{remotes,agent,docker,system}.ts: complete domain functions
+      (refusal-object outcomes, AsyncIterable where streaming); toolstack/conf/auth
+      private; contract types re-exported (entities/job + pages/tasks off domains).
+- [x] F3-T2 Probe 9.17 + assertAgentSocketPresent pushed down (run by connectAgentSession,
+      manager close-on-failure preserved, now tested).
+- [x] F3-T3 decideRemoteAuth unified (refusal-object, ONE message per outcome — user-facing
+      message delta recorded); SSH toolstack mirrors deleted from cli+tui; conf triple
+      private; lazy adapter imports disciplined in services.
+- [x] F3-T4 TUI consumes services: routes/tasks passes plain data; TasksGateway removed;
+      tests mock services (vi.mock + importOriginal spread); store = view-state only.
+- [x] F3-T5 CONDITIONAL — LEFTOVER: remaining cli→tui imports are exactly the agreed
+      interactive-UI slices (doctor format, add-remote wizard). Making remote-add
+      flags-only is a product decision — NOT taken unilaterally. eslint/ADR-0014/AGENTS.md
+      untouched; follow-up decision pending.
+- [x] F3-T6 Suite green: lint 0 errors (2 pre-existing warnings), typecheck clean,
+      test 793/793 (93 files; +33 service-level tests). Surprise fixed: latent-broken
+      integ/e2e imports referencing a symbol agent-install never exported.
+- Split commit sequence (user rule: no commits without code review; F3 single commit
+  exceeded the native lens context budget at HIGH risk → provider prescribed chained
+  smaller candidates):
+  - e9c9b11 piece 1 services — STAGED review: consent granted, 3/4 lenses admitted
+    (risk/resilience/reliability), readability lens deterministically unmaterializable
+    (4/4 output_refused → capture-unachievable recorded, stop unachievable_lens_slot);
+    user personally reviewed the staged diff and approved → committed. READABILITY GAP
+    OPEN on this slice.
+  - bc447fa piece 2 cli (172+/764-) — user waived personal review for end-of-day commit;
+    PENDING native review (committed-only, base e9c9b11).
+- Commit: final piece 3 below; assess vs 5817eca was high_risk/slice_budget (3586 lines).
 
 ### Fase 4 — enforcement
 - [ ] F4-T1 eslint zones: shared↖nobody, domains↖cli/tui, application↖infrastructure,
@@ -98,37 +124,51 @@ single-file fix) and removed its own scratch prompt file.
 
 ## Progress
 - 2026-10-02: branch feature/architecture-layers created (from feature/remote-agent HEAD).
-- 2026-10-02: F0 complete — 4 files written by delegated writer, 3 AGENTS.md table fixes
-  closed by parent, Prettier clean.
-- 2026-10-02: F0 committed as `999d1c2` (user-approved; 270+/64-).
-- 2026-10-02: F1 complete — 11 files deleted, 7 edited (1 companion test edit justified:
-  menu-registry.test.ts asserted handlerKey). Suite 760/760. Committed as `ed582a0`
-  (user: "continua"; pre-commit hook had swept in 2 untracked files — amended to restore
-  the approved 18-path scope before finalizing).
-- 2026-10-02: hygiene commit `82ba55f` — .gitignore += .codegraph/, feature doc tracked.
-  Unblocked the review preflight (eligible untracked inventory was blocking START).
-- 2026-10-02: native review of slice F0+F1 (24 files, 925 lines): consent GRANTED by user
-  → lineage review-5998dff5d7a6544e, medium risk, 1 lens (review-reliability) → APPROVED
-  → acknowledged, authority burned. Advisory (non-blocking, informational): R3-001
-  doctor/index.ts deleted render bridge — recorded as follow-up context, no correction
-  offered. Reviewed boundary advances to `82ba55f`.
+- 2026-10-02: F0 complete — committed `999d1c2` (4 docs files, user-approved).
+- 2026-10-02: F1 complete — committed `ed582a0` (11 deleted, 7 edited; suite 760/760);
+  hygiene `82ba55f` (.gitignore += .codegraph/, feature doc tracked).
+- 2026-10-02: slice F0+F1 native review: consent granted, lineage review-5998dff5d7a6544e,
+  1 lens (review-reliability), APPROVED (1 advisory informational R3-001), acknowledged,
+  authority burned. Boundary → 82ba55f.
+- 2026-10-02: F2 complete — committed `5817eca` (tasks absorption + ActionMenu inversion);
+  native review lineage review-89ff96c15da96a72: 3 output_refused then capture-unachievable
+  declared, user chose withdraw+retry, attempt 4 materialized → APPROVED ZERO findings,
+  acknowledged, authority burned. Boundary → 5817eca.
+- 2026-10-02: F3 complete (services layer + pushdowns + thin cli). Single-commit review
+  exceeded lens context budget (high risk) → split into 3 reviewed-before-commit pieces
+  per user rule: e9c9b11 (services; user-reviewed; readability lens gap open),
+  bc447fa (cli; review pending), piece 3 (tui; commit below; review pending).
+- 2026-10-02: USER RULE recorded: prefer typed objects with functions over switch-case
+  (engram #672); add to AGENTS.md Conventions in F4. USER RULE: no commits without code
+  review — end-of-day exception taken explicitly by user for pieces 2-3; review debt
+  tracked below.
+- 2026-10-02: ENGRAM/ops notes: MCP writes blocked by ended-session binding (CLI fallback);
+  gentle-ai review commands pollute the git index — always reset+add+commit atomically
+  (engram #673).
 
 ## Verification evidence
-- F0: writer verification report (prettier --write + --check, verbatim in session) + parent
-  structural readback of 0018/0019/architecture.md + parent spot check re-running
-  `bunx prettier --check` → clean. `git status`: only the 4 surface files modified/added.
-- F0 commit identity: 999d1c2 on feature/architecture-layers.
-- F0 assess: medium (executable_change AGENTS.md), 334 lines, review_due=false under_budget
-  (first assess attempt needed --untracked-scope=exclude with inventory
-  sha256:c43a7939...; recorded for future assess runs).
-- F1: writer lint/typecheck/test verbatim + parent readback (git status = exactly 18
-  expected paths; residue grep handlerKey|DispatchMap|buildDefaultDispatch|runDoctorScreen
-  = 0 matches) + parent spot check `bun run typecheck` → clean.
-- F1 commit identity: ed582a0 (4+/466-). Hygiene: 82ba55f.
-- Review: consent/v3 relayed losslessly, granted; capture admitted (1 retry after
-  output_refused, same slot reoffered); state approved; acknowledge-approved burned
-  authority (review-acknowledged/v1, consumed_revision 2430ab99...).
+- F0: writer prettier verbatim + parent readback + parent prettier spot check. 999d1c2.
+- F1: writer lint/typecheck/test verbatim + parent 18-path readback + residue grep 0 +
+  parent typecheck spot check. ed582a0.
+- F0+F1 review: consent/v3 relayed, granted; capture admitted (1 retry); approved;
+  acknowledge-approved burned (2430ab99...).
+- F2: writer lint/typecheck/test verbatim + parent rename-map readback + 2 out-of-surface
+  edits parent-verified minimal + parent typecheck spot check. 5817eca.
+- F2 review: consent granted; 3 refusals → declared unachievable → user withdraw+retry →
+  attempt 4 admitted → APPROVED zero findings → acknowledged (eee6584d...).
+- F3: writer lint/typecheck/test verbatim (793/793) + parent greps (production tui→domains
+  zero in touched slices; toolstack zero in cli/tui) + parent full-suite spot check
+  793/793. e9c9b11 / bc447fa / piece 3 below.
+
+## Review debt (open)
+- bc447fa (cli piece) — pending native review (committed-only, base e9c9b11) or user review.
+- piece 3 (tui) — pending native review after commit (base bc447fa) or user review.
+- e9c9b11 readability lens gap — open, recorded (stop unachievable_lens_slot, 4/4 refusals).
+- Follow-up decisions: ADR-0014 leftover (remote-add flags-only? doctor format path);
+  remaining production tui→domains imports in remotes/doctor slices (F4 zones: migrate
+  or grandfather); AGENTS.md convention line (typed objects over switch-case).
 
 ## Next step
-F2 writer: absorb features/tasks/* into pages/tasks + ActionMenu inversion → verify →
-commit → assess with --base-ref 82ba55f.
+Next session: review debt first (assess --base-ref e9c9b11 / bc447fa, or user review),
+then F4 (eslint zones incl tests, knip+steiger, CLI --version, AGENTS.md convention),
+then PR with version bump (repo rule 5).
