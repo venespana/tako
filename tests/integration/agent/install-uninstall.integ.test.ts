@@ -29,8 +29,8 @@ import { StreamLocalAgentChannel } from '../../../src/domains/remotes/infrastruc
 import { SftpRemoteFileTransfer } from '../../../src/domains/remotes/infrastructure/SftpRemoteFileTransfer.js';
 import { SshConnectionManager } from '../../../src/domains/remotes/infrastructure/SshConnectionManager.js';
 import { SshRemoteCommandRunner } from '../../../src/domains/remotes/infrastructure/SshRemoteCommandRunner.js';
-import { runAgentInstall, type AgentInstallDeps } from '../../../src/cli/commands/agent-install.js';
-import { runAgentUninstall, type AgentUninstallDeps } from '../../../src/cli/commands/agent-uninstall.js';
+import { runAgentInstall, type AgentInstallDeps } from '../../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
+import { runAgentUninstall, type AgentUninstallDeps } from '../../../src/services/agent.js';
 import type { VerifierConnection } from '../../../src/domains/agent/infrastructure/SurviveDisconnectProber.js';
 
 const STAND_IN = join(import.meta.dirname, 'fixtures', 'agent-standin.py');

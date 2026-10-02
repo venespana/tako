@@ -1,18 +1,13 @@
-// cli/commands/agent-status.ts — CLI handler for `tako agent status <remote>` (task 6.5)
+// cli/commands/agent-status.ts — CLI endpoint for `tako agent status <remote>` (task 6.5)
 //
-// One text table over a single agent session: unit state, linger
-// (+ whether Tako enabled it), agent/client version + protocol, job count,
-// and the handshake result (a version/protocol mismatch renders as a
-// warning line — the session itself never blocks, per spec).
-import type { AgentHandshake, AgentTransport } from '../../domains/agent/application/AgentTransport.js';
-import type { AgentStatusResult } from '../../domains/agent/domain/protocol.js';
-
-export interface AgentStatusDeps {
-  readonly transport: AgentTransport;
-  readonly clientVersion: string;
-  readonly log?: (line: string) => void;
-  readonly error?: (line: string) => void;
-}
+// ADR-0019: parse → call the service → print → exit code. The session query
+// (connect → agent.status → close) lives in services/agent; this command owns
+// only the text table and the exit-code mapping (0 ok, 1 refused/unreachable/
+// failed).
+import { fetchAgentStatus } from '../../services/agent.js';
+import type { AgentHandshake, AgentStatusResult } from '../../services/agent.js';
+import { SESSION_PASSWORD_ENV } from '../../shared/lib/session-password.js';
+import { VERSION } from '../../shared/lib/version.js';
 
 /** Render the status table (pure — exported for tests). */
 export function formatAgentStatus(handshake: AgentHandshake, status: AgentStatusResult, clientVersion: string): string {
@@ -33,49 +28,21 @@ export function formatAgentStatus(handshake: AgentHandshake, status: AgentStatus
   return rows.map(([label, value]) => `${label.padEnd(width)} : ${value}`).join('\n');
 }
 
-export async function runAgentStatus(deps: AgentStatusDeps): Promise<number> {
-  const log = deps.log ?? (line => console.log(line));
-  const error = deps.error ?? (line => console.error(line));
-
-  let session;
-  try {
-    session = await deps.transport.connect();
-  } catch (connectError) {
-    error(`agent unreachable: ${connectError instanceof Error ? connectError.message : String(connectError)}`);
-    return 1;
-  }
-
-  try {
-    const status = await session.request('agent.status', {});
-    log(formatAgentStatus(session.handshake, status, deps.clientVersion));
-    return 0;
-  } catch (requestError) {
-    error(
-      `agent status request failed: ${requestError instanceof Error ? requestError.message : String(requestError)}`
-    );
-    return 1;
-  } finally {
-    await session.close();
-  }
-}
-
-/** Default entry: resolve the remote from conf and wire the real transport. */
+/** Default entry: resolve the remote through the services layer and print the table. */
 export async function runAgentStatusDefault(remoteName: string): Promise<number> {
-  const { resolveRemote } = await import('./agent-install.js');
-  const resolved = await resolveRemote(remoteName);
-  if (typeof resolved === 'number') return resolved;
-  const { config } = resolved;
-  const { SshConnectionManager } = await import('../../domains/remotes/infrastructure/SshConnectionManager.js');
-  const { SshRemoteCommandRunner } = await import('../../domains/remotes/infrastructure/SshRemoteCommandRunner.js');
-  const { StreamLocalAgentChannel } = await import('../../domains/remotes/infrastructure/StreamLocalAgentChannel.js');
-  const { StreamLocalAgentTransport } = await import('../../domains/agent/infrastructure/StreamLocalAgentTransport.js');
-
-  const manager = new SshConnectionManager(config);
-  const runner = new SshRemoteCommandRunner(manager);
-  const transport = new StreamLocalAgentTransport({
-    channel: new StreamLocalAgentChannel(manager, runner),
-    clientVersion: (await import('../../shared/lib/version.js')).VERSION,
-  });
-
-  return runAgentStatus({ transport, clientVersion: (await import('../../shared/lib/version.js')).VERSION });
+  const outcome = await fetchAgentStatus({ remote: remoteName, sessionPassword: process.env[SESSION_PASSWORD_ENV] });
+  switch (outcome.kind) {
+    case 'refused':
+      console.error(outcome.reason);
+      return 1;
+    case 'unreachable':
+      console.error(`agent unreachable: ${outcome.detail}`);
+      return 1;
+    case 'failed':
+      console.error(`agent status request failed: ${outcome.detail}`);
+      return 1;
+    case 'ok':
+      console.log(formatAgentStatus(outcome.handshake, outcome.status, VERSION));
+      return 0;
+  }
 }

@@ -1,24 +1,22 @@
-// cli/commands/remote-add.ts — CLI handler for `tako remote add`
-// Composes adapters + use cases, renders TUI wizard, maps exit codes
+// cli/commands/remote-add.ts — CLI endpoint for `tako remote add`
+//
+// ADR-0019: the adapter + use case wiring lives in services/remotes
+// (composeAddRemoteComponents). The INTERACTIVE flow still delegates to the
+// TUI wizard — a transitional, managed cli→tui exception (ADR-0014, pending
+// its ADR-0019 follow-up decision); this command maps the result to exit codes.
 import { AddRemote } from '../../domains/remotes/application/AddRemote.js';
-import { CheckDuplicateRemote } from '../../domains/remotes/application/CheckDuplicateRemote.js';
-import type { RemoteRepository } from '../../domains/remotes/application/RemoteRepository.js';
-import type { SecretVault } from '../../domains/remotes/application/SecretVault.js';
-import { ValidateSshConnection } from '../../domains/remotes/application/ValidateSshConnection.js';
+import type { AddRemoteComponents } from '../../services/remotes.js';
+import { composeAddRemoteComponents } from '../../services/remotes.js';
 import { runAddRemoteWizard } from '../../tui/features/remotes/add-remote-wizard/index.js';
 
-export type RemoteAddDeps = {
-  checkDuplicate: CheckDuplicateRemote;
-  validateConnection: ValidateSshConnection;
-  vault: SecretVault;
-  repo: RemoteRepository;
-};
+/** Dependencies of the add flow (the services-layer composition shape). */
+export type RemoteAddDeps = AddRemoteComponents;
 
 /**
  * Run the `tako remote add` command.
  *
  * Architecture (D7):
- * - CLI handler composes adapters + use cases (thin orchestration)
+ * - CLI handler maps the wizard result to exit codes (thin orchestration)
  * - Delegates UI to TUI wizard (managed cli→tui exception per ADR 0014)
  * - Maps AddRemoteResult → exit code per spec
  *
@@ -49,33 +47,8 @@ export async function runRemoteAdd(deps: RemoteAddDeps): Promise<number> {
 }
 
 /**
- * Default entry point — wires real conf + infrastructure adapters
+ * Default entry point — the wiring comes from the services layer.
  */
 export async function runRemoteAddDefault(): Promise<number> {
-  // conf store built by the remotes infrastructure factory (Port/Adapter
-  // Isolation: this CLI handler never imports the `conf` package directly)
-  const { createConfStore } = await import('../../domains/remotes/infrastructure/createConfStore.js');
-  const confStore = createConfStore();
-
-  // Infrastructure adapters
-  const vault: SecretVault = new (
-    await import('../../domains/remotes/infrastructure/ConfSecretVault.js')
-  ).ConfSecretVault(confStore);
-  const repo: RemoteRepository = new (
-    await import('../../domains/remotes/infrastructure/ConfRemoteRepository.js')
-  ).ConfRemoteRepository(confStore);
-  const tester = new (
-    await import('../../domains/remotes/infrastructure/Ssh2ConnectionTester.js')
-  ).Ssh2ConnectionTester();
-
-  // Use case ports
-  const checkDuplicate: CheckDuplicateRemote = new CheckDuplicateRemote(repo);
-  const validateConnection: ValidateSshConnection = new ValidateSshConnection(tester);
-
-  return runRemoteAdd({
-    checkDuplicate,
-    validateConnection,
-    vault,
-    repo,
-  });
+  return runRemoteAdd(await composeAddRemoteComponents());
 }
