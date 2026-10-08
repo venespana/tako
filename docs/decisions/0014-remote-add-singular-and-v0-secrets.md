@@ -2,6 +2,8 @@
 
 ## Status
 
+Superseded by ADR 0020 (CLI strictly non-interactive); the transitional cli→tui exceptions are removed in deliverable E2.
+
 Accepted
 
 ## Context

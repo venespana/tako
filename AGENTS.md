@@ -51,7 +51,7 @@ Dependency rules (documented in `docs/architecture.md`; target model in ADR-0019
 - `services` import `domains` + `shared`; all wiring is private inside services (`review-only`; the layer arrives in phase F3).
 - `cli` may import `services` + `shared`; `tui` may import `services`, its own FSD layers, and `shared` (`review-only` until F4 zones).
 - `cli`/`tui` must not import `domains` directly — contract types re-export through `services` (`review-only`; rule arrives with F3).
-- `src/tui/` must not import from `src/cli/`; `src/cli/` must not import from `src/tui/` (enforced by ESLint zones). Transitional exception until F3, per ADR-0014 and superseded by ADR-0019: `cli` may import `tui/features/remotes/add-remote-wizard` and `tui/features/doctor`.
+- `src/tui/` must not import from `src/cli/`; `src/cli/` must not import from `src/tui/` (enforced by ESLint zones, no exceptions — ADR-0020 supersedes ADR-0014; exceptions removed in E2).
 - `services`/`domains` must not import presentation (`cli`/`tui`) (`review-only`).
 - `application` must not import infrastructure (e.g. `dockerode`) directly — it declares ports; `infrastructure` implements adapters (`review-only`).
 
@@ -62,6 +62,7 @@ Verified from repo files (`openspec/config.yaml`, eslint/prettier/vitest configs
 - **Language**: English is the canonical language for code, docs, and specs.
 - **Formatting**: Prettier — single quotes, 120 print width (100 for Markdown), 2-space indent, LF endings, `arrowParens: avoid`, JSX single quotes. ESLint (flat config) includes Prettier as its final config.
 - **TypeScript**: strict mode plus `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`; ES2022 target, Bundler module resolution, `react-jsx`.
+- **Prefer typed objects with functions over switch-case statements** — map variants through lookup objects of typed handlers; a switch is acceptable only for exhaustive narrowing over a closed union where the object shape cannot carry the behavior (user decision 2026-10-08).
 - **Import order**: enforced by `import-x/order` — alphabetized, grouped, blank line between groups; `react`/`react-dom`/`ink` are pinned to the top like builtins.
 - **Testing**: Vitest with 3 projects — unit tests co-located next to source as `*.test.ts(x)` in `src/`; integration tests as `*.integ.test.ts` in `tests/integration/` (testcontainers, 60s timeout); e2e as `*.e2e.ts` in `tests/e2e/` (120s timeout). Openspec enforces TDD (`tdd: true`).
 - **Pre-commit**: `lint-staged` runs Prettier on all staged files, then `eslint --fix` + `tsc --noEmit` on staged TS/JSX.

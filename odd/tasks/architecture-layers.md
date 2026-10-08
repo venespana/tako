@@ -161,14 +161,37 @@ single-file fix) and removed its own scratch prompt file.
   793/793. e9c9b11 / bc447fa / piece 3 below.
 
 ## Review debt (open)
-- bc447fa (cli piece) — pending native review (committed-only, base e9c9b11) or user review.
-- piece 3 (tui) — pending native review after commit (base bc447fa) or user review.
-- e9c9b11 readability lens gap — open, recorded (stop unachievable_lens_slot, 4/4 refusals).
-- Follow-up decisions: ADR-0014 leftover (remote-add flags-only? doctor format path);
-  remaining production tui→domains imports in remotes/doctor slices (F4 zones: migrate
-  or grandfather); AGENTS.md convention line (typed objects over switch-case).
+- RESOLVED 2026-10-08 (E0): bc447fa + 49eabe0 reviewed natively — lineage
+  review-5e05631497fec546, medium, 1 lens review-reliability, materialized first attempt,
+  APPROVED with 4 advisory WARNINGs (non-blocking, no correction offered), acknowledged,
+  authority burned. Boundary → 49eabe0 (HEAD).
+- e9c9b11 readability lens gap — OPEN: user's personal review stands as substitute;
+  recorded (stop unachievable_lens_slot, 4/4 refusals).
+- Advisory verification debts → folded into E2/E4:
+  - R3-001 cli install: assert refusal reason on STDERR (not just exit codes)
+  - R3-002 cli status: assert stdout/stderr routing + message prefixes
+  - R3-003 uninstall: restore behavioral coverage (teardown ordering, linger
+    preservation, residue exit 1) at services level — destructive command
+  - R3-004 9.17 typed socket-error contract: services-level test proving the typed
+    error + close-on-failure survives the pushdown
+- Follow-up decisions: ADR-0014 leftover → RESOLVED by E1 product decision (CLI
+  non-interactive, remote-add flags-only); remaining production tui→domains imports in
+  remotes/doctor slices → E2 migration; AGENTS.md convention line (typed objects over
+  switch-case) → E1.
+
+## Deliverables (agreed 2026-10-08)
+- [x] E0 Review-debt closure (this review).
+- [ ] E1 Architecture remainder: ADR-0020 CLI strictly non-interactive (no TUI views,
+      no forms; flags/stdin xargs-style; confirmations as plain field lists); ADR-0014
+      fully superseded; AGENTS.md dependency rules + switch-case convention.
+- [ ] E2 CLI/TUI update: remote-add flags/stdin (delete add-remote-wizard slice);
+      doctor formatting out of tui/features; migrate remaining tui→domains imports
+      (remotes/doctor slices); restore R3-001/002/003 assertion coverage.
+- [ ] E3 Dead-code cleanup: knip scan + manual sweep AFTER E2 (wizard corpses).
+- [ ] E4 Validation: eslint zones (shared/domains/application/FSD + scoped *.test.*
+      config), steiger + knip scripts, zero-violation re-scan, flaky remotes test
+      hunt, R3-004 services test, full suite.
+- [ ] E5 Delivery: version bump (repo rule 5), PR architecture-layers → main.
 
 ## Next step
-Next session: review debt first (assess --base-ref e9c9b11 / bc447fa, or user review),
-then F4 (eslint zones incl tests, knip+steiger, CLI --version, AGENTS.md convention),
-then PR with version bump (repo rule 5).
+E1 (docs: ADR-0020 + AGENTS.md) — writer + user code review before commit.
