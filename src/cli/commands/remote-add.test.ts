@@ -56,12 +56,13 @@ function draftOf(call: number): RemoteDraft {
   return vi.mocked(addRemote).mock.calls[call]?.[0].draft as RemoteDraft;
 }
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe('runRemoteAdd — exit-code mapping (D8, unchanged)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-  afterEach(() => {
-    vi.unstubAllEnvs();
   });
 
   it('saved → exit 0 with a confirmation line on stdout', async () => {
@@ -104,9 +105,6 @@ describe('runRemoteAdd — exit-code mapping (D8, unchanged)', () => {
 describe('runRemoteAdd — flags/stdin contract (ADR-0020 §2-3)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-  afterEach(() => {
-    vi.unstubAllEnvs();
   });
 
   it('missing required fields → the plain field list on stderr, exit 1, no service call', async () => {
@@ -159,7 +157,8 @@ describe('runRemoteAdd — flags/stdin contract (ADR-0020 §2-3)', () => {
     vi.mocked(addRemote).mockResolvedValue(SAVED);
     const h = harness(['ignored-piped-line']);
 
-    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(0);
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(0);
 
     expect(h.readLines).not.toHaveBeenCalled();
     expect(draftOf(0)).toMatchObject({
@@ -203,13 +202,13 @@ describe('runRemoteAdd — flags/stdin contract (ADR-0020 §2-3)', () => {
     vi.mocked(addRemote).mockResolvedValue(SAVED);
 
     const h = harness();
-    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(0);
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(0);
     expect(draftOf(0).port).toBe(22);
 
     const h2 = harness();
-    await expect(h2.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw', port: '2222' })).resolves.toBe(
-      0
-    );
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
+    await expect(h2.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', port: '2222' })).resolves.toBe(0);
     expect(draftOf(1).port).toBe(2222);
   });
 });
@@ -219,9 +218,6 @@ describe('runRemoteAdd — hostkey confirmation round (ADR-0020 §3)', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-  afterEach(() => {
-    vi.unstubAllEnvs();
   });
 
   it('--accept-hostkey pre-accepts: single addRemote call, saved → 0', async () => {
@@ -276,7 +272,7 @@ describe('runRemoteAdd — hostkey confirmation round (ADR-0020 §3)', () => {
     const h = harness(['y']);
     vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
 
-    await expect(h.flags({ name: 'nas', user: 'ops' })).resolves.toBe(1);
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(1);
 
     expect(h.readLines).not.toHaveBeenCalled();
     expect(h.errs.join('\n')).toContain('--accept-hostkey');
