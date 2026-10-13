@@ -4,12 +4,9 @@
 // the conf store mocked to an in-memory map (no real user conf is touched).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CheckDuplicateRemote } from '../domains/remotes/application/CheckDuplicateRemote.js';
-import { ValidateSshConnection } from '../domains/remotes/application/ValidateSshConnection.js';
 import type { Remote } from '../domains/remotes/domain/types.js';
-import { ConfRemoteRepository } from '../domains/remotes/infrastructure/ConfRemoteRepository.js';
 import { ConfSecretVault } from '../domains/remotes/infrastructure/ConfSecretVault.js';
-import { composeAddRemoteComponents, decideRemoteAuth, resolveRemoteAuth } from './remotes.js';
+import { addRemote, confirmAddRemote, decideRemoteAuth, resolveRemoteAuth } from './remotes.js';
 
 const confData = vi.hoisted(() => new Map<string, unknown>());
 
@@ -21,6 +18,17 @@ vi.mock('../domains/remotes/infrastructure/createConfStore.js', () => ({
     },
     has: (key: string) => confData.has(key),
   }),
+}));
+
+vi.mock('../domains/remotes/infrastructure/Ssh2ConnectionTester.js', () => ({
+  // The real tester opens SSH connections; the service-level wiring test only
+  // proves the composed use case reaches the adapters and the conf store.
+  Ssh2ConnectionTester: class {
+    test = vi.fn(async (): Promise<{ ok: true; hostkeyFingerprint: string }> => ({
+      ok: true,
+      hostkeyFingerprint: 'SHA256:wiring-test',
+    }));
+  },
 }));
 
 const SECRET = 'sescret-pw';
@@ -113,13 +121,42 @@ describe('resolveRemoteAuth — conf-backed resolution (fresh per call)', () => 
   });
 });
 
-describe('composeAddRemoteComponents — the add-remote wiring, written once', () => {
-  it('wires the remotes use cases over the conf-backed adapters', async () => {
-    const components = await composeAddRemoteComponents();
+describe('addRemote / confirmAddRemote — the add wiring, written once', () => {
+  beforeEach(() => {
+    confData.clear();
+  });
 
-    expect(components.checkDuplicate).toBeInstanceOf(CheckDuplicateRemote);
-    expect(components.validateConnection).toBeInstanceOf(ValidateSshConnection);
-    expect(components.vault).toBeInstanceOf(ConfSecretVault);
-    expect(components.repo).toBeInstanceOf(ConfRemoteRepository);
+  const draft = {
+    name: 'nas',
+    type: 'ssh' as const,
+    username: 'ops',
+    host: 'nas.lan',
+    port: 22,
+    credentialType: 'store' as const,
+    password: 'store-pw',
+  };
+
+  it('addRemote validates over SSH and persists an accepted hostkey through the conf repo (password obfuscated)', async () => {
+    const result = await addRemote({ draft, hostkeyAccepted: true });
+
+    expect(result).toEqual({ saved: true });
+    const stored = confData.get('remotes.nas') as Remote;
+    expect(stored).toMatchObject({ name: 'nas', host: 'nas.lan', credentialType: 'store' });
+    expect(stored.obfuscatedPassword).toBeDefined();
+    expect(stored.obfuscatedPassword).not.toBe('store-pw');
+  });
+
+  it('addRemote with hostkeyAccepted=false → the hostkey refusal round-trip (nothing persisted)', async () => {
+    const result = await addRemote({ draft, hostkeyAccepted: false });
+
+    expect(result).toEqual({ saved: false, reason: 'hostkey', hostkeyFingerprint: 'SHA256:wiring-test' });
+    expect(confData.has('remotes.nas')).toBe(false);
+  });
+
+  it('confirmAddRemote persists a validated draft WITHOUT re-validating SSH (post-hostkey round)', async () => {
+    const result = await confirmAddRemote(draft);
+
+    expect(result).toEqual({ saved: true });
+    expect(confData.has('remotes.nas')).toBe(true);
   });
 });

@@ -3,6 +3,7 @@
 
 import { Command } from 'commander';
 
+import type { RemoteAddFlags } from './commands/remote-add.js';
 import { SESSION_PASSWORD_ENV } from '../shared/lib/session-password.js';
 
 /**
@@ -36,13 +37,25 @@ export function buildProgram(): Command {
 
   remote
     .command('add')
-    .description('Add a new remote connection (interactive wizard)')
-    .action(async () => {
+    .description(
+      'Add a new remote connection (non-interactive, ADR-0020): every field is a flag or a piped ' +
+        'stdin line (xargs-style, one line per missing field, in field-list order); when required ' +
+        'input is missing the plain field list is printed and the command exits non-zero. A piped ' +
+        'y/n line answers the unknown-hostkey confirmation; --accept-hostkey pre-accepts it'
+    )
+    .option('--name <name>', 'connection name (e.g. nas-backup)')
+    .option('--user <user>', 'SSH username (e.g. ops)')
+    .option('--host <host>', 'hostname or IP address (e.g. 10.0.0.5)')
+    .option('--port <port>', 'SSH port (22 by default)')
+    .option('--type <type>', 'credential type: store | ssh-key | interactive (store by default)')
+    .option('--key-path <path>', 'path to the private SSH key (ssh-key type; ~/.ssh/id_rsa by default)')
+    .option('--password <password>', 'SSH password (store: persisted obfuscated; interactive: validation only)')
+    .option('--accept-hostkey', 'accept the remote hostkey without a confirmation round')
+    .action(async (options: RemoteAddFlags) => {
       try {
-        // Lazy import to defer TUI loading (required for compile)
+        // Lazy import to defer Ink/React loading (required for compile)
         const { runRemoteAddDefault } = await import('./commands/remote-add.js');
-        const exitCode = await runRemoteAddDefault();
-        process.exit(exitCode);
+        process.exit(await runRemoteAddDefault(options));
       } catch (err) {
         console.error(err);
         process.exit(2);

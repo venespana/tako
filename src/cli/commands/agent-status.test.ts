@@ -2,7 +2,7 @@
 // `tako agent status <remote>`: the text table and the exit-code mapping.
 // The session query outcome tests live with the service
 // (services/agent-status.test.ts).
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AgentHandshake, AgentStatusResult } from '../../services/agent.js';
 import { fetchAgentStatus } from '../../services/agent.js';
@@ -59,17 +59,58 @@ describe('formatAgentStatus — 6.5 text table', () => {
 });
 
 describe('runAgentStatusDefault — CLI endpoint mapping', () => {
-  it('ok → the table on stdout, exit 0; refusals and failures → stderr, exit 1', async () => {
+  // R3-002 (E0 review debt): each outcome's routing AND message shape are
+  // asserted — the table goes to STDOUT on ok; refusals/unreachable/failed
+  // go to STDERR with their exact prefixes. Exit codes alone are not enough.
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let errSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  it('ok → the status table on STDOUT (no stderr), exit 0', async () => {
     vi.mocked(fetchAgentStatus).mockResolvedValue({ kind: 'ok', handshake: okHandshake(), status: STATUS });
+
     await expect(runAgentStatusDefault('nas')).resolves.toBe(0);
 
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    const table = String(logSpy.mock.calls[0]?.[0]);
+    expect(table).toContain('unit state');
+    expect(table).toContain('active');
+    expect(table).toContain('linger');
+    expect(errSpy).not.toHaveBeenCalled();
+  });
+
+  it('refused → the reason on STDERR (no stdout), exit 1', async () => {
     vi.mocked(fetchAgentStatus).mockResolvedValue({ kind: 'refused', reason: 'unknown remote "nas"' });
+
     await expect(runAgentStatusDefault('nas')).resolves.toBe(1);
 
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    expect(errSpy.mock.calls[0]?.[0]).toBe('unknown remote "nas"');
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it('unreachable → STDERR prefixed "agent unreachable:", exit 1', async () => {
     vi.mocked(fetchAgentStatus).mockResolvedValue({ kind: 'unreachable', detail: 'channel open error' });
+
     await expect(runAgentStatusDefault('nas')).resolves.toBe(1);
 
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    expect(errSpy.mock.calls[0]?.[0]).toBe('agent unreachable: channel open error');
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it('failed → STDERR prefixed "agent status request failed:", exit 1', async () => {
     vi.mocked(fetchAgentStatus).mockResolvedValue({ kind: 'failed', detail: 'request timed out' });
+
     await expect(runAgentStatusDefault('nas')).resolves.toBe(1);
+
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    expect(errSpy.mock.calls[0]?.[0]).toBe('agent status request failed: request timed out');
+    expect(logSpy).not.toHaveBeenCalled();
   });
 });

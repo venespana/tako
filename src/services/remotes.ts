@@ -6,12 +6,20 @@
 // private wiring. Frontends (cli, tui) import these functions; they never
 // compose the adapters themselves, and the public surface carries zero
 // infrastructure types.
+import { AddRemote } from '../domains/remotes/application/AddRemote.js';
 import { CheckDuplicateRemote } from '../domains/remotes/application/CheckDuplicateRemote.js';
 import type { RemoteRepository } from '../domains/remotes/application/RemoteRepository.js';
 import type { SecretVault } from '../domains/remotes/application/SecretVault.js';
 import type { SshConnectionTester } from '../domains/remotes/application/SshConnectionTester.js';
 import { ValidateSshConnection } from '../domains/remotes/application/ValidateSshConnection.js';
-import type { Remote } from '../domains/remotes/domain/types.js';
+import type {
+  AddRemoteResult,
+  Remote,
+  RemoteDraft,
+  RemoteSummary,
+  SshTestConfig,
+  SshValidationOutcome,
+} from '../domains/remotes/domain/types.js';
 import { ConfRemoteRepository } from '../domains/remotes/infrastructure/ConfRemoteRepository.js';
 import { ConfSecretVault } from '../domains/remotes/infrastructure/ConfSecretVault.js';
 import { createConfStore } from '../domains/remotes/infrastructure/createConfStore.js';
@@ -37,12 +45,7 @@ export type {
   SshTestConfig,
   SshValidationOutcome,
 } from '../domains/remotes/domain/types.js';
-export type { CheckDuplicateRemote } from '../domains/remotes/application/CheckDuplicateRemote.js';
-export type { AddRemote } from '../domains/remotes/application/AddRemote.js';
-export type { ValidateSshConnection } from '../domains/remotes/application/ValidateSshConnection.js';
-export type { RemoteRepository } from '../domains/remotes/application/RemoteRepository.js';
-export type { SecretVault } from '../domains/remotes/application/SecretVault.js';
-export type { SshConnectionTester } from '../domains/remotes/application/SshConnectionTester.js';
+export { requiresConnectPrompt } from '../domains/remotes/domain/normalize.js';
 
 // ---------------------------------------------------------------------------
 // Connection auth (the unified remote → connection-material resolution)
@@ -135,30 +138,56 @@ async function getRemoteByName(name: string): Promise<Remote | null> {
 }
 
 // ---------------------------------------------------------------------------
-// Interactive add flow (transitional — see ADR-0014/ADR-0019)
+// Read model + connection validation (both clients)
 // ---------------------------------------------------------------------------
 
-/** Dependencies of the `remote add` flow: the remotes use cases over real adapters. */
-export interface AddRemoteComponents {
-  readonly checkDuplicate: CheckDuplicateRemote;
-  readonly validateConnection: ValidateSshConnection;
-  readonly vault: SecretVault;
-  readonly repo: RemoteRepository;
+/** The configured remotes, ready for listing UIs (no credentials leak). */
+export async function listRemotes(): Promise<RemoteSummary[]> {
+  const { repository } = openRemotesStorage();
+  return repository.list();
+}
+
+/** One configured remote by name, or null when unknown (fresh per call). */
+export async function getRemote(name: string): Promise<Remote | null> {
+  return getRemoteByName(name);
+}
+
+/** Validate one SSH connect attempt with candidate credentials (never throws an outcome). */
+export async function testSshConnection(config: SshTestConfig): Promise<SshValidationOutcome> {
+  const tester: SshConnectionTester = new Ssh2ConnectionTester();
+  return tester.test(config);
+}
+
+// ---------------------------------------------------------------------------
+// Add flow (ADR-0020: the CLI drives it flags/stdin; the TUI renders it)
+// ---------------------------------------------------------------------------
+
+/** Request to add one remote: the collected draft plus the hostkey gate. */
+export interface AddRemoteRequest {
+  readonly draft: RemoteDraft;
+  /** The hostkey gate: false → an unknown host returns a `hostkey` refusal carrying the fingerprint. */
+  readonly hostkeyAccepted: boolean;
 }
 
 /**
- * Compose the add-remote use cases over the real conf-backed adapters —
- * the wiring for `tako remote add`, written once. The INTERACTIVE flow
- * itself (the TUI wizard) stays a client concern: cli delegates to it under
- * the transitional ADR-0014 exception, the TUI renders it natively.
+ * Validate and (when the hostkey is accepted) persist a new remote over the
+ * real conf-backed adapters — wiring written once. Never throws; the
+ * `hostkey` refusal is an expected round-trip: the client collects the
+ * confirmation (TUI widget or CLI flag/stdin line) and finishes with
+ * `confirmAddRemote`, which persists WITHOUT re-validating SSH.
  */
-export async function composeAddRemoteComponents(): Promise<AddRemoteComponents> {
+export async function addRemote(request: AddRemoteRequest): Promise<AddRemoteResult> {
+  return addRemoteUseCase().execute(request.draft, { hostkeyAccepted: request.hostkeyAccepted });
+}
+
+/** Persist a VALIDATED draft after an explicit hostkey acceptance (duplicate re-check only). */
+export async function confirmAddRemote(draft: RemoteDraft): Promise<AddRemoteResult> {
+  return addRemoteUseCase().save(draft);
+}
+
+/** The add-remote use cases over the real adapters — the wiring, written once (ADR-0019 §2). */
+function addRemoteUseCase(): AddRemote {
   const tester: SshConnectionTester = new Ssh2ConnectionTester();
   const { repository: repo, vault } = openRemotesStorage();
-  return {
-    checkDuplicate: new CheckDuplicateRemote(repo),
-    validateConnection: new ValidateSshConnection(tester),
-    vault,
-    repo,
-  };
+  return new AddRemote(new CheckDuplicateRemote(repo), new ValidateSshConnection(tester), vault, repo);
 }
