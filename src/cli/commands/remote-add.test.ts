@@ -6,7 +6,7 @@
 // line, and the exit-code mapping (0 saved · 1 refused/declined · 2
 // unexpected). The add flow itself is tested at the service
 // (services/remotes.test.ts) and use-case level.
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { formatFieldList, runRemoteAdd, type RemoteAddFlags, type RemoteAddIo } from './remote-add.js';
 import type { AddRemoteResult, RemoteDraft } from '../../services/remotes.js';
@@ -24,13 +24,17 @@ interface Harness {
   /** vi.fn-wrapped so tests can assert whether stdin was consulted. */
   readonly readLines: ReturnType<typeof vi.fn>;
   readonly lines: string[];
+  readonly reads: () => number;
   readonly out: string[];
   readonly errs: string[];
 }
 
 function harness(stdinLines: string[] = []): Harness {
-  const state = { lines: stdinLines, out: [] as string[], errs: [] as string[] };
-  const readLines = vi.fn(async () => state.lines);
+  const state = { lines: stdinLines, out: [] as string[], errs: [] as string[], reads: 0 };
+  const readLines = vi.fn(async () => {
+    state.reads += 1;
+    return state.lines;
+  });
   const io: RemoteAddIo = {
     readLines,
     log: line => state.out.push(line),
@@ -39,6 +43,7 @@ function harness(stdinLines: string[] = []): Harness {
   return {
     readLines,
     lines: state.lines,
+    reads: () => state.reads,
     out: state.out,
     errs: state.errs,
     flags: flags => runRemoteAdd(flags, io),
@@ -55,12 +60,16 @@ describe('runRemoteAdd — exit-code mapping (D8, unchanged)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('saved → exit 0 with a confirmation line on stdout', async () => {
     vi.mocked(addRemote).mockResolvedValue(SAVED);
     const h = harness();
 
-    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(0);
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(0);
     expect(h.out.join('\n')).toContain('saved');
     expect(h.errs).toEqual([]);
     expect(vi.mocked(addRemote)).toHaveBeenCalledWith({
@@ -72,19 +81,22 @@ describe('runRemoteAdd — exit-code mapping (D8, unchanged)', () => {
   it('duplicate → exit 1 naming the collision kind; validation → exit 1 with the message', async () => {
     vi.mocked(addRemote).mockResolvedValue({ saved: false, reason: 'duplicate', duplicateKind: 'endpoint' });
     const h = harness();
-    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(1);
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(1);
     expect(h.errs.join('\n')).toContain('already exists');
 
     vi.mocked(addRemote).mockResolvedValue({ saved: false, reason: 'validation', message: 'auth failed' });
     const h2 = harness();
-    await expect(h2.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(1);
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
+    await expect(h2.flags({ name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(1);
     expect(h2.errs.join('\n')).toContain('auth failed');
   });
 
   it('unexpected service throw → exit 2', async () => {
     vi.mocked(addRemote).mockRejectedValue(new Error('unexpected internal error'));
     const h = harness();
-    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(2);
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(2);
     expect(h.errs.join('\n')).toContain('unexpected internal error');
   });
 });
@@ -92,6 +104,9 @@ describe('runRemoteAdd — exit-code mapping (D8, unchanged)', () => {
 describe('runRemoteAdd — flags/stdin contract (ADR-0020 §2-3)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it('missing required fields → the plain field list on stderr, exit 1, no service call', async () => {
@@ -111,6 +126,15 @@ describe('runRemoteAdd — flags/stdin contract (ADR-0020 §2-3)', () => {
     const h = harness();
     await expect(h.flags({ type: 'store', name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(1);
     expect(h.errs.join('\n')).toContain('--password');
+  });
+
+  it('a fully-flagged invocation never reads stdin (no non-TTY hang — R4-001)', async () => {
+    vi.mocked(addRemote).mockResolvedValue(SAVED);
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
+    const h = harness();
+
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', acceptHostkey: true })).resolves.toBe(0);
+    expect(h.reads()).toBe(0);
   });
 
   it('piped stdin lines fill the missing fields in field order (xargs-style)', async () => {
@@ -196,14 +220,16 @@ describe('runRemoteAdd — hostkey confirmation round (ADR-0020 §3)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   it('--accept-hostkey pre-accepts: single addRemote call, saved → 0', async () => {
     vi.mocked(addRemote).mockResolvedValue(SAVED);
     const h = harness();
 
-    await expect(
-      h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw', acceptHostkey: true })
-    ).resolves.toBe(0);
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', acceptHostkey: true })).resolves.toBe(0);
     expect(vi.mocked(addRemote)).toHaveBeenCalledWith({ draft: expect.anything(), hostkeyAccepted: true });
     expect(vi.mocked(confirmAddRemote)).not.toHaveBeenCalled();
   });
@@ -212,7 +238,8 @@ describe('runRemoteAdd — hostkey confirmation round (ADR-0020 §3)', () => {
     vi.mocked(addRemote).mockResolvedValue(HOSTKEY_REFUSAL);
     const h = harness();
 
-    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(1);
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(1);
 
     const printed = h.errs.join('\n');
     expect(printed).toContain('--accept-hostkey');
@@ -220,7 +247,7 @@ describe('runRemoteAdd — hostkey confirmation round (ADR-0020 §3)', () => {
     expect(vi.mocked(confirmAddRemote)).not.toHaveBeenCalled();
   });
 
-  it('a piped y line accepts the hostkey → confirmAddRemote persists without re-validating', async () => {
+  it('a piped y line accepts the hostkey → confirmAddRemote persists without re-validating (host piped: a required field unlocks stdin)', async () => {
     vi.mocked(addRemote).mockResolvedValue(HOSTKEY_REFUSAL);
     vi.mocked(confirmAddRemote).mockResolvedValue(SAVED);
     // A missing password makes the command read stdin: 'secret' fills it and
@@ -234,7 +261,7 @@ describe('runRemoteAdd — hostkey confirmation round (ADR-0020 §3)', () => {
     expect(h.out.join('\n')).toContain('saved');
   });
 
-  it('a piped n line declines → exit 1 and nothing persisted', async () => {
+  it('a piped n line declines → exit 1 and nothing persisted (host piped: a required field unlocks stdin)', async () => {
     vi.mocked(addRemote).mockResolvedValue(HOSTKEY_REFUSAL);
     const h = harness(['secret', 'n']);
 
@@ -247,8 +274,9 @@ describe('runRemoteAdd — hostkey confirmation round (ADR-0020 §3)', () => {
   it('all fields via flags + a piped y without --accept-hostkey → stdin never consulted, hostkey list, exit 1', async () => {
     vi.mocked(addRemote).mockResolvedValue(HOSTKEY_REFUSAL);
     const h = harness(['y']);
+    vi.stubEnv('TAKO_SSH_PASSWORD', 'pw');
 
-    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(1);
+    await expect(h.flags({ name: 'nas', user: 'ops' })).resolves.toBe(1);
 
     expect(h.readLines).not.toHaveBeenCalled();
     expect(h.errs.join('\n')).toContain('--accept-hostkey');
@@ -263,7 +291,7 @@ describe('formatFieldList — plain field list shape', () => {
     expect(text).toContain('--name');
     expect(text).toContain('connection name');
     expect(text).toContain('--password');
-    expect(text).toContain('store or interactive');
+    expect(text).toContain('TAKO_SSH_PASSWORD env or a piped stdin line');
     expect(text).toContain('stdin');
   });
 });

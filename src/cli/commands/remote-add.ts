@@ -28,7 +28,6 @@ export type RemoteAddFlags = {
   readonly port?: string;
   readonly type?: string;
   readonly keyPath?: string;
-  readonly password?: string;
   readonly acceptHostkey?: boolean;
 };
 
@@ -42,8 +41,9 @@ export interface RemoteAddIo {
 }
 
 /** One collectible field: canonical order, expected shape, requirement rule. */
+type FieldName = 'name' | 'user' | 'host' | 'port' | 'type' | 'keyPath' | 'password';
 interface FieldSpec {
-  readonly flag: keyof Omit<RemoteAddFlags, 'acceptHostkey'>;
+  readonly flag: FieldName;
   readonly shape: string;
   readonly required: (values: Record<string, string | undefined>) => boolean;
 }
@@ -62,7 +62,7 @@ const FIELD_SPECS: readonly FieldSpec[] = [
   { flag: 'keyPath', shape: 'path to the private SSH key (ssh-key type)', required: () => false },
   {
     flag: 'password',
-    shape: 'SSH password (required when the credential type is store or interactive)',
+    shape: 'SSH password (store/interactive): TAKO_SSH_PASSWORD env or a piped stdin line',
     required: values => values.type === undefined || values.type === 'store' || values.type === 'interactive',
   },
 ];
@@ -138,7 +138,9 @@ export async function runRemoteAdd(flags: RemoteAddFlags, io: RemoteAddIo): Prom
       port: flags.port,
       type: type.kind === 'ok' ? type.value : undefined,
       keyPath: flags.keyPath,
-      password: flags.password,
+      // The secret never travels through argv (ADR-0020 review R1-001):
+      // env var or a piped stdin line, nothing else.
+      password: process.env.TAKO_SSH_PASSWORD,
     };
 
     const missingRequired = (): string[] =>

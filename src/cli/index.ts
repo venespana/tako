@@ -56,7 +56,6 @@ export function buildProgram(): Command {
     .option('--port <port>', 'SSH port (22 by default)')
     .option('--type <type>', 'credential type: store | ssh-key | interactive (store by default)')
     .option('--key-path <path>', 'path to the private SSH key (ssh-key type; ~/.ssh/id_rsa by default)')
-    .option('--password <password>', 'SSH password (store: persisted obfuscated; interactive: validation only)')
     .option('--accept-hostkey', 'accept the remote hostkey without a confirmation round')
     .action(async (options: RemoteAddFlags) => {
       try {
