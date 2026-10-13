@@ -1,9 +1,11 @@
 // cli/commands/remote-add.test.ts — the CLI-only surface of `tako remote add`
-// under ADR-0020: strict flags/stdin assembly (xargs-style fill), the plain
-// field list + non-zero exit when required input is missing, the hostkey
-// confirmation round over a piped y/n line, and the exit-code mapping
-// (0 saved · 1 refused/declined · 2 unexpected). The add flow itself is
-// tested at the service (services/remotes.test.ts) and use-case level.
+// under ADR-0020: strict flags/stdin assembly (stdin is read only when required
+// fields are missing — never with every field supplied via flags), loud
+// refusals for invalid --type/--port, the plain field list + non-zero exit when
+// required input is missing, the hostkey confirmation round over a piped y/n
+// line, and the exit-code mapping (0 saved · 1 refused/declined · 2
+// unexpected). The add flow itself is tested at the service
+// (services/remotes.test.ts) and use-case level.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import type { AddRemoteResult, RemoteDraft } from '../../services/remotes.js';
@@ -19,6 +21,8 @@ vi.mock('../../services/remotes.js', async importOriginal => {
 
 interface Harness {
   readonly flags: (flags: RemoteAddFlags) => Promise<number>;
+  /** vi.fn-wrapped so tests can assert whether stdin was consulted. */
+  readonly readLines: ReturnType<typeof vi.fn>;
   readonly lines: string[];
   readonly out: string[];
   readonly errs: string[];
@@ -26,12 +30,14 @@ interface Harness {
 
 function harness(stdinLines: string[] = []): Harness {
   const state = { lines: stdinLines, out: [] as string[], errs: [] as string[] };
+  const readLines = vi.fn(async () => state.lines);
   const io: RemoteAddIo = {
-    readLines: async () => state.lines,
+    readLines,
     log: line => state.out.push(line),
     error: line => state.errs.push(line),
   };
   return {
+    readLines,
     lines: state.lines,
     out: state.out,
     errs: state.errs,
@@ -113,6 +119,8 @@ describe('runRemoteAdd — flags/stdin contract (ADR-0020 §2-3)', () => {
 
     await expect(h.flags({})).resolves.toBe(0);
 
+    // Stdin is consumed because required fields were missing.
+    expect(h.readLines).toHaveBeenCalledTimes(1);
     expect(draftOf(0)).toMatchObject({
       name: 'nas',
       username: 'ops',
@@ -120,6 +128,23 @@ describe('runRemoteAdd — flags/stdin contract (ADR-0020 §2-3)', () => {
       port: 22,
       credentialType: 'store',
       password: 'secret',
+    });
+  });
+
+  it('with every field supplied via flags, stdin is never read (a non-TTY stdin must not block)', async () => {
+    vi.mocked(addRemote).mockResolvedValue(SAVED);
+    const h = harness(['ignored-piped-line']);
+
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(0);
+
+    expect(h.readLines).not.toHaveBeenCalled();
+    expect(draftOf(0)).toMatchObject({
+      name: 'nas',
+      username: 'ops',
+      host: '10.0.0.5',
+      port: 22,
+      credentialType: 'store',
+      password: 'pw',
     });
   });
 
@@ -138,6 +163,31 @@ describe('runRemoteAdd — flags/stdin contract (ADR-0020 §2-3)', () => {
     expect(h.errs.join('\n')).toContain('store, ssh-key, interactive');
     expect(vi.mocked(addRemote)).not.toHaveBeenCalled();
   });
+
+  it('an invalid --port is refused with the expected shape (never silently defaulted)', async () => {
+    for (const bad of ['abc', '0', '-22', '22.5', '99999']) {
+      const h = harness();
+
+      await expect(h.flags({ name: 'nas', user: 'ops', host: 'h', port: bad })).resolves.toBe(1);
+      expect(h.errs.join('\n')).toContain(`invalid --port "${bad}"`);
+      expect(h.errs.join('\n')).toContain('1 and 65535');
+      expect(vi.mocked(addRemote)).not.toHaveBeenCalled();
+    }
+  });
+
+  it('an absent --port defaults to 22; a valid --port passes through', async () => {
+    vi.mocked(addRemote).mockResolvedValue(SAVED);
+
+    const h = harness();
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(0);
+    expect(draftOf(0).port).toBe(22);
+
+    const h2 = harness();
+    await expect(h2.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw', port: '2222' })).resolves.toBe(
+      0
+    );
+    expect(draftOf(1).port).toBe(2222);
+  });
 });
 
 describe('runRemoteAdd — hostkey confirmation round (ADR-0020 §3)', () => {
@@ -151,7 +201,9 @@ describe('runRemoteAdd — hostkey confirmation round (ADR-0020 §3)', () => {
     vi.mocked(addRemote).mockResolvedValue(SAVED);
     const h = harness();
 
-    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw', acceptHostkey: true })).resolves.toBe(0);
+    await expect(
+      h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw', acceptHostkey: true })
+    ).resolves.toBe(0);
     expect(vi.mocked(addRemote)).toHaveBeenCalledWith({ draft: expect.anything(), hostkeyAccepted: true });
     expect(vi.mocked(confirmAddRemote)).not.toHaveBeenCalled();
   });
@@ -171,21 +223,35 @@ describe('runRemoteAdd — hostkey confirmation round (ADR-0020 §3)', () => {
   it('a piped y line accepts the hostkey → confirmAddRemote persists without re-validating', async () => {
     vi.mocked(addRemote).mockResolvedValue(HOSTKEY_REFUSAL);
     vi.mocked(confirmAddRemote).mockResolvedValue(SAVED);
-    const h = harness(['y']);
+    // A missing password makes the command read stdin: 'secret' fills it and
+    // the leftover 'y' lands in the hostkey answer queue.
+    const h = harness(['secret', 'y']);
 
-    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(0);
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(0);
 
+    expect(draftOf(0).password).toBe('secret');
     expect(vi.mocked(confirmAddRemote)).toHaveBeenCalledTimes(1);
     expect(h.out.join('\n')).toContain('saved');
   });
 
   it('a piped n line declines → exit 1 and nothing persisted', async () => {
     vi.mocked(addRemote).mockResolvedValue(HOSTKEY_REFUSAL);
-    const h = harness(['n']);
+    const h = harness(['secret', 'n']);
+
+    await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5' })).resolves.toBe(1);
+
+    expect(h.errs.join('\n')).toContain('declined');
+    expect(vi.mocked(confirmAddRemote)).not.toHaveBeenCalled();
+  });
+
+  it('all fields via flags + a piped y without --accept-hostkey → stdin never consulted, hostkey list, exit 1', async () => {
+    vi.mocked(addRemote).mockResolvedValue(HOSTKEY_REFUSAL);
+    const h = harness(['y']);
 
     await expect(h.flags({ name: 'nas', user: 'ops', host: '10.0.0.5', password: 'pw' })).resolves.toBe(1);
 
-    expect(h.errs.join('\n')).toContain('declined');
+    expect(h.readLines).not.toHaveBeenCalled();
+    expect(h.errs.join('\n')).toContain('--accept-hostkey');
     expect(vi.mocked(confirmAddRemote)).not.toHaveBeenCalled();
   });
 });

@@ -181,17 +181,36 @@ single-file fix) and removed its own scratch prompt file.
 
 ## Deliverables (agreed 2026-10-08)
 - [x] E0 Review-debt closure (this review).
-- [ ] E1 Architecture remainder: ADR-0020 CLI strictly non-interactive (no TUI views,
-      no forms; flags/stdin xargs-style; confirmations as plain field lists); ADR-0014
-      fully superseded; AGENTS.md dependency rules + switch-case convention.
-- [ ] E2 CLI/TUI update: remote-add flags/stdin (delete add-remote-wizard slice);
-      doctor formatting out of tui/features; migrate remaining tui→domains imports
-      (remotes/doctor slices); restore R3-001/002/003 assertion coverage.
-- [ ] E3 Dead-code cleanup: knip scan + manual sweep AFTER E2 (wizard corpses).
+- [x] E1 Architecture remainder: committed `419da4d` (ADR-0020 CLI strictly non-interactive;
+      ADR-0014 fully superseded; AGENTS.md dependency rules unconditional + switch-case
+      convention). User-reviewed and approved.
+- [x] E2 CLI/TUI update: committed `3007e5e` (remote-add flags/stdin xargs-style, wizard
+      slice deleted, eslint ADR-0014 excepts removed, R3-001/002 restored; user-staged
+      subset, INTERIM tree) + `729bad5` (wizard absorbed into pages/remotes-add — the page
+      EMBEDDED the wizard; doctor formatting to cli; tui→domains production imports zero).
+      Suite 807/807, lint 0/0. Native review BLOCKED: 15+ output_refused/provider_failed
+      across foreground/background/manual-relay; 3 complete raw lens results exist
+      (resilience 4, readability 6, reliability 8 — zero blockers) but unadmittable
+      (transport refuses foreground materialization; background results bypass the hook;
+      manual --input relay rejects reconstruction). CLOSED by user's personal review of the
+      raw results (2026-10-13) with the caveat recorded here. 18 findings: 2 introduced
+      WARNINGs → fixed in E3 (stdin drain blocks non-TTY even with all flags; parsePort
+      silent coercion to 22), 6 SUGGESTIONs introduced → backlog, 10 pre-existing → backlog.
+- [ ] E3 Dead-code cleanup + E2 advisory fixes: stdin gate before readLines; parsePort
+      loud refusal mirroring --type; parseType validation co-located; vestigial
+      DoctorScreen props; sweep for wizard-deletion corpses; tests for the fixes.
 - [ ] E4 Validation: eslint zones (shared/domains/application/FSD + scoped *.test.*
       config), steiger + knip scripts, zero-violation re-scan, flaky remotes test
       hunt, R3-004 services test, full suite.
 - [ ] E5 Delivery: version bump (repo rule 5), PR architecture-layers → main.
 
+## Backlog (recorded, not scheduled)
+- outcome-mapper duplication in remote-add (R2-004); hostkey not-saved/throwing paths
+  unasserted (R3-005); commander flag mapping untested (R3-008); service wrappers
+  listRemotes/getRemote/testSshConnection untested (R3-006); .then-only chains in wizard
+  + remotes-menu gate (R4-002/003, R3-003/004); TOOL_LABELS duplicated cli/tui (R2-003);
+  doctor formatter untested + Spanish header 'revision de los comandos' (R3-007/R2-005);
+  fakeValidator duplicated in remotes-menu tests (R2-006); DoctorScreen vestigial props.
+
 ## Next step
-E1 (docs: ADR-0020 + AGENTS.md) — writer + user code review before commit.
+E3 writer → parent verify → user diff review → commit → E4.

@@ -1,14 +1,16 @@
 // cli/commands/remote-add.ts — CLI endpoint for `tako remote add` (ADR-0020).
 //
 // The CLI is strictly non-interactive: no TUI views, no forms, no prompts.
-// Every field the old wizard collected is a flag; missing required fields are
-// read from piped stdin lines (xargs-style, one per missing field, in field
-// order); anything still missing prints the plain field list and the command
-// exits non-zero. The add flow itself lives behind services/remotes
-// (addRemote → hostkey refusal round → confirmAddRemote); this command only
-// assembles the request and maps the result to exit codes.
+// Every field the old wizard collected is a flag. Invalid --type/--port values
+// are refused loudly (never silently coerced to their default); stdin is read
+// only when required fields are still missing, filling them from piped lines
+// (xargs-style, one per missing field, in field order); anything still missing
+// prints the plain field list and the command exits non-zero. The add flow
+// itself lives behind services/remotes (addRemote → hostkey refusal round →
+// confirmAddRemote); this command only assembles the request and maps the
+// result to exit codes.
 //
-// Exit codes: 0 saved · 1 refused/missing input/declined hostkey · 2 unexpected.
+// Exit codes: 0 saved · 1 invalid flag/refused/missing input/declined hostkey · 2 unexpected.
 import type { AddRemoteResult, RemoteDraft, SshCredentialType } from '../../services/remotes.js';
 import { addRemote, confirmAddRemote } from '../../services/remotes.js';
 
@@ -32,7 +34,8 @@ export type RemoteAddFlags = {
 
 /** Sinks the command talks to (injected so tests never touch a real stdin). */
 export interface RemoteAddIo {
-  /** Piped stdin lines (empty when stdin is a TTY). */
+  /** Piped stdin lines. Consumed only when required fields are missing — the
+   * default sink reads to EOF, so it must not be touched otherwise. */
   readonly readLines: () => Promise<string[]>;
   readonly log: (line: string) => void;
   readonly error: (line: string) => void;
@@ -83,11 +86,30 @@ function formatHostkeyList(fingerprint: string): string {
   ].join('\n');
 }
 
-/** Parse + validate the credential type flag (undefined keeps the store default). */
-function parseType(raw: string | undefined): SshCredentialType | undefined {
-  if (raw === undefined || raw === '') return undefined;
-  if ((CREDENTIAL_TYPES as readonly string[]).includes(raw)) return raw as SshCredentialType;
-  return undefined;
+/** Outcome of parsing one optional flag: absent → default, ok → value,
+ * invalid → loud refusal. Each parser's contract is self-evident: the caller
+ * never guesses whether `undefined` meant "absent" or "bad input". */
+type ParsedFlag<T> =
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'ok'; readonly value: T }
+  | { readonly kind: 'invalid'; readonly value: string };
+
+/** Parse the credential type flag: absent keeps the store default; anything
+ * outside CREDENTIAL_TYPES is an explicit refusal, never a silent default. */
+function parseType(raw: string | undefined): ParsedFlag<SshCredentialType> {
+  if (raw === undefined || raw === '') return { kind: 'absent' };
+  if ((CREDENTIAL_TYPES as readonly string[]).includes(raw)) return { kind: 'ok', value: raw as SshCredentialType };
+  return { kind: 'invalid', value: raw };
+}
+
+/** Parse the port flag: absent keeps the SSH default; non-integer, non-positive
+ * or out-of-range values are an explicit refusal (mirrors --type — never a
+ * silent coercion to the default, which would save a wrong-endpoint remote). */
+function parsePort(raw: string | undefined): ParsedFlag<number> {
+  if (raw === undefined || raw === '') return { kind: 'absent' };
+  const parsed = /^\d+$/.test(raw) ? Number.parseInt(raw, 10) : Number.NaN;
+  if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) return { kind: 'invalid', value: raw };
+  return { kind: 'ok', value: parsed };
 }
 
 /**
@@ -96,9 +118,16 @@ function parseType(raw: string | undefined): SshCredentialType | undefined {
  */
 export async function runRemoteAdd(flags: RemoteAddFlags, io: RemoteAddIo): Promise<number> {
   try {
+    // Loud refusals first (ADR-0020 §3): a bad flag value prints and exits —
+    // it is never silently coerced to its default.
     const type = parseType(flags.type);
-    if (flags.type !== undefined && flags.type !== '' && type === undefined) {
-      io.error(`tako remote add: invalid --type "${flags.type}" (expected one of: ${CREDENTIAL_TYPES.join(', ')})`);
+    if (type.kind === 'invalid') {
+      io.error(`tako remote add: invalid --type "${type.value}" (expected one of: ${CREDENTIAL_TYPES.join(', ')})`);
+      return 1;
+    }
+    const port = parsePort(flags.port);
+    if (port.kind === 'invalid') {
+      io.error(`tako remote add: invalid --port "${port.value}" (expected an integer between 1 and 65535)`);
       return 1;
     }
 
@@ -107,40 +136,49 @@ export async function runRemoteAdd(flags: RemoteAddFlags, io: RemoteAddIo): Prom
       user: flags.user,
       host: flags.host,
       port: flags.port,
-      type,
+      type: type.kind === 'ok' ? type.value : undefined,
       keyPath: flags.keyPath,
       password: flags.password,
     };
 
-    // xargs-style fill: one piped line per missing REQUIRED field, in field
-    // order. Optional fields (port, type, key-path) never consume lines —
-    // they keep their flag value or default, so a piped y/n hostkey answer
-    // always lands in the answer queue, not in an optional slot.
-    const lines = await io.readLines();
-    for (const spec of FIELD_SPECS) {
-      if (!spec.required(values)) continue;
-      const current = values[spec.flag];
-      if ((current === undefined || current === '') && lines.length > 0) {
-        values[spec.flag] = lines.shift();
+    const missingRequired = (): string[] =>
+      FIELD_SPECS.filter(spec => spec.required(values) && (values[spec.flag] ?? '') === '').map(spec => spec.flag);
+
+    // Stdin is drained ONLY when required fields are still missing: the real
+    // sink reads to EOF, so touching it when every field arrives via flags
+    // would block a non-TTY stdin indefinitely.
+    let pendingLines: string[] = [];
+    if (missingRequired().length > 0) {
+      const lines = await io.readLines();
+      // xargs-style fill: one piped line per missing REQUIRED field, in field
+      // order. Optional fields (port, type, key-path) never consume lines —
+      // they keep their flag value or default, so a piped y/n hostkey answer
+      // always lands in the answer queue, not in an optional slot.
+      for (const spec of FIELD_SPECS) {
+        if (!spec.required(values)) continue;
+        const current = values[spec.flag];
+        if ((current === undefined || current === '') && lines.length > 0) {
+          values[spec.flag] = lines.shift();
+        }
       }
+      const stillMissing = missingRequired();
+      if (stillMissing.length > 0) {
+        io.error(formatFieldList(stillMissing));
+        return 1;
+      }
+      // Leftover lines stay queued for the hostkey y/n round.
+      pendingLines = lines;
     }
 
-    const missing = FIELD_SPECS.filter(spec => spec.required(values) && (values[spec.flag] ?? '') === '').map(
-      spec => spec.flag
-    );
-    if (missing.length > 0) {
-      io.error(formatFieldList(missing));
-      return 1;
-    }
-
-    // The missing-field gate above guarantees the required values are present.
-    const credentialType = type ?? 'store';
+    // The gates above guarantee the required values are present and that both
+    // optional flags parsed.
+    const credentialType: SshCredentialType = type.kind === 'ok' ? type.value : 'store';
     const draft: RemoteDraft = {
       name: values.name ?? '',
       type: 'ssh',
       username: values.user ?? '',
       host: values.host ?? '',
-      port: parsePort(values.port),
+      port: port.kind === 'ok' ? port.value : DEFAULT_PORT,
       credentialType,
       // store: persisted obfuscated; interactive: validation-only (mirrors the TUI draft)
       ...(credentialType !== 'ssh-key' && values.password !== undefined && { password: values.password }),
@@ -148,7 +186,7 @@ export async function runRemoteAdd(flags: RemoteAddFlags, io: RemoteAddIo): Prom
     };
 
     const result = await addRemote({ draft, hostkeyAccepted: flags.acceptHostkey === true });
-    return await finishRemoteAdd(draft, result, lines, io);
+    return await finishRemoteAdd(draft, result, pendingLines, io);
   } catch (err) {
     io.error(String(err));
     return 2;
@@ -207,14 +245,10 @@ async function confirmHostkey(
   return 1;
 }
 
-function parsePort(raw: string | undefined): number {
-  const parsed = Number.parseInt(raw ?? '', 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : DEFAULT_PORT;
-}
-
 /**
  * Default entry: Commander flags in, real stdin/console out. Piped lines are
- * consumed only when stdin is not a TTY (blanks are skipped).
+ * consumed only when required fields are missing AND stdin is not a TTY
+ * (blanks are skipped).
  */
 export async function runRemoteAddDefault(flags: RemoteAddFlags): Promise<number> {
   return runRemoteAdd(flags, {
