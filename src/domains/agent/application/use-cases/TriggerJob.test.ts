@@ -1,9 +1,10 @@
 // application/use-cases/TriggerJob.test.ts — STRICT TDD RED phase (task 3.10)
 import { describe, it, expect } from 'vitest';
+
 // RED: import the modules that don't exist yet
 import { TriggerJob, JobNotFoundError } from './TriggerJob.js';
-import { InMemoryJobStore } from '../../testing/InMemoryJobStore.js';
 import { JobValidationError } from '../../domain/job.js';
+import { InMemoryJobStore } from '../../testing/InMemoryJobStore.js';
 import type { Clock } from '../Clock.js';
 
 const PRUNE_JOB = {
@@ -49,7 +50,7 @@ describe('TriggerJob', () => {
     const store = new InMemoryJobStore();
     await store.upsertJob(PRUNE_JOB);
     await expect(new TriggerJob(store, FIXED_CLOCK).execute('nas-prune', 'destroy' as 'apply')).rejects.toThrow(
-      JobValidationError,
+      JobValidationError
     );
   });
 });

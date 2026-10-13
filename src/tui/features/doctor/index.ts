@@ -3,4 +3,3 @@
 // this slice exposes only what the TUI DoctorPage embeds.
 
 export { DoctorScreen } from './ui/DoctorScreen.js';
-export type { DoctorScreenProps } from './ui/DoctorScreen.js';

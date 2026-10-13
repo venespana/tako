@@ -4,9 +4,9 @@
 // the conf store mocked to an in-memory map (no real user conf is touched).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { addRemote, confirmAddRemote, decideRemoteAuth, resolveRemoteAuth } from './remotes.js';
 import type { Remote } from '../domains/remotes/domain/types.js';
 import { ConfSecretVault } from '../domains/remotes/infrastructure/ConfSecretVault.js';
-import { addRemote, confirmAddRemote, decideRemoteAuth, resolveRemoteAuth } from './remotes.js';
 
 const confData = vi.hoisted(() => new Map<string, unknown>());
 
@@ -64,13 +64,19 @@ describe('decideRemoteAuth — session-password contract', () => {
     const refusal = decideRemoteAuth('nas', interactive, undefined, cipher => cipher);
     expect(JSON.stringify(refusal)).not.toContain(SECRET);
 
-    const keyDecision = decideRemoteAuth('nas', { credentialType: 'ssh-key', keyPath: '/keys/id_ed25519' }, SECRET, cipher =>
-      cipher
+    const keyDecision = decideRemoteAuth(
+      'nas',
+      { credentialType: 'ssh-key', keyPath: '/keys/id_ed25519' },
+      SECRET,
+      cipher => cipher
     );
     expect(keyDecision).toEqual({ kind: 'resolved', auth: { type: 'key', keyPath: '/keys/id_ed25519' } });
 
-    const storeDecision = decideRemoteAuth('nas', { credentialType: 'store', obfuscatedPassword: 'obf' }, SECRET, cipher =>
-      `revealed:${cipher}`
+    const storeDecision = decideRemoteAuth(
+      'nas',
+      { credentialType: 'store', obfuscatedPassword: 'obf' },
+      SECRET,
+      cipher => `revealed:${cipher}`
     );
     expect(storeDecision).toEqual({ kind: 'resolved', auth: { type: 'password', password: 'revealed:obf' } });
   });
@@ -83,7 +89,15 @@ describe('resolveRemoteAuth — conf-backed resolution (fresh per call)', () => 
 
   it('resolves a store-credential remote through the vault reveal', async () => {
     const cipher = new ConfSecretVault(undefined).obfuscate('store-pw');
-    seedRemote({ name: 'nas', type: 'ssh', username: 'ops', host: 'nas.lan', port: 22, credentialType: 'store', obfuscatedPassword: cipher });
+    seedRemote({
+      name: 'nas',
+      type: 'ssh',
+      username: 'ops',
+      host: 'nas.lan',
+      port: 22,
+      credentialType: 'store',
+      obfuscatedPassword: cipher,
+    });
 
     const resolution = await resolveRemoteAuth('nas', undefined);
 
@@ -95,7 +109,15 @@ describe('resolveRemoteAuth — conf-backed resolution (fresh per call)', () => 
   });
 
   it('resolves a key remote without touching any secret', async () => {
-    seedRemote({ name: 'nas', type: 'ssh', username: 'ops', host: 'nas.lan', port: 22, credentialType: 'ssh-key', keyPath: '/keys/id_ed25519' });
+    seedRemote({
+      name: 'nas',
+      type: 'ssh',
+      username: 'ops',
+      host: 'nas.lan',
+      port: 22,
+      credentialType: 'ssh-key',
+      keyPath: '/keys/id_ed25519',
+    });
 
     const resolution = await resolveRemoteAuth('nas', undefined);
 

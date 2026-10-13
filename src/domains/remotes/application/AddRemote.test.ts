@@ -1,14 +1,14 @@
 // application/AddRemote.test.ts — STRICT TDD RED phase
 import { describe, it, expect, vi } from 'vitest';
-import type { AddRemoteResult, DuplicateResult, Remote, RemoteDraft, SshValidationOutcome } from '../domain/types.js';
+
+import { AddRemote } from './AddRemote.js';
+import type { CheckDuplicateRemote } from './CheckDuplicateRemote.js';
 import type { RemoteRepository } from './RemoteRepository.js';
 import type { SecretVault } from './SecretVault.js';
-import type { SshConnectionTester } from './SshConnectionTester.js';
-import type { CheckDuplicateRemote } from './CheckDuplicateRemote.js';
 import type { ValidateSshConnection } from './ValidateSshConnection.js';
+import type { DuplicateResult, Remote, RemoteDraft, SshValidationOutcome } from '../domain/types.js';
 
 // Import the class that doesn't exist yet — this is RED
-import { AddRemote } from './AddRemote.js';
 
 // ---------------------------------------------------------------------------
 // Fake ports
@@ -27,7 +27,7 @@ function buildFakes({ duplicateResult, validateOutcome, vaultObfuscate = 'obfusc
   repo: RemoteRepository;
 } {
   const vault: SecretVault = {
-    obfuscate: vi.fn((plain: string) => vaultObfuscate),
+    obfuscate: vi.fn((_plain: string) => vaultObfuscate),
     reveal: vi.fn((cipher: string) => cipher),
   };
 

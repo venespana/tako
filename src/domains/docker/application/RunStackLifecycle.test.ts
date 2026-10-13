@@ -5,10 +5,10 @@
 // the exact command that WOULD run without ever touching the port.
 import { describe, expect, it } from 'vitest';
 
-import { StackDirValidationError } from '../domain/stack-dir.js';
-import type { ComposeCommand, CommandExecution } from '../domain/types.js';
 import { RunStackLifecycle, StackLifecycleValidationError, composeLifecycleArgv } from './RunStackLifecycle.js';
 import type { ComposeRunner } from './RunStackLifecycle.js';
+import { StackDirValidationError } from '../domain/stack-dir.js';
+import type { ComposeCommand, CommandExecution } from '../domain/types.js';
 
 /** Recording fake: proves WHAT the use case ran — and what it did NOT. */
 class RecordingRunner implements ComposeRunner {
@@ -94,25 +94,25 @@ describe('RunStackLifecycle — hostile input rejection before the port', () => 
 
   it.each(hostileDirs)('rejects stackDir %j with the domain error and no port call', async dir => {
     const runner = new RecordingRunner();
-    await expect(
-      new RunStackLifecycle(runner).execute({ op: 'up', stackDir: dir, mode: 'dry-run' })
-    ).rejects.toThrow(StackDirValidationError);
+    await expect(new RunStackLifecycle(runner).execute({ op: 'up', stackDir: dir, mode: 'dry-run' })).rejects.toThrow(
+      StackDirValidationError
+    );
     expect(runner.calls).toHaveLength(0);
   });
 
   it.each(['deploy', 'up -d', 42, null, undefined])('rejects op %j', async op => {
     const runner = new RecordingRunner();
-    await expect(
-      new RunStackLifecycle(runner).execute({ op, stackDir: STACK_DIR, mode: 'dry-run' })
-    ).rejects.toThrow(StackLifecycleValidationError);
+    await expect(new RunStackLifecycle(runner).execute({ op, stackDir: STACK_DIR, mode: 'dry-run' })).rejects.toThrow(
+      StackLifecycleValidationError
+    );
     expect(runner.calls).toHaveLength(0);
   });
 
   it.each(['mutate', 'APPLY', 42, null, undefined])('rejects mode %j', async mode => {
     const runner = new RecordingRunner();
-    await expect(
-      new RunStackLifecycle(runner).execute({ op: 'up', stackDir: STACK_DIR, mode })
-    ).rejects.toThrow(StackLifecycleValidationError);
+    await expect(new RunStackLifecycle(runner).execute({ op: 'up', stackDir: STACK_DIR, mode })).rejects.toThrow(
+      StackLifecycleValidationError
+    );
     expect(runner.calls).toHaveLength(0);
   });
 });

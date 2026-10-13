@@ -3,4 +3,4 @@
 // from slice internals (ADR-0018 point 6: the widget owns RenderableAction*;
 // upper layers map their menu data into these props).
 export { ActionMenu } from './ui/ActionMenu.js';
-export type { ActionMenuProps, RenderableActionGroup, RenderableActionItem } from './ui/ActionMenu.js';
+export type { RenderableActionGroup } from './ui/ActionMenu.js';

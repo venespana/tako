@@ -29,14 +29,14 @@ describe('checkHostDependencies', () => {
 
   it('a missing tool surfaces in the report and flips allPresent (exit-code input for the CLI)', async () => {
     checkMock.mockImplementation(async (tool: string) =>
-      tool === 'docker-compose'
-        ? { tool, status: 'not-found' }
-        : { tool, status: 'found', path: `/usr/bin/${tool}` }
+      tool === 'docker-compose' ? { tool, status: 'not-found' } : { tool, status: 'found', path: `/usr/bin/${tool}` }
     );
 
     const report = await checkHostDependencies();
 
     expect(report.allPresent).toBe(false);
-    expect(report.results.find((result: { tool: string }) => result.tool === 'docker-compose')?.status).toBe('not-found');
+    expect(report.results.find((result: { tool: string }) => result.tool === 'docker-compose')?.status).toBe(
+      'not-found'
+    );
   });
 });

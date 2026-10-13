@@ -7,8 +7,8 @@
 import { render } from 'ink-testing-library';
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 
-import { settle } from '../../test-utils/ink-interactions.js';
 import { RouteErrorScreen } from './RouteErrorScreen.js';
+import { settle } from '../../test-utils/ink-interactions.js';
 
 // Hoisted so the vi.mock factory can read it before module body evaluation;
 // mutable so each case can stub a different error shape.

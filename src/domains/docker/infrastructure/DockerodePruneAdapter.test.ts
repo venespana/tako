@@ -5,9 +5,8 @@
 // scope switch is exhaustive over the closed union — there is no code path
 // that can express `image prune -af` or a volume prune. These tests pin the
 // calls made to the docker client and the report normalization.
-import { describe, expect, it } from 'vitest';
-
 import type Dockerode from 'dockerode';
+import { describe, expect, it } from 'vitest';
 
 import type { DockerPruneClient, PruneBuilderInfoWithCaches } from './DockerodePruneAdapter.js';
 import { DockerodePruneAdapter } from './DockerodePruneAdapter.js';
@@ -93,7 +92,10 @@ describe('DockerodePruneAdapter — dry-run plan lists, mutates nothing', () => 
 
   it('lists dangling images with the pinned dangling filter, tagging untagged ones', async () => {
     const client = new FakeDockerClient({
-      images: [{ Id: 'i-dangling-1', RepoTags: undefined }, { Id: 'i-dangling-2', RepoTags: ['<none>:<none>'] }],
+      images: [
+        { Id: 'i-dangling-1', RepoTags: undefined },
+        { Id: 'i-dangling-2', RepoTags: ['<none>:<none>'] },
+      ],
     });
     const entries = await new DockerodePruneAdapter(client).plan(['dangling-images']);
 

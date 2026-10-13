@@ -1,18 +1,18 @@
 // CheckHostDependencies.test.ts — STRICT TDD RED phase
 import { describe, it, expect, vi } from 'vitest';
-import type { HostTool } from '../domain/types.js';
+
+import { CheckHostDependencies } from './CheckHostDependencies.js';
 import type { HostToolChecker } from './HostToolChecker.js';
-import type { ToolCheckResult } from '../domain/types.js';
+import type { HostTool, ToolCheckResult } from '../domain/types.js';
 
 // We import the use case class that doesn't exist yet — this is RED
-import { CheckHostDependencies } from './CheckHostDependencies.js';
 
 describe('CheckHostDependencies', () => {
   // Helper to create a fake checker
   function fakeChecker(results: ToolCheckResult[]): HostToolChecker {
     return {
       check: vi.fn(async (tool: HostTool) => {
-        const result = results.find((r) => r.tool === tool);
+        const result = results.find(r => r.tool === tool);
         if (!result) throw new Error(`Unexpected tool: ${tool}`);
         return result;
       }),
@@ -57,17 +57,17 @@ describe('CheckHostDependencies', () => {
     expect(result.allPresent).toBe(false);
     expect(result.results).toHaveLength(5);
 
-    const gitResult = result.results.find((r) => r.tool === 'git');
+    const gitResult = result.results.find(r => r.tool === 'git');
     expect(gitResult!.status).toBe('not-found');
     expect(gitResult!.version).toBeNull();
 
-    const sshResult = result.results.find((r) => r.tool === 'ssh');
+    const sshResult = result.results.find(r => r.tool === 'ssh');
     expect(sshResult!.status).toBe('found');
 
-    const dockerResult = result.results.find((r) => r.tool === 'docker');
+    const dockerResult = result.results.find(r => r.tool === 'docker');
     expect(dockerResult!.status).toBe('found');
 
-    const dcResult = result.results.find((r) => r.tool === 'docker-compose');
+    const dcResult = result.results.find(r => r.tool === 'docker-compose');
     expect(dcResult!.status).toBe('found');
   });
 
@@ -85,6 +85,6 @@ describe('CheckHostDependencies', () => {
 
     expect(result.allPresent).toBe(false);
     expect(result.results).toHaveLength(5);
-    expect(result.results.every((r) => r.status === 'not-found')).toBe(true);
+    expect(result.results.every(r => r.status === 'not-found')).toBe(true);
   });
 });

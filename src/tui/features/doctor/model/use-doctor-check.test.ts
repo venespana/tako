@@ -4,12 +4,12 @@
 // This file provides type-level verification and smoke tests that don't require
 // a React DOM environment.
 import { describe, it, expect } from 'vitest';
+
 import type { DoctorCheckStatus, UseDoctorCheckResult } from './use-doctor-check.js';
 
 describe('useDoctorCheck exports', () => {
   it('DoctorCheckStatus is a union type', () => {
     // Verify the union type covers all expected states
-    type ExpectedStates = 'idle' | 'checking' | 'done' | 'error';
     const _idle: DoctorCheckStatus = { status: 'idle' };
     const _checking: DoctorCheckStatus = { status: 'checking' };
     const _done: DoctorCheckStatus = { status: 'done', result: { results: [], allPresent: true } };

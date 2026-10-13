@@ -1,5 +1,6 @@
 // menu-registry.test.ts — Unit tests for the declarative action registry.
 import { describe, it, expect } from 'vitest';
+
 import { getRegistry } from './menu-registry.js';
 
 describe('getRegistry', () => {

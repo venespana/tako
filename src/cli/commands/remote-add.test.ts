@@ -8,9 +8,9 @@
 // (services/remotes.test.ts) and use-case level.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
+import { formatFieldList, runRemoteAdd, type RemoteAddFlags, type RemoteAddIo } from './remote-add.js';
 import type { AddRemoteResult, RemoteDraft } from '../../services/remotes.js';
 import { addRemote, confirmAddRemote } from '../../services/remotes.js';
-import { formatFieldList, runRemoteAdd, type RemoteAddFlags, type RemoteAddIo } from './remote-add.js';
 
 vi.mock('../../services/remotes.js', async importOriginal => {
   // Only the transport-bearing add functions are replaced; the re-exported

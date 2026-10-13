@@ -4,14 +4,14 @@
 // of injecting a use case fake. Behavioral coverage kept from the former
 // features slice: smoke render, 9.10 stable-typing regression, blocking
 // outcomes, type-step semantics, hostkey accept/decline, Tab/Shift+Tab.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 
 import { render as renderInk } from 'ink-testing-library';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AddRemoteWizard } from './AddRemoteWizard.js';
 import type { AddRemoteResult } from '../../../../services/remotes.js';
 import { addRemote, confirmAddRemote } from '../../../../services/remotes.js';
-import { AddRemoteWizard } from './AddRemoteWizard.js';
 import { useWizardStore } from '../model/wizard-store.js';
 
 vi.mock('../../../../services/remotes.js', async importOriginal => {

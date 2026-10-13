@@ -5,6 +5,7 @@ import { Command } from 'commander';
 
 import type { RemoteAddFlags } from './commands/remote-add.js';
 import { SESSION_PASSWORD_ENV } from '../shared/lib/session-password.js';
+import { VERSION } from '../shared/lib/version.js';
 
 /**
  * Build the CLI program with every command registered LAZILY: command
@@ -15,7 +16,13 @@ import { SESSION_PASSWORD_ENV } from '../shared/lib/session-password.js';
 export function buildProgram(): Command {
   const program = new Command();
 
-  program.name('tako').description('TUI for managing docker-compose-based homelabs over SSH').version('0.0.0');
+  // Version comes from the generated src/shared/lib/version.ts (written by
+  // scripts/generate-version.ts, committed) — never a hardcoded literal.
+  // The module imports nothing, so the CLI graph stays Ink-free.
+  program
+    .name('tako')
+    .description('TUI for managing docker-compose-based homelabs over SSH')
+    .version(VERSION ?? '0.0.0');
 
   program
     .command('doctor')

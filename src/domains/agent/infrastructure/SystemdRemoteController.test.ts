@@ -4,8 +4,8 @@
 // deferred threat-matrix RED test 3.14 (polkit linger denial actionable error).
 import { describe, expect, it, vi, type Mock } from 'vitest';
 
-import type { RemoteCommandResult, RemoteCommandRunner } from '../../remotes/application/RemoteCommandRunner.js';
 import { SystemdRemoteController } from './SystemdRemoteController.js';
+import type { RemoteCommandResult, RemoteCommandRunner } from '../../remotes/application/RemoteCommandRunner.js';
 
 // Remote home canned by the fake runner for the home probe (`printf %s "$HOME"`).
 // 9.10 follow-up: unit paths MUST be absolute — a literal `$HOME` inside single
@@ -15,9 +15,10 @@ const REMOTE_HOME = '/home/ops';
 const UNIT_PATH = `${REMOTE_HOME}/.config/systemd/user/tako-agent.service`;
 const HOME_PROBE = 'printf %s "$HOME"';
 
-function createRunner(
-  impl: (command: string) => RemoteCommandResult | Promise<RemoteCommandResult>
-): { runner: RemoteCommandRunner; run: Mock<(command: string) => Promise<RemoteCommandResult>> } {
+function createRunner(impl: (command: string) => RemoteCommandResult | Promise<RemoteCommandResult>): {
+  runner: RemoteCommandRunner;
+  run: Mock<(command: string) => Promise<RemoteCommandResult>>;
+} {
   const run = vi.fn(async (command: string) => {
     if (command === HOME_PROBE) return ok(REMOTE_HOME);
     return impl(command);

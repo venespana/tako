@@ -3,11 +3,10 @@
 // ONLY key-hint surface — a page's published hints render before back/quit.
 // 9.20: hints publish into the zustand module-scope store — tests reset the
 // singleton instead of wrapping a provider.
-import { beforeEach, describe, expect, it } from 'vitest';
 
 import { render } from 'ink-testing-library';
-
 import { RouterProvider, createMemoryRouter } from 'react-router';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { AppShell } from './AppShell.js';
 import { usePageHints, usePageHintsStore, type KeyHint } from '../../../shared/lib/page-hints-store.js';

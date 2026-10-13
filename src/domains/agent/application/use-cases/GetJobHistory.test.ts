@@ -1,9 +1,10 @@
 // application/use-cases/GetJobHistory.test.ts — STRICT TDD RED phase (task 3.10)
 import { describe, it, expect } from 'vitest';
+
 // RED: import the module that doesn't exist yet
 import { GetJobHistory } from './GetJobHistory.js';
-import { InMemoryJobStore } from '../../testing/InMemoryJobStore.js';
 import { JobValidationError } from '../../domain/job.js';
+import { InMemoryJobStore } from '../../testing/InMemoryJobStore.js';
 
 async function seedThreeRuns(store: InMemoryJobStore): Promise<void> {
   await store.createRun({ jobId: 'nas-prune', mode: 'apply', catchup: false, startedAt: '2026-09-18T01:00:00.000Z' });
@@ -25,7 +26,7 @@ describe('GetJobHistory', () => {
     await seedThreeRuns(store);
     const { runs, lastSeq } = await new GetJobHistory(store).execute({ jobId: 'nas-prune' });
     expect(runs).toHaveLength(2);
-    expect(runs.every((run) => run.jobId === 'nas-prune')).toBe(true);
+    expect(runs.every(run => run.jobId === 'nas-prune')).toBe(true);
     expect(lastSeq).toBe(3);
   });
 
@@ -33,14 +34,14 @@ describe('GetJobHistory', () => {
     const store = new InMemoryJobStore();
     await seedThreeRuns(store);
     const { runs } = await new GetJobHistory(store).execute({ sinceSeq: 2 });
-    expect(runs.map((run) => run.seq)).toEqual([3]);
+    expect(runs.map(run => run.seq)).toEqual([3]);
   });
 
   it('3.10 RED: limit caps the result (newest-first page, oldest runs dropped)', async () => {
     const store = new InMemoryJobStore();
     await seedThreeRuns(store);
     const { runs } = await new GetJobHistory(store).execute({ limit: 2 });
-    expect(runs.map((run) => run.seq)).toEqual([1, 2]);
+    expect(runs.map(run => run.seq)).toEqual([1, 2]);
   });
 
   it('3.12 RED: hostile jobId is rejected, never passed through to persistence', async () => {

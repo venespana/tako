@@ -3,16 +3,15 @@
 // 9.20: the runtime is a zustand module-scope store — tests seed it with
 // setState (no provider) and assert on its state after mount. Per ADR-0019
 // §7 the store consumes services/agent — mocked here.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
 import { render } from 'ink-testing-library';
 import { MemoryRouter } from 'react-router';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import HomeRoute from './index.js';
 import { connectAgentSession } from '../../../services/agent.js';
 import { resetTasksStoreForTests, useTasksStore } from '../../pages/tasks/index.js';
 import { FakeAgentSession } from '../../test-utils/fake-agent-session.js';
 import { initialAppRuntimeState, useAppRuntimeStore } from '../providers/app-runtime-store.js';
-import HomeRoute from './index.js';
 
 vi.mock('../../../services/agent.js', async importOriginal => {
   // Spread the REAL module so the pure re-exports keep working; the store

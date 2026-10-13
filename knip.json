@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "entry": ["src/cli/index.ts", "scripts/*.ts"],
+  "project": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts"],
+  "ignoreExportsUsedInFile": true,
+  "ignoreDependencies": ["lint-staged", "@feature-sliced/steiger-plugin"]
+}

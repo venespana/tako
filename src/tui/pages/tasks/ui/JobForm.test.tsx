@@ -3,13 +3,12 @@
 // focused on entry, Enter confirms each step, completed fields collapse into
 // done rows) and the Esc-only-cancel discipline (character keys are data
 // entry only — no char binding may fire while the form is open).
+import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 
-import { render } from 'ink-testing-library';
-
-import type { JobDefinition, PruneScopes } from '../../../../domains/agent/domain/types.js';
-import { EMPTY_JOB_FORM, type JobFormValues } from '../model/job-form.js';
 import { JobForm } from './JobForm.js';
+import type { JobDefinition, PruneScopes } from '../../../../services/agent.js';
+import { EMPTY_JOB_FORM, type JobFormValues } from '../model/job-form.js';
 
 /** Poll until predicate() holds (Ink stdin flush + re-render settle). */
 async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
@@ -40,9 +39,7 @@ const VALID_LIFECYCLE: JobFormValues = {
 describe('JobForm progressive disclosure (9.15b)', () => {
   it('opens with the id field focused and every later field hidden', () => {
     const onSubmit = vi.fn();
-    const { lastFrame, unmount } = render(
-      <JobForm initial={EMPTY_JOB_FORM} onCancel={() => {}} onSubmit={onSubmit} />
-    );
+    const { lastFrame, unmount } = render(<JobForm initial={EMPTY_JOB_FORM} onCancel={() => {}} onSubmit={onSubmit} />);
     const frame = lastFrame() ?? '';
     expect(frame).toContain('New job');
     expect(frame).toContain('Job id');

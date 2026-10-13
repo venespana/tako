@@ -1,5 +1,6 @@
 // application/use-cases/InstallAgent.test.ts — STRICT TDD RED phase (task 3.10, 3.11)
 import { describe, it, expect } from 'vitest';
+
 // RED: import the modules that don't exist yet
 import {
   InstallAgent,
@@ -76,7 +77,7 @@ describe('linger decision (task 3.11, D8)', () => {
     expect(decideLingerOnInstall(false)).toEqual({ action: 'enable-linger', lingerEnabledByTako: true });
   });
 
-  it("9.7 RED: unknown linger state → attempt enable (idempotent) but NOT recorded as by-Tako — the flag is never guessed", () => {
+  it('9.7 RED: unknown linger state → attempt enable (idempotent) but NOT recorded as by-Tako — the flag is never guessed', () => {
     // Recording by-tako=true on an unreadable state risks disabling a
     // pre-existing (user-owned) linger at uninstall — the only-by-tako rule
     // (design D8, uninstall) tolerates kept linger, never guessed teardown.

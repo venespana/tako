@@ -1,20 +1,21 @@
 // application/CheckDuplicateRemote.test.ts — STRICT TDD RED phase
 import { describe, it, expect, vi } from 'vitest';
-import type { RemoteDraft } from '../domain/types.js';
+
+import { CheckDuplicateRemote } from './CheckDuplicateRemote.js';
 import type { RemoteRepository } from './RemoteRepository.js';
+import type { RemoteDraft } from '../domain/types.js';
 
 // Import the class that doesn't exist yet — this is RED
-import { CheckDuplicateRemote } from './CheckDuplicateRemote.js';
 
 describe('CheckDuplicateRemote', () => {
   // 5 scenarios from task 3.1
 
   function fakeRepo(opts: { nameExists?: boolean; endpointExists?: boolean }): RemoteRepository {
     return {
-      existsByName: vi.fn(async (name: string) => {
+      existsByName: vi.fn(async (_name: string) => {
         return opts.nameExists ?? false;
       }),
-      existsByEndpoint: vi.fn(async (e: string) => {
+      existsByEndpoint: vi.fn(async (_e: string) => {
         return opts.endpointExists ?? false;
       }),
       save: vi.fn(async () => {}),

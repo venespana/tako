@@ -4,6 +4,7 @@
 // rejected structurally — the union is closed, the validator rejects
 // everything outside it, and the filter mapping makes `-af` unrepresentable.
 import { describe, expect, it } from 'vitest';
+
 import {
   PruneScopeValidationError,
   STOPPED_CONTAINER_STATUSES,

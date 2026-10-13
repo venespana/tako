@@ -7,8 +7,8 @@
 // applies").
 import { describe, expect, it } from 'vitest';
 
-import type { RunView } from '../../../../domains/agent/domain/types.js';
 import { summarizeDryRun } from './dry-run-preview.js';
+import type { RunView } from '../../../../services/agent.js';
 
 function dryRun(result: unknown): RunView {
   return {
@@ -71,6 +71,8 @@ describe('dry-run preview summaries (8.9)', () => {
   it('a non-dry-run or result-less run renders an honest unavailable summary (never an implicit apply)', () => {
     expect(summarizeDryRun(dryRun(undefined)).headline).toContain('unavailable');
     expect(summarizeDryRun(dryRun('garbage')).headline).toContain('unavailable');
-    expect(summarizeDryRun(dryRun({ error: 'docker daemon unreachable' })).headline).toContain('docker daemon unreachable');
+    expect(summarizeDryRun(dryRun({ error: 'docker daemon unreachable' })).headline).toContain(
+      'docker daemon unreachable'
+    );
   });
 });

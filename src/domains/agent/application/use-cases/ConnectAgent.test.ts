@@ -1,5 +1,6 @@
 // application/use-cases/ConnectAgent.test.ts — STRICT TDD RED phase (task 3.10)
 import { describe, it, expect, vi } from 'vitest';
+
 // RED: import the modules that don't exist yet
 import { ConnectAgent } from './ConnectAgent.js';
 import type { AgentSession, AgentTransport } from '../AgentTransport.js';

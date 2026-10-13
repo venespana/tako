@@ -6,9 +6,9 @@
 // (domains/agent/infrastructure/AgentInstallPipeline.test.ts).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { runAgentInstallDefault } from './agent-install.js';
 import { installAgent } from '../../services/agent.js';
 import { SESSION_PASSWORD_ENV } from '../../shared/lib/session-password.js';
-import { runAgentInstallDefault } from './agent-install.js';
 
 vi.mock('../../services/agent.js', () => ({
   installAgent: vi.fn(),

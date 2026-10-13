@@ -4,15 +4,16 @@
 // exactly like a menu page and renders pathname + location key: the key
 // changes on every navigation (even to the same path), so a no-op select
 // leaves the frame byte-identical while a real navigation does not.
-import { describe, it, expect } from 'vitest';
-import { render } from 'ink-testing-library';
 import { Text } from 'ink';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 
-import { pressAndSettle, settle, wait } from '../../../test-utils/ink-interactions.js';
+import { render } from 'ink-testing-library';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { describe, it, expect } from 'vitest';
+
+import type { ActionItem } from './menu-items.js';
 import { useMenuList } from './use-menu-list.js';
 import { useMenuNavigation } from './use-menu-navigation.js';
-import type { ActionItem } from './menu-items.js';
+import { pressAndSettle, settle, wait } from '../../../test-utils/ink-interactions.js';
 
 const routedItem = (id: string, route?: string): ActionItem => ({ id, label: id, command: id, kind: 'action', route });
 

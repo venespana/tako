@@ -3,8 +3,9 @@
 // zustand module-scope stores (9.20). These tests exercise the composed shell
 // (AppShell chrome + routed HomePage) through real keypresses via
 // ink-testing-library.
-import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
+import { describe, it, expect } from 'vitest';
+
 import { App } from './App.js';
 
 describe('App', () => {

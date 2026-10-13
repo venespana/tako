@@ -1,16 +1,15 @@
 // infrastructure/StreamLocalAgentChannel.test.ts — STRICT TDD RED phase
-import { EventEmitter } from 'node:events';
-import { once } from 'node:events';
-
-import { describe, expect, it, vi } from 'vitest';
+import { EventEmitter, once } from 'node:events';
 import type { Duplex } from 'node:stream';
+
 import type { ClientChannel } from 'ssh2';
+import { describe, expect, it, vi } from 'vitest';
 
 // RED: import the port and adapter that don't exist yet
+import type { SshChannelSource } from './SshConnectionManager.js';
+import { StreamLocalAgentChannel } from './StreamLocalAgentChannel.js';
 import { DEFAULT_AGENT_SOCKET_PATH } from '../application/AgentChannel.js';
 import type { RemoteCommandResult, RemoteCommandRunner } from '../application/RemoteCommandRunner.js';
-import { StreamLocalAgentChannel } from './StreamLocalAgentChannel.js';
-import type { SshChannelSource } from './SshConnectionManager.js';
 
 interface FakeChannel extends EventEmitter {
   stderr: EventEmitter & { resume: ReturnType<typeof vi.fn> };
@@ -207,8 +206,7 @@ describe('StreamLocalAgentChannel', () => {
 
     const stream: Duplex = await agentChannel.open();
     // One burst of 40 complete frames; objectMode hwm (16) forces backpressure.
-    const burst =
-      Array.from({ length: 40 }, (_, i) => `frame${i}`).join('\n') + '\n';
+    const burst = Array.from({ length: 40 }, (_, i) => `frame${i}`).join('\n') + '\n';
     channel.emit('data', Buffer.from(burst));
     await flushAsync();
 

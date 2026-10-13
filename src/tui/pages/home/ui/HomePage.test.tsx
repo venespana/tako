@@ -2,12 +2,12 @@
 // list (model/home-menu data + useMenuList/useMenuNavigation); logo, key
 // hints, and version are app-shell chrome and NOT part of this page.
 // MemoryRouter supplies the router context the navigation hooks need.
-import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import { MemoryRouter } from 'react-router';
+import { describe, it, expect } from 'vitest';
 
-import { pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
 import { HomePage } from './HomePage.js';
+import { pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
 
 const renderHome = (hasActiveRemote = false) =>
   render(

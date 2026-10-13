@@ -2,12 +2,11 @@
 // reconnect on success, retry on failure); 9.19: the IN-PROCESS model — the
 // pane drives a gateway-shaped install() (no child process, no watchdog) and
 // late/stale progress after unmount or retry is dropped.
+import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 
-import { render } from 'ink-testing-library';
-
-import type { InstallOutcome, InstallRunner } from '../model/use-agent-install.js';
 import { AgentInstallPanel } from './AgentInstallPanel.js';
+import type { InstallOutcome, InstallRunner } from '../model/use-agent-install.js';
 
 async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
   for (let waited = 0; !predicate() && waited < timeoutMs; waited += 10) {

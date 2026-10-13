@@ -3,24 +3,19 @@
 // node:net server serving the WU3 protocol over ~/.tako/agent.sock (task 4.3):
 // 0600 socket, stale-socket recovery, crash recovery pre-serve, request
 // routing to the WU3 use cases, push events. Real sockets, in-memory store.
-import { connect as netConnect, createServer as createNetServer } from 'node:net';
 import { mkdtempSync, renameSync, rmSync, statSync } from 'node:fs';
+import { connect as netConnect, createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import {
-  PROTOCOL_VERSION,
-  helloFrame,
-  requestFrame,
-  type AgentFrame,
-} from '../domain/protocol.js';
+import { UnixSocketAgentServer } from './UnixSocketAgentServer.js';
 import { TriggerJob } from '../application/use-cases/TriggerJob.js';
+import { PROTOCOL_VERSION, helloFrame, requestFrame, type AgentFrame } from '../domain/protocol.js';
 import type { JobDefinition, RunView } from '../domain/types.js';
 import { InMemoryJobStore } from '../testing/InMemoryJobStore.js';
-import { UnixSocketAgentServer } from './UnixSocketAgentServer.js';
 
 interface TestClient {
   send(frame: AgentFrame): void;
@@ -424,7 +419,13 @@ describe('UnixSocketAgentServer — oversized frames', () => {
     await client.nextFrame();
 
     const giant = 'x'.repeat(1_048_577);
-    client.send({ v: PROTOCOL_VERSION, kind: 'request', id: 'big', type: 'jobs.list', payload: { giant } } as unknown as AgentFrame);
+    client.send({
+      v: PROTOCOL_VERSION,
+      kind: 'request',
+      id: 'big',
+      type: 'jobs.list',
+      payload: { giant },
+    } as unknown as AgentFrame);
     const response = await client.nextFrame();
 
     expect(response.kind).toBe('error');

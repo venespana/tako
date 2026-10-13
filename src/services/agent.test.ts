@@ -5,14 +5,22 @@
 // Domains' ports and adapters are mocked — no real SSH, no real conf.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { assertAgentSocketPresent, connectAgentSession, installAgent } from './agent.js';
-import { AgentNotInstalledError, resolveAgentSocketPath } from './agent.js';
-import { fetchAgentStatus, loadReconcileCursor, saveReconcileCursor, uninstallAgent } from './agent.js';
+import {
+  assertAgentSocketPresent,
+  connectAgentSession,
+  installAgent,
+  AgentNotInstalledError,
+  resolveAgentSocketPath,
+  fetchAgentStatus,
+  loadReconcileCursor,
+  saveReconcileCursor,
+  uninstallAgent,
+} from './agent.js';
 import { resolveRemoteAuth } from './remotes.js';
-import { SshConnectionManager } from '../domains/remotes/infrastructure/SshConnectionManager.js';
-import type { RemoteCommandResult } from '../domains/remotes/application/RemoteCommandRunner.js';
 import type { AgentSession } from '../domains/agent/application/AgentTransport.js';
-import type { AgentFrame, AgentRequestType, AgentStatusResult } from '../domains/agent/domain/protocol.js';
+import type { AgentRequestType, AgentStatusResult } from '../domains/agent/domain/protocol.js';
+import type { RemoteCommandResult } from '../domains/remotes/application/RemoteCommandRunner.js';
+import { SshConnectionManager } from '../domains/remotes/infrastructure/SshConnectionManager.js';
 import { VERSION } from '../shared/lib/version.js';
 
 vi.mock('./remotes.js', () => ({
@@ -68,9 +76,7 @@ interface InstallDepsProbe {
   readonly clientVersion: string;
 }
 
-const runInstallMock = vi.hoisted(() =>
-  vi.fn<(deps: InstallDepsProbe) => Promise<number>>()
-);
+const runInstallMock = vi.hoisted(() => vi.fn<(deps: InstallDepsProbe) => Promise<number>>());
 vi.mock('../domains/agent/infrastructure/AgentInstallPipeline.js', () => ({
   runAgentInstall: runInstallMock,
 }));
@@ -101,7 +107,9 @@ describe('assertAgentSocketPresent — 9.17 connect guard', () => {
   }
 
   it('missing socket → the TYPED friendly error naming the remote and the install panel', async () => {
-    scriptRunner(command => (command.startsWith('test -S') ? { stdout: '', stderr: '', exitCode: 1 } : ok('/home/ops')));
+    scriptRunner(command =>
+      command.startsWith('test -S') ? { stdout: '', stderr: '', exitCode: 1 } : ok('/home/ops')
+    );
 
     const error = await assertAgentSocketPresent({ run: runMock }, 'nas').then(
       () => {
@@ -185,6 +193,9 @@ describe('connectAgentSession', () => {
     );
 
     expect(error).toBeInstanceOf(AgentNotInstalledError);
+    // R3-004: the typed contract survives the pushdown — same message, and
+    // the SSH manager is closed on this failure path (no leaked connection).
+    expect((error as Error).message).toBe('agent not installed on nas — the install panel will set it up');
     expect(managerEnd).toHaveBeenCalledTimes(1); // no leaked connection on the expected pre-install state
     expect(transportConnect).not.toHaveBeenCalled();
   });

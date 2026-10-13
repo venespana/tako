@@ -3,8 +3,8 @@
 // ORDERING tests live with the flow in services/agent-uninstall.test.ts.
 import { describe, expect, it, vi } from 'vitest';
 
-import { uninstallAgent } from '../../services/agent.js';
 import { runAgentUninstallDefault } from './agent-uninstall.js';
+import { uninstallAgent } from '../../services/agent.js';
 
 vi.mock('../../services/agent.js', () => ({
   uninstallAgent: vi.fn(),

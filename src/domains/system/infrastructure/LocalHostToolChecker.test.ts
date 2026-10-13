@@ -1,11 +1,14 @@
 // LocalHostToolChecker.test.ts — adapter unit test
 import { describe, it, expect } from 'vitest';
+
 import { LocalHostToolChecker } from './LocalHostToolChecker.js';
 
 describe('LocalHostToolChecker', () => {
   // ssh now uses script wrapper: ['/usr/bin/script', '-qc', 'ssh -V', '/dev/null']
   // git/docker use direct: [tool, flag]
-  function createFakeSpawn(responses: Map<string, { stdout: string; stderr: string; exitCode: number; enoent?: boolean }>) {
+  function createFakeSpawn(
+    responses: Map<string, { stdout: string; stderr: string; exitCode: number; enoent?: boolean }>
+  ) {
     return (args: string[]) => {
       // ssh wrapped: args[0] = '/usr/bin/script'
       // git/docker direct: args[0] = 'git' or 'docker'
@@ -33,9 +36,7 @@ describe('LocalHostToolChecker', () => {
   it('ENOENT → status:not-found, version:null', async () => {
     // ssh uses script wrapper — key is '/usr/bin/script'
     const spawnMock = createFakeSpawn(
-      new Map([
-        ['/usr/bin/script', { stdout: '', stderr: '', exitCode: 127, enoent: true }],
-      ])
+      new Map([['/usr/bin/script', { stdout: '', stderr: '', exitCode: 127, enoent: true }]])
     );
 
     const checker = new LocalHostToolChecker(spawnMock as unknown as typeof Bun.spawn);
@@ -47,11 +48,7 @@ describe('LocalHostToolChecker', () => {
   });
 
   it('exitCode !== 0 → status:found, version:null', async () => {
-    const spawnMock = createFakeSpawn(
-      new Map([
-        ['docker', { stdout: '', stderr: 'bad output', exitCode: 1 }],
-      ])
-    );
+    const spawnMock = createFakeSpawn(new Map([['docker', { stdout: '', stderr: 'bad output', exitCode: 1 }]]));
 
     const checker = new LocalHostToolChecker(spawnMock as unknown as typeof Bun.spawn);
     const result = await checker.check('docker');
@@ -64,9 +61,7 @@ describe('LocalHostToolChecker', () => {
     // script wraps ssh -V and captures tty output to stdout
     // Adapter normalizes: "OpenSSH_9.0p1 Debian-4, OpenSSL 3.0.0" → "9.0p1"
     const spawnMock = createFakeSpawn(
-      new Map([
-        ['/usr/bin/script', { stdout: 'OpenSSH_9.0p1 Debian-4, OpenSSL 3.0.0', stderr: '', exitCode: 0 }],
-      ])
+      new Map([['/usr/bin/script', { stdout: 'OpenSSH_9.0p1 Debian-4, OpenSSL 3.0.0', stderr: '', exitCode: 0 }]])
     );
 
     const checker = new LocalHostToolChecker(spawnMock as unknown as typeof Bun.spawn);
@@ -78,11 +73,7 @@ describe('LocalHostToolChecker', () => {
 
   it('git --version → normalized version', async () => {
     // Adapter normalizes: "git version 2.43.0" → "2.43.0"
-    const spawnMock = createFakeSpawn(
-      new Map([
-        ['git', { stdout: 'git version 2.43.0', stderr: '', exitCode: 0 }],
-      ])
-    );
+    const spawnMock = createFakeSpawn(new Map([['git', { stdout: 'git version 2.43.0', stderr: '', exitCode: 0 }]]));
 
     const checker = new LocalHostToolChecker(spawnMock as unknown as typeof Bun.spawn);
     const result = await checker.check('git');
@@ -94,9 +85,7 @@ describe('LocalHostToolChecker', () => {
   it('ssl → extracts version from ssh -V output', async () => {
     // ssl normalizes: extracts "3.0.0beta2" from the ssh raw output
     const spawnMock = createFakeSpawn(
-      new Map([
-        ['/usr/bin/script', { stdout: 'OpenSSH_9.0p1, OpenSSL 3.0.0beta2', stderr: '', exitCode: 0 }],
-      ])
+      new Map([['/usr/bin/script', { stdout: 'OpenSSH_9.0p1, OpenSSL 3.0.0beta2', stderr: '', exitCode: 0 }]])
     );
 
     const checker = new LocalHostToolChecker(spawnMock as unknown as typeof Bun.spawn);

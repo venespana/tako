@@ -4,9 +4,9 @@
 // table (formatAgentStatus stays tested next to the command that prints it).
 import { describe, expect, it } from 'vitest';
 
+import { runAgentStatus } from './agent.js';
 import type { AgentHandshake, AgentSession, AgentTransport } from '../domains/agent/application/AgentTransport.js';
 import type { AgentStatusResult } from '../domains/agent/domain/protocol.js';
-import { runAgentStatus } from './agent.js';
 
 const CLIENT_VERSION = '0.1.2';
 

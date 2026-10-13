@@ -18,8 +18,6 @@ export const UNINSTALL_STEPS = [
   'verify-residue',
 ] as const;
 
-export type UninstallStep = (typeof UNINSTALL_STEPS)[number];
-
 /** True only when Tako itself enabled linger — the value is never guessed. */
 export function shouldDisableLinger(lingerByTako: boolean | undefined): boolean {
   return lingerByTako === true;

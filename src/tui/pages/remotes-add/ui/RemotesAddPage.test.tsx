@@ -4,15 +4,16 @@
 // completes. Per ADR-0019 §7 the wizard consumes services/remotes directly,
 // so the service module is mocked (the page drives the store; the service
 // only needs to resolve). MemoryRouter supplies the router context.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from 'ink-testing-library';
 import { Text } from 'ink';
-import { MemoryRouter, useLocation } from 'react-router';
 
+import { render } from 'ink-testing-library';
+import { MemoryRouter, useLocation } from 'react-router';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { RemotesAddPage } from './RemotesAddPage.js';
 import { confirmAddRemote } from '../../../../services/remotes.js';
 import { settle } from '../../../test-utils/ink-interactions.js';
 import { useWizardStore } from '../model/wizard-store.js';
-import { RemotesAddPage } from './RemotesAddPage.js';
 
 vi.mock('../../../../services/remotes.js', async importOriginal => {
   const actual = await importOriginal<typeof import('../../../../services/remotes.js')>();

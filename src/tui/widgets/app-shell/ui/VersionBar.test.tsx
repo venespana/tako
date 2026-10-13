@@ -1,7 +1,9 @@
 // VersionBar.test.tsx — Unit tests for the VersionBar widget: the footer
 // must render the actual build-time VERSION constant, not just any string.
-import { describe, it, expect } from 'vitest';
 import { renderToString } from 'ink';
+
+import { describe, it, expect } from 'vitest';
+
 import { VersionBar } from './VersionBar.js';
 import { VERSION } from '../../../../shared/lib/version.js';
 

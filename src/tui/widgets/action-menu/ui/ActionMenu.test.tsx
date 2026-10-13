@@ -5,8 +5,9 @@
 // import. There is no view prop — the remotes submenu renders subaction
 // labels because the page composes the screen with the subactions as the
 // group items (see submenu tests below).
-import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
+import { describe, it, expect } from 'vitest';
+
 import { ActionMenu } from './ActionMenu.js';
 import type { RenderableActionGroup, RenderableActionItem } from './ActionMenu.js';
 

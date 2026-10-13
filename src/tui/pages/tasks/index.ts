@@ -5,6 +5,4 @@
 // consumer); its components and models are internal. Transport, install,
 // and cursor come from the services layer — the page exports no gateway.
 export { TasksPage } from './ui/TasksPage.js';
-export type { TasksPageProps } from './ui/TasksPage.js';
 export { resetTasksStoreForTests, useTasksStore } from './model/tasks-store.js';
-export type { TasksConnectRequest } from './model/tasks-store.js';

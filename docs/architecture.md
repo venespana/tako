@@ -88,26 +88,29 @@ domains/   → shared/
 ```
 
 Enforcement, honestly stated — a rule is either mechanically enforced today or it is
-`review-only` (marked rules get mechanical checks in phase F4; FSD additionally gets
-[Steiger](https://github.com/feature-sliced/steiger), per ADR-0018):
+`review-only` (FSD additionally gets [Steiger](https://github.com/feature-sliced/steiger)
+and dead-code detection gets [knip](https://knip.dev), per ADR-0018):
 
-| Rule                                                                  | Enforcement                      |
-| --------------------------------------------------------------------- | -------------------------------- |
-| `tui` must not import `cli`                                           | enforced (ESLint zone)           |
-| `cli` must not import `tui`                                           | enforced (ESLint zone)¹          |
-| `agent` imports `remotes/application` ports type-only                 | enforced (ESLint zone + syntax)  |
-| `bun:sqlite` imports only in agent persistence + integration fixtures | enforced (ESLint resolver)       |
-| `shared` imports from nobody                                          | review-only (F4 zone)            |
-| `domains` must not import presentation (`cli`/`tui`)                  | review-only (F4 zone)            |
-| `application` must not import `infrastructure`                        | review-only (F4 zone)            |
-| `domain/` purity (zero external dependencies)                         | review-only (F4 zone)            |
-| FSD layer direction inside `tui`                                      | review-only (F4 zones + Steiger) |
-| `cli`/`tui` must not import `domains` directly (via `services`)       | review-only — arrives with F3    |
-| `services`/`domains` must not import presentation                     | review-only — arrives with F3    |
+| Rule                                                                  | Enforcement                                          |
+| --------------------------------------------------------------------- | ---------------------------------------------------- |
+| `tui` must not import `cli`                                           | enforced (ESLint zone)                               |
+| `cli` must not import `tui`                                           | enforced (ESLint zone)                               |
+| `agent` imports `remotes/application` ports type-only                 | enforced (ESLint zone + syntax)                      |
+| `bun:sqlite` imports only in agent persistence + integration fixtures | enforced (ESLint resolver)                           |
+| `shared` imports from nobody                                          | enforced (ESLint zone)                               |
+| `domains` must not import presentation (`cli`/`tui`)                  | enforced (ESLint zone)                               |
+| `application` must not import `infrastructure`                        | enforced (ESLint zone)                               |
+| FSD layer direction inside `tui`                                      | enforced (ESLint zones); slice significance: Steiger |
+| `cli`/`tui` must not import `domains` directly (via `services`)       | enforced (ESLint)²                                   |
+| `services`/`domains` must not import presentation                     | enforced (ESLint zones)                              |
+| `domain/` purity (zero external dependencies)                         | review-only                                          |
 
-¹ Transitional ADR-0014 exceptions are still active: `cli` may import
-`tui/features/remotes/add-remote-wizard` and `tui/features/doctor`. Superseded by
-ADR-0019; deleted in phase F3.
+² `tui` → `domains` is an ESLint zone. `cli` → `domains` is ESLint
+`no-restricted-imports` with one documented exception: `agent-run` is the
+agent-mode server composition root (ADR-0015 `run`, ADR-0016) — it wires the
+domain; it is not a client of the services layer. Dead code is knip's
+(`bun run knip`); FSD slice significance is Steiger's (`bun run steiger`),
+neither wired into CI yet (later decision).
 
 ## Managed tension: duplicated entities
 

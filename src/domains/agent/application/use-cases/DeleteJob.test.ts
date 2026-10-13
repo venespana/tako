@@ -1,9 +1,10 @@
 // application/use-cases/DeleteJob.test.ts — STRICT TDD RED phase (task 3.10)
 import { describe, it, expect } from 'vitest';
+
 // RED: import the module that doesn't exist yet
 import { DeleteJob } from './DeleteJob.js';
-import { InMemoryJobStore } from '../../testing/InMemoryJobStore.js';
 import { JobValidationError } from '../../domain/job.js';
+import { InMemoryJobStore } from '../../testing/InMemoryJobStore.js';
 
 const PRUNE_JOB = {
   id: 'nas-prune',

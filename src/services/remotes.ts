@@ -30,18 +30,11 @@ import { Ssh2ConnectionTester } from '../domains/remotes/infrastructure/Ssh2Conn
 // ---------------------------------------------------------------------------
 
 export type {
-  AddRemoteReason,
   AddRemoteResult,
-  DuplicateKind,
-  DuplicateResult,
   Remote,
   RemoteDraft,
   RemoteSummary,
-  SshAuthWithKey,
-  SshAuthWithPassword,
   SshCredentialType,
-  SshEndpoint,
-  SshErrorCategory,
   SshTestConfig,
   SshValidationOutcome,
 } from '../domains/remotes/domain/types.js';

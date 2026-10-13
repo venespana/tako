@@ -4,9 +4,9 @@
 // (services/agent-status.test.ts).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { formatAgentStatus, runAgentStatusDefault } from './agent-status.js';
 import type { AgentHandshake, AgentStatusResult } from '../../services/agent.js';
 import { fetchAgentStatus } from '../../services/agent.js';
-import { formatAgentStatus, runAgentStatusDefault } from './agent-status.js';
 
 vi.mock('../../services/agent.js', async importOriginal => {
   // The real module would wire SSH adapters on call; only fetchAgentStatus is

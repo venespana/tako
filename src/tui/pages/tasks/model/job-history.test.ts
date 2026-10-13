@@ -7,8 +7,8 @@
 // reconcile and look exactly like any other run).
 import { describe, expect, it } from 'vitest';
 
-import type { RunStatus, RunView } from '../../../../domains/agent/domain/types.js';
 import { formatRunStatus, summarizeRunResult, toHistoryRows } from './job-history.js';
+import type { RunStatus, RunView } from '../../../../services/agent.js';
 
 function run(overrides: Partial<RunView> & { seq: number }): RunView {
   return {

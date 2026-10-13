@@ -5,14 +5,17 @@
 // failure, cancel restores the list). A probe component renders the hook's
 // state as text; the mocked service resolves on a timer so the loading
 // window is real.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from 'ink-testing-library';
+import { useEffect } from 'react';
+
 import { Text } from 'ink';
 
+import { render } from 'ink-testing-library';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { useRemotesSelection } from './remotes-selection.js';
 import type { Remote, RemoteSummary, SshValidationOutcome } from '../../../../services/remotes.js';
 import { getRemote, listRemotes, testSshConnection } from '../../../../services/remotes.js';
 import { settle, pressAndSettle } from '../../../test-utils/ink-interactions.js';
-import { useRemotesSelection } from './remotes-selection.js';
 
 vi.mock('../../../../services/remotes.js', async importOriginal => {
   // Spread the REAL module so the re-exported contract types and pure
@@ -104,7 +107,12 @@ function Probe({
   apiRef?: { current: ProbeApi | null };
 }) {
   const selection = useRemotesSelection({ enabled, onActivate, onEmpty });
-  if (apiRef) apiRef.current = { submit: selection.submitPassword, cancel: selection.cancelPrompt };
+  // Expose the current API to the test via an effect, not a render-phase
+  // ref write (react-hooks/refs): the value lands after commit, which is
+  // fine — tests only call it from settled frames.
+  useEffect(() => {
+    if (apiRef) apiRef.current = { submit: selection.submitPassword, cancel: selection.cancelPrompt };
+  }, [apiRef, selection.submitPassword, selection.cancelPrompt]);
   return (
     <Text>
       {`status:${selection.status} focused:${selection.focusedId ?? 'none'} rows:${selection.selectable

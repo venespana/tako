@@ -5,6 +5,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { runPrune, runStackLifecycle } from './docker.js';
+import { ComposeCliAdapter } from '../domains/docker/infrastructure/ComposeCliAdapter.js';
+import { DockerodePruneAdapter } from '../domains/docker/infrastructure/DockerodePruneAdapter.js';
 
 const executeLifecycle = vi.hoisted(() => vi.fn());
 const executePrune = vi.hoisted(() => vi.fn());
@@ -25,9 +27,6 @@ vi.mock('../domains/docker/infrastructure/ComposeCliAdapter.js', () => ({
 vi.mock('../domains/docker/infrastructure/DockerodePruneAdapter.js', () => ({
   DockerodePruneAdapter: vi.fn(),
 }));
-
-import { ComposeCliAdapter } from '../domains/docker/infrastructure/ComposeCliAdapter.js';
-import { DockerodePruneAdapter } from '../domains/docker/infrastructure/DockerodePruneAdapter.js';
 
 beforeEach(() => {
   vi.clearAllMocks();

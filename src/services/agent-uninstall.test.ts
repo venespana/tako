@@ -11,14 +11,11 @@ import { Duplex } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import type { AgentChannel } from '../domains/remotes/application/AgentChannel.js';
-import type {
-  RemoteCommandResult,
-  RemoteCommandRunner,
-} from '../domains/remotes/application/RemoteCommandRunner.js';
+import { runAgentUninstall, type AgentUninstallDeps } from './agent.js';
 import { helloAckFrame, responseFrame } from '../domains/agent/domain/protocol.js';
 import type { VerifierConnection } from '../domains/agent/infrastructure/SurviveDisconnectProber.js';
-import { runAgentUninstall, type AgentUninstallDeps } from './agent.js';
+import type { AgentChannel } from '../domains/remotes/application/AgentChannel.js';
+import type { RemoteCommandResult, RemoteCommandRunner } from '../domains/remotes/application/RemoteCommandRunner.js';
 
 const CLIENT_VERSION = '0.1.2';
 
@@ -176,8 +173,7 @@ describe('runAgentUninstall — ordering', () => {
 
     await runAgentUninstall(harness.deps);
 
-    const indexOf = (needle: string): number =>
-      harness.runner.calls.findIndex(call => call.includes(needle));
+    const indexOf = (needle: string): number => harness.runner.calls.findIndex(call => call.includes(needle));
     const stop = indexOf('systemctl --user disable --now');
     const removeUnit = indexOf('rm -f');
     const reload = indexOf('daemon-reload');

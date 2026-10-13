@@ -1,19 +1,18 @@
 // pages/tasks/ui/TasksPage.test.tsx — STRICT TDD RED phase (task 8.11/8.14).
 // Per ADR-0019 §7 the page consumes services/agent directly, so these tests
 // MOCK the service module instead of injecting a gateway fake.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { render } from 'ink-testing-library';
-
 import { Text } from 'ink';
 
+import { render } from 'ink-testing-library';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { TasksPage } from './TasksPage.js';
 import type { JobDefinition } from '../../../../services/agent.js';
 import { connectAgentSession, installAgent } from '../../../../services/agent.js';
 import { useEditingStore } from '../../../shared/lib/editing-store.js';
 import { usePageHintsStore } from '../../../shared/lib/page-hints-store.js';
 import { FakeAgentSession } from '../../../test-utils/fake-agent-session.js';
 import { resetTasksStoreForTests } from '../model/tasks-store.js';
-import { TasksPage } from './TasksPage.js';
 
 vi.mock('../../../../services/agent.js', async importOriginal => {
   // Spread the REAL module so the pure domain re-exports the page and the

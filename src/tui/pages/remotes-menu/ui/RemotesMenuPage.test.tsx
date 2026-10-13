@@ -5,17 +5,19 @@
 // session's active-remote state so tests can drive the real transition
 // (select with Enter → submenu). Logo and footer are app-shell chrome.
 // MemoryRouter supplies the router context.
-import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
-import { render } from 'ink-testing-library';
-import { Text } from 'ink';
-import { MemoryRouter, useLocation } from 'react-router';
 
+import { Text } from 'ink';
+
+import { render } from 'ink-testing-library';
+import { MemoryRouter, useLocation } from 'react-router';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
+
+import { RemotesMenuPage } from './RemotesMenuPage.js';
 import type { Remote, RemoteSummary, SshValidationOutcome } from '../../../../services/remotes.js';
 import { getRemote, listRemotes, testSshConnection } from '../../../../services/remotes.js';
 import { useEditingStore } from '../../../shared/lib/editing-store.js';
 import { KEY_FLUSH_MS, pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
-import { RemotesMenuPage } from './RemotesMenuPage.js';
 
 vi.mock('../../../../services/remotes.js', async importOriginal => {
   // Spread the REAL module so the re-exported contract types and pure
@@ -37,7 +39,11 @@ const storeWithPassword: Remote = {
 };
 
 /** Prompt-required remote: no secret on disk. */
-const interactiveRemote: Remote = { ...storeWithPassword, credentialType: 'interactive', obfuscatedPassword: undefined };
+const interactiveRemote: Remote = {
+  ...storeWithPassword,
+  credentialType: 'interactive',
+  obfuscatedPassword: undefined,
+};
 
 /** Type a password into the focused PasswordInput. Writing chars one by one
  * is not enough: a freshly mounted gate's Ink input pipeline (the readable
@@ -47,11 +53,17 @@ const interactiveRemote: Remote = { ...storeWithPassword, credentialType: 'inter
  * dropped and then silently overwritten by the next write. Each char is
  * therefore only sent after the previous one is ACKNOWLEDGED by the input's
  * echo (PasswordInput renders one '*' per typed char), with one retry per
- * char. The return key goes as its own write once the full echo is visible. */
+ * char. The return key goes as its own write once the full echo is visible,
+ * under the SAME delivery guarantee: `submitAck` must be the submit's
+ * visible effect (the validating phase, the auth-failure re-prompt, or the
+ * activation), never the prompt itself, and one retry covers a dropped
+ * Enter. A duplicate Enter during validating is inert — the PasswordInput
+ * is unmounted and the list has no focused item. */
 async function typePassword(
   stdin: ReturnType<typeof render>['stdin'],
   lastFrame: ReturnType<typeof render>['lastFrame'],
-  password: string
+  password: string,
+  submitAck: (frame: string) => boolean
 ): Promise<void> {
   const stars = (frame: string): number => frame.split('*').length - 1;
   for (let index = 0; index < password.length; index++) {
@@ -61,7 +73,10 @@ async function typePassword(
       await settle(lastFrame, echoed, KEY_FLUSH_MS);
     }
   }
-  stdin.write('\r');
+  for (let attempt = 0; attempt < 2 && !submitAck(lastFrame() ?? ''); attempt++) {
+    stdin.write('\r');
+    await settle(lastFrame, submitAck, KEY_FLUSH_MS);
+  }
 }
 
 /** SSH service fake: only `okOn` authenticates. */
@@ -204,32 +219,28 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
   // Timeout above the 5s default: the password is ACK-per-char (each char up
   // to 2 × KEY_FLUSH_MS of settle) and React 19 delays passive effects under
   // full-suite parallel load — this test once exceeded 5s that way.
-  it(
-    '4.8: correct password activates the remote, selection list remains visible',
-    { timeout: 15_000 },
-    async () => {
-      stubRemotes(REMOTES, interactiveRemote);
-      stubValidator(SECRET);
-      const { lastFrame, stdin } = render(
-        <MemoryRouter initialEntries={['/remotes']}>
-          <Harness />
-        </MemoryRouter>
-      );
-      await settle(lastFrame, f => f.includes('❯ nas'), 1000);
-      await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
+  it('4.8: correct password activates the remote, selection list remains visible', { timeout: 15_000 }, async () => {
+    stubRemotes(REMOTES, interactiveRemote);
+    stubValidator(SECRET);
+    const { lastFrame, stdin } = render(
+      <MemoryRouter initialEntries={['/remotes']}>
+        <Harness />
+      </MemoryRouter>
+    );
+    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
-      await typePassword(stdin, lastFrame, SECRET);
+    await typePassword(stdin, lastFrame, SECRET, f => f.includes('Validating connection…') || f.includes('active:nas'));
 
-      // Deterministic activation signal: the harness echo appears only after
-      // validation succeeded (the endpoint label alone matches pre-activation
-      // frames). The gate must be closed (list restored, no submenu) and the
-      // secret never echoed.
-      const frame = await settle(lastFrame, f => f.includes('active:nas'), 2000);
-      expect(frame).toContain('active:nas');
-      expect(frame).toContain('nas (ops@10.0.0.5:22)');
-      expect(frame).not.toContain(SECRET);
-    }
-  );
+    // Deterministic activation signal: the harness echo appears only after
+    // validation succeeded (the endpoint label alone matches pre-activation
+    // frames). The gate must be closed (list restored, no submenu) and the
+    // secret never echoed.
+    const frame = await settle(lastFrame, f => f.includes('active:nas'), 2000);
+    expect(frame).toContain('active:nas');
+    expect(frame).toContain('nas (ops@10.0.0.5:22)');
+    expect(frame).not.toContain(SECRET);
+  });
 
   it('4.8: wrong password re-prompts with an auth message, remote stays inactive', async () => {
     stubRemotes(REMOTES, interactiveRemote);
@@ -237,7 +248,12 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
     await settle(lastFrame, f => f.includes('❯ nas'), 1000);
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
-    await typePassword(stdin, lastFrame, 'wrong-pw');
+    await typePassword(
+      stdin,
+      lastFrame,
+      'wrong-pw',
+      f => f.includes('Validating connection…') || f.includes('Authentication failed')
+    );
 
     const frame = await settle(lastFrame, f => f.includes('Authentication failed'), 2000);
     expect(frame).toContain('Connect to nas');

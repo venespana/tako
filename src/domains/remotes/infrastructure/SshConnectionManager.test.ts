@@ -3,8 +3,8 @@ import { EventEmitter } from 'node:events';
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Client } from 'ssh2';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs')>();
@@ -53,8 +53,12 @@ interface FakeSftp {
 
 function createFakeSftp(): FakeSftp {
   return {
-    fastPut: vi.fn((_local: string, _remote: string, cb: Callback<void>) => setImmediate(() => cb(undefined, undefined))),
-    fastGet: vi.fn((_remote: string, _local: string, cb: Callback<void>) => setImmediate(() => cb(undefined, undefined))),
+    fastPut: vi.fn((_local: string, _remote: string, cb: Callback<void>) =>
+      setImmediate(() => cb(undefined, undefined))
+    ),
+    fastGet: vi.fn((_remote: string, _local: string, cb: Callback<void>) =>
+      setImmediate(() => cb(undefined, undefined))
+    ),
     end: vi.fn(),
   };
 }
@@ -102,11 +106,13 @@ function createManager(clientFactory?: () => FakeClient): {
   clients: FakeClient[];
 } {
   const clients: FakeClient[] = [];
-  const factory = clientFactory ?? (() => {
-    const client = createFakeClient();
-    clients.push(client);
-    return client;
-  });
+  const factory =
+    clientFactory ??
+    (() => {
+      const client = createFakeClient();
+      clients.push(client);
+      return client;
+    });
   const manager = new SshConnectionManager(baseConfig, factory as unknown as () => Client);
   return { manager, clients };
 }
@@ -146,7 +152,12 @@ describe('SshConnectionManager', () => {
         connections += 1;
         if (connections === 1) {
           client.connect.mockImplementation(() => {
-            setImmediate(() => client.emit('error', Object.assign(new Error('All authentication methods failed'), { level: 'client-authentication' })));
+            setImmediate(() =>
+              client.emit(
+                'error',
+                Object.assign(new Error('All authentication methods failed'), { level: 'client-authentication' })
+              )
+            );
             return client;
           });
         }
@@ -227,7 +238,9 @@ describe('SshConnectionManager', () => {
 
   describe('auth material', () => {
     it('2.4 RED: key auth reads the key file and passes its content to connect', async () => {
-      vi.mocked(readFileSync).mockReturnValue('-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----');
+      vi.mocked(readFileSync).mockReturnValue(
+        '-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----'
+      );
       vi.mocked(homedir).mockReturnValue('/home/ops');
 
       const clients: FakeClient[] = [];
@@ -251,4 +264,3 @@ describe('SshConnectionManager', () => {
     });
   });
 });
-

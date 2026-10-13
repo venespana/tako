@@ -7,7 +7,7 @@ import { CheckHostDependencies } from '../domains/system/application/CheckHostDe
 import type { SystemCheckResult } from '../domains/system/domain/types.js';
 import { LocalHostToolChecker } from '../domains/system/infrastructure/LocalHostToolChecker.js';
 
-export type { CheckStatus, HostTool, SystemCheckResult, ToolCheckResult } from '../domains/system/domain/types.js';
+export type { SystemCheckResult, ToolCheckResult } from '../domains/system/domain/types.js';
 
 /** Check every required host tool; the report tells present/missing per tool. */
 export function checkHostDependencies(): Promise<SystemCheckResult> {

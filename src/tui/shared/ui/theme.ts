@@ -9,5 +9,3 @@ export const theme = {
   /** Ink color name for disabled/greyed items */
   disabledColor: 'gray' as const,
 } as const;
-
-export type Theme = typeof theme;

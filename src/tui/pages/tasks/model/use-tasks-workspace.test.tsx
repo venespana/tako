@@ -4,14 +4,13 @@
 // hook with injected deps (the store lives in model/tasks-store.ts) and
 // mirrors the page's hidden-while-connecting early return, because that
 // hiding is exactly what 9.14e guards against.
-import { describe, expect, it, vi } from 'vitest';
-
-import { render } from 'ink-testing-library';
-
 import { Text } from 'ink';
 
-import type { JobView, RunMode, RunView, Slug } from '../../../../domains/agent/domain/types.js';
+import { render } from 'ink-testing-library';
+import { describe, expect, it, vi } from 'vitest';
+
 import { useTasksWorkspace, type TasksWorkspaceDeps, type TasksWorkspaceStatus } from './use-tasks-workspace.js';
+import type { JobView, RunMode, RunView, Slug } from '../../../../services/agent.js';
 
 /** Poll until predicate() holds (Ink key flush + hook settle). */
 async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {

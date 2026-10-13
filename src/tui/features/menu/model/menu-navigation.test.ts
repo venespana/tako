@@ -1,5 +1,6 @@
 // menu-navigation.test.ts — Unit tests for pure menu-state functions.
 import { describe, it, expect } from 'vitest';
+
 import type { ActionItem, ActionGroup } from './menu-items.js';
 import { getSelectable, moveCursor, withEnablement } from './menu-navigation.js';
 

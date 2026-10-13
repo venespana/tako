@@ -14,24 +14,26 @@
 // Skips (never fails) when no docker daemon is available or the privileged
 // systemd container cannot boot in this environment (nested docker setups),
 // per repo conventions.
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { Dockerode } from 'dockerode';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { Dockerode } from 'dockerode';
-
+import {
+  runAgentInstall,
+  type AgentInstallDeps,
+} from '../../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
 import { RemoteInstallRecords } from '../../../src/domains/agent/infrastructure/AgentInstallRecords.js';
-import { StreamLocalAgentChannel } from '../../../src/domains/remotes/infrastructure/StreamLocalAgentChannel.js';
+import type { VerifierConnection } from '../../../src/domains/agent/infrastructure/SurviveDisconnectProber.js';
 import { SftpRemoteFileTransfer } from '../../../src/domains/remotes/infrastructure/SftpRemoteFileTransfer.js';
 import { SshConnectionManager } from '../../../src/domains/remotes/infrastructure/SshConnectionManager.js';
 import { SshRemoteCommandRunner } from '../../../src/domains/remotes/infrastructure/SshRemoteCommandRunner.js';
-import { runAgentInstall, type AgentInstallDeps } from '../../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
+import { StreamLocalAgentChannel } from '../../../src/domains/remotes/infrastructure/StreamLocalAgentChannel.js';
 import { runAgentUninstall, type AgentUninstallDeps } from '../../../src/services/agent.js';
-import type { VerifierConnection } from '../../../src/domains/agent/infrastructure/SurviveDisconnectProber.js';
 
 const STAND_IN = join(import.meta.dirname, 'fixtures', 'agent-standin.py');
 const CLIENT_VERSION = '0.9.9-integ';
@@ -97,7 +99,12 @@ describe.skipIf(!environment)('agent provisioning — systemd+sshd container (jr
   const container = environment as StartedTestContainer;
   let workspace: string;
 
-  const sshConfig = (): { host: string; port: number; username: string; auth: { type: 'password'; password: string } } => ({
+  const sshConfig = (): {
+    host: string;
+    port: number;
+    username: string;
+    auth: { type: 'password'; password: string };
+  } => ({
     host: container.getHost(),
     port: container.getMappedPort(22),
     username: SSH_USER,

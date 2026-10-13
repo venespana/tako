@@ -10,13 +10,13 @@
 // installed_at, recorded at agent start).
 import { describe, expect, it } from 'vitest';
 
-import type { RemoteCommandResult, RemoteCommandRunner } from '../../remotes/application/RemoteCommandRunner.js';
 import {
   AGENT_DIR_NAME,
   INSTALLED_SHA256_FILENAME,
   LINGER_BY_TAKO_FILENAME,
   RemoteInstallRecords,
 } from './AgentInstallRecords.js';
+import type { RemoteCommandResult, RemoteCommandRunner } from '../../remotes/application/RemoteCommandRunner.js';
 
 const OK = (stdout = ''): RemoteCommandResult => ({ stdout, stderr: '', exitCode: 0 });
 const FAIL = (stderr = 'nope', exitCode = 1): RemoteCommandResult => ({ stdout: '', stderr, exitCode });
@@ -38,10 +38,7 @@ const SHA_B = 'b'.repeat(64);
 function homeRunner(extra: (command: string) => RemoteCommandResult | undefined = () => undefined) {
   return new ScriptedRunner(command => {
     if (command === 'printf %s "$HOME"') return OK('/home/ops');
-    return (
-      extra(command) ??
-      (command.includes(INSTALLED_SHA256_FILENAME) ? FAIL('No such file or directory') : OK())
-    );
+    return extra(command) ?? (command.includes(INSTALLED_SHA256_FILENAME) ? FAIL('No such file or directory') : OK());
   });
 }
 
@@ -86,7 +83,9 @@ describe('RemoteInstallRecords', () => {
     await records.writeInstalledSha256(SHA_B);
     await records.writeLingerByTako();
 
-    expect(runner.calls).toContainEqual(`printf '%s' '${SHA_B}' > '/home/ops/${AGENT_DIR_NAME}/${INSTALLED_SHA256_FILENAME}'`);
+    expect(runner.calls).toContainEqual(
+      `printf '%s' '${SHA_B}' > '/home/ops/${AGENT_DIR_NAME}/${INSTALLED_SHA256_FILENAME}'`
+    );
     expect(runner.calls).toContainEqual(`printf '1' > '/home/ops/${AGENT_DIR_NAME}/${LINGER_BY_TAKO_FILENAME}'`);
   });
 

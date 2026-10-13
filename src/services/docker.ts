@@ -16,16 +16,10 @@ import type {
 } from '../domains/docker/domain/types.js';
 
 export type {
-  CommandExecution,
-  ComposeCommand,
-  DockerFilters,
   ExecutionMode,
   LifecycleOp,
-  PruneItem,
   PruneReport,
   PruneScope,
-  PruneScopeReport,
-  ReportStatus,
   StackLifecycleReport,
 } from '../domains/docker/domain/types.js';
 

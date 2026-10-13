@@ -1,8 +1,9 @@
 // domain/normalize.test.ts — STRICT TDD RED phase
 import { describe, it, expect } from 'vitest';
+
+import { normalizeRemote, requiresConnectPrompt } from './normalize.js';
 import type { Remote } from './types.js';
 // RED: import the module that doesn't exist yet
-import { normalizeRemote, requiresConnectPrompt } from './normalize.js';
 
 function makeRemote(overrides: Partial<Remote> = {}): Remote {
   return {

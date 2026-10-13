@@ -8,11 +8,8 @@
 // canned-response fake session (no real transport, no conf).
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  connectAgentSession,
-  loadReconcileCursor,
-  saveReconcileCursor,
-} from '../../../../services/agent.js';
+import { applyJobStateChanged, applyRunCompleted, mergeRuns, useTasksStore } from './tasks-store.js';
+import { connectAgentSession, loadReconcileCursor, saveReconcileCursor } from '../../../../services/agent.js';
 import type {
   AgentFrame,
   AgentRequestMap,
@@ -20,16 +17,9 @@ import type {
   AgentHandshake,
   AgentSession,
   JobDefinition,
-  RunMode,
   RunView,
   Slug,
 } from '../../../../services/agent.js';
-import {
-  applyJobStateChanged,
-  applyRunCompleted,
-  mergeRuns,
-  useTasksStore,
-} from './tasks-store.js';
 
 vi.mock('../../../../services/agent.js', async importOriginal => {
   // Spread the REAL module so the pure re-exports keep working; the store
@@ -119,7 +109,11 @@ function seedAgentAndSync(session: FakeSession, jobs: JobDefinition[] = [PRUNE_J
     linger: true,
     lingerByTako: true,
   });
-  session.responses.set('reconcile.sync', { jobs: jobs.map(job => jobView(job)), runs, lastSeq: runs.at(-1)?.seq ?? 7 });
+  session.responses.set('reconcile.sync', {
+    jobs: jobs.map(job => jobView(job)),
+    runs,
+    lastSeq: runs.at(-1)?.seq ?? 7,
+  });
 }
 
 beforeEach(() => {

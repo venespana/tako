@@ -1,13 +1,13 @@
 // infrastructure/SshRemoteCommandRunner.test.ts — STRICT TDD RED phase
 import { EventEmitter } from 'node:events';
 
-import { describe, expect, it, vi } from 'vitest';
 import type { ClientChannel } from 'ssh2';
+import { describe, expect, it, vi } from 'vitest';
 
 // RED: import the port types and adapter that don't exist yet
-import type { RemoteCommandResult } from '../application/RemoteCommandRunner.js';
-import { SshRemoteCommandRunner } from './SshRemoteCommandRunner.js';
 import type { SshChannelSource } from './SshConnectionManager.js';
+import { SshRemoteCommandRunner } from './SshRemoteCommandRunner.js';
+import type { RemoteCommandResult } from '../application/RemoteCommandRunner.js';
 
 interface FakeChannel extends EventEmitter {
   stderr: EventEmitter;

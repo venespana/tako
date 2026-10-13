@@ -39,19 +39,13 @@ import { VERSION } from '../shared/lib/version.js';
 export type { AgentHandshake, AgentSession, AgentTransport } from '../domains/agent/application/AgentTransport.js';
 export type {
   AgentFrame,
-  AgentEventType,
   AgentRequestMap,
   AgentRequestType,
   AgentStatusResult,
-  HelloAckPayload,
-  HelloPayload,
-  ProtocolErrorCode,
-  ProtocolWarningPayload,
   JobStateChangedPayload,
   RunCompletedPayload,
 } from '../domains/agent/domain/protocol.js';
 export type {
-  AgentLifecycle,
   JobDefinition,
   JobView,
   PruneScopes,
@@ -61,13 +55,10 @@ export type {
   Schedule,
   Slug,
   StackLifecycleOp,
-  TerminalRunStatus,
 } from '../domains/agent/domain/types.js';
 export { SLUG_PATTERN } from '../domains/agent/domain/types.js';
 export { isValidStackDir } from '../domains/agent/domain/job.js';
 export { isValidCronExpr } from '../domains/agent/domain/schedule.js';
-export type { AgentConnectionAuth, Remote, RemoteAuthDecision } from './remotes.js';
-export { decideRemoteAuth } from './remotes.js';
 
 // ---------------------------------------------------------------------------
 // 9.17 connect guard (moved from pages/tasks — a server-side rule now)

@@ -7,8 +7,6 @@
 // mirrors the agent domain guards client-side (slug, stackDir, cron sanity).
 import { describe, expect, it } from 'vitest';
 
-import type { JobDefinition, PruneScopes } from '../../../../domains/agent/domain/types.js';
-import { isValidCronExpr } from '../../../../domains/agent/domain/schedule.js';
 import {
   EMPTY_JOB_FORM,
   SCOPE_OPTIONS,
@@ -18,6 +16,7 @@ import {
   validateJobForm,
   type JobFormValues,
 } from './job-form.js';
+import { isValidCronExpr, type JobDefinition, type PruneScopes } from '../../../../services/agent.js';
 
 describe('job form — the closed union drives the form (8.5)', () => {
   it('scope options are EXACTLY the three ADR-0008-safe scopes — nothing else is expressible', () => {

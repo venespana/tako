@@ -1,8 +1,10 @@
 // tui/features/doctor/ui/DoctorScreen.test.tsx — vitest: smoke tests for 4 visual states
-import { describe, it, expect } from 'vitest';
 import React from 'react';
-import type { SystemCheckResult } from '../../../../services/system.js';
+
+import { describe, it, expect } from 'vitest';
+
 import { DoctorScreen } from './DoctorScreen.js';
+import type { SystemCheckResult } from '../../../../services/system.js';
 
 // ---------------------------------------------------------------------------
 // Fake SystemCheckResult factories
@@ -30,7 +32,7 @@ function makeResult(allPresent: boolean, missingTools: string[] = []): SystemChe
 // Minimal render helper (mirrors AddRemoteWizard.test.tsx pattern)
 // ---------------------------------------------------------------------------
 
-function render(element: React.ReactElement): { unmount: () => void } {
+function render(_element: React.ReactElement): { unmount: () => void } {
   // Minimal render helper — actual ink-testing-library tests would need a TTY
   // For unit tests, we verify the component can be instantiated without throwing
   return { unmount: () => {} };

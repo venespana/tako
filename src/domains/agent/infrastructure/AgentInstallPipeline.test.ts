@@ -8,16 +8,13 @@ import { Duplex } from 'node:stream';
 
 import { describe, expect, it } from 'vitest';
 
-import { decideClientInstallSource } from '../application/use-cases/InstallAgent.js';
-import type { AgentChannel } from '../../remotes/application/AgentChannel.js';
-import type {
-  RemoteCommandResult,
-  RemoteCommandRunner,
-} from '../../remotes/application/RemoteCommandRunner.js';
-import type { RemoteFileTransfer, RemoteUploadRequest } from '../../remotes/application/RemoteFileTransfer.js';
-import { helloAckFrame, responseFrame } from '../domain/protocol.js';
-import type { VerifierConnection } from './SurviveDisconnectProber.js';
 import { runAgentInstall, type AgentInstallDeps } from './AgentInstallPipeline.js';
+import type { VerifierConnection } from './SurviveDisconnectProber.js';
+import type { AgentChannel } from '../../remotes/application/AgentChannel.js';
+import type { RemoteCommandResult, RemoteCommandRunner } from '../../remotes/application/RemoteCommandRunner.js';
+import type { RemoteFileTransfer, RemoteUploadRequest } from '../../remotes/application/RemoteFileTransfer.js';
+import { decideClientInstallSource } from '../application/use-cases/InstallAgent.js';
+import { helloAckFrame, responseFrame } from '../domain/protocol.js';
 
 const CLIENT_VERSION = '0.1.2';
 const LOCAL_SHA = 'c'.repeat(64);
@@ -54,15 +51,19 @@ class HandshakeChannel extends Duplex implements AgentChannel {
     if (parsed.kind === 'hello') {
       this.push(JSON.stringify(helloAckFrame(this.#version, 'start-1')));
     } else if (parsed.kind === 'request' && parsed.id !== undefined) {
-      this.push(JSON.stringify(responseFrame(parsed.id, 'agent.status', {
-        agentVersion: this.#version,
-        protocol: 1,
-        uptimeSec: 1,
-        jobCount: 0,
-        unitState: 'active',
-        linger: true,
-        lingerByTako: false,
-      })));
+      this.push(
+        JSON.stringify(
+          responseFrame(parsed.id, 'agent.status', {
+            agentVersion: this.#version,
+            protocol: 1,
+            uptimeSec: 1,
+            jobCount: 0,
+            unitState: 'active',
+            linger: true,
+            lingerByTako: false,
+          })
+        )
+      );
     }
     callback();
   }
@@ -318,7 +319,8 @@ describe('runAgentInstall — linger and polkit', () => {
     const harness = createHarness({
       "'/home/ops/.tako/tako' --version": {
         stdout: '',
-        stderr: "/home/venespana/.tako/tako: /usr/lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.44' not found (required by /home/venespana/.tako/tako)",
+        stderr:
+          "/home/venespana/.tako/tako: /usr/lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.44' not found (required by /home/venespana/.tako/tako)",
         exitCode: 1,
       },
     });
@@ -349,9 +351,7 @@ describe('runAgentInstall — linger and polkit', () => {
     expect(harness.runner.calls).toContainEqual('loginctl enable-linger');
     // …but the by-tako marker is NOT written (the flag is never guessed).
     expect(harness.runner.calls.some(call => call.includes('linger.by-tako'))).toBe(false);
-    expect(
-      captured.logLines.some(line => line.includes('NOT recorded as Tako-enabled'))
-    ).toBe(true);
+    expect(captured.logLines.some(line => line.includes('NOT recorded as Tako-enabled'))).toBe(true);
   });
 });
 
