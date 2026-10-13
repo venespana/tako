@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 import { Box, Text } from 'ink';
 
 import { DoctorToolLine } from './DoctorToolLine.js';
-import type { SystemCheckResult } from '../../../../domains/system/domain/types.js';
+import type { SystemCheckResult } from '../../../../services/system.js';
 import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 import { useDoctorCheck } from '../model/use-doctor-check.js';
 

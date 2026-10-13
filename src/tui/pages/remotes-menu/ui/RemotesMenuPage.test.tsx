@@ -1,6 +1,6 @@
 // RemotesMenuPage.test.tsx — Unit tests for the remotes menu page. The page
 // has two modes: without an active remote it renders the SELECTION screen
-// (model/remotes-selection fetching through an injected repository port);
+// (model/remotes-selection fetching through services/remotes, mocked here);
 // with one it renders the remotes submenu. A harness component holds the
 // session's active-remote state so tests can drive the real transition
 // (select with Enter → submenu). Logo and footer are app-shell chrome.
@@ -11,22 +11,19 @@ import { render } from 'ink-testing-library';
 import { Text } from 'ink';
 import { MemoryRouter, useLocation } from 'react-router';
 
-import type { RemoteRepository } from '../../../../domains/remotes/application/RemoteRepository.js';
-import type { ValidateSshConnection } from '../../../../domains/remotes/application/ValidateSshConnection.js';
-import type { Remote, RemoteSummary, SshTestConfig } from '../../../../domains/remotes/domain/types.js';
+import type { Remote, RemoteSummary, SshValidationOutcome } from '../../../../services/remotes.js';
+import { getRemote, listRemotes, testSshConnection } from '../../../../services/remotes.js';
 import { useEditingStore } from '../../../shared/lib/editing-store.js';
 import { KEY_FLUSH_MS, pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
 import { RemotesMenuPage } from './RemotesMenuPage.js';
 
-function fakeRepository(summaries: RemoteSummary[], byName: Remote | null = null): RemoteRepository {
-  return {
-    existsByName: vi.fn(async () => false),
-    existsByEndpoint: vi.fn(async () => false),
-    save: vi.fn(async () => {}),
-    getByName: vi.fn(async () => byName),
-    list: vi.fn(async () => summaries),
-  };
-}
+vi.mock('../../../../services/remotes.js', async importOriginal => {
+  // Spread the REAL module so the re-exported contract types and pure
+  // helpers keep working; only the storage/transport-bearing functions are
+  // replaced.
+  const actual = await importOriginal<typeof import('../../../../services/remotes.js')>();
+  return { ...actual, listRemotes: vi.fn(), getRemote: vi.fn(), testSshConnection: vi.fn() };
+});
 
 /** Direct-activation remote: a store remote with a password on disk. */
 const storeWithPassword: Remote = {
@@ -67,38 +64,26 @@ async function typePassword(
   stdin.write('\r');
 }
 
-/** SSH validator fake: only 'good-pw' authenticates. */
-function fakeValidator(okOn = 'good-pw'): ValidateSshConnection {
-  return {
-    validate: vi.fn(async (config: SshTestConfig) =>
-      config.auth.type === 'password' && config.auth.password === okOn
-        ? { ok: true, hostkeyFingerprint: 'SHA256:x' }
-        : { ok: false, category: 'auth', message: 'All configured authentication methods failed' }
-    ),
-  } as unknown as ValidateSshConnection;
+/** SSH service fake: only `okOn` authenticates. */
+function stubValidator(okOn = 'good-pw'): ReturnType<typeof vi.fn> {
+  const validate = vi.fn(async (config: Parameters<typeof testSshConnection>[0]): Promise<SshValidationOutcome> =>
+    config.auth.type === 'password' && config.auth.password === okOn
+      ? { ok: true, hostkeyFingerprint: 'SHA256:x' }
+      : { ok: false, category: 'auth', message: 'All configured authentication methods failed' }
+  );
+  vi.mocked(testSshConnection).mockImplementation(validate);
+  return validate;
 }
 
 /** Holds the session's active-remote state, mirroring App's ownership. */
-function Harness({
-  repository,
-  initialActive,
-  validateConnection = fakeValidator(),
-}: {
-  repository: RemoteRepository;
-  initialActive?: string;
-  validateConnection?: ValidateSshConnection;
-}) {
+function Harness({ initialActive }: { initialActive?: string }) {
   const [active, setActive] = useState<{ name: string; password?: string } | undefined>(
     initialActive ? { name: initialActive } : undefined
   );
   return (
     <>
       <Text>{`active:${active?.name ?? 'none'}`}</Text>
-      <RemotesMenuPage
-        repository={repository}
-        validateConnection={validateConnection}
-        onActivateRemote={(name, password) => setActive({ name, password })}
-      />
+      <RemotesMenuPage onActivateRemote={(name, password) => setActive({ name, password })} />
     </>
   );
 }
@@ -112,14 +97,23 @@ const REMOTES: RemoteSummary[] = [
   { name: 'web', endpoint: 'admin@10.0.0.10:2222' },
 ];
 
-const renderRemotes = (repository: RemoteRepository, initialActive?: string) =>
+/** Point the mocked service at a fixed list + byName outcome. */
+function stubRemotes(summaries: RemoteSummary[], byName: Remote | null = null): void {
+  vi.mocked(listRemotes).mockResolvedValue(summaries);
+  vi.mocked(getRemote).mockResolvedValue(byName);
+  stubValidator();
+}
+
+const renderRemotes = (initialActive?: string) =>
   render(
     <MemoryRouter initialEntries={['/remotes']}>
-      <Harness repository={repository} initialActive={initialActive} />
+      <Harness initialActive={initialActive} />
     </MemoryRouter>
   );
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  stubRemotes([]);
   // 9.20: the editing flag is a module-scope zustand store now — a leaked
   // password-gate mount (EditingGuard isEditing) must not dead-key the next
   // test's menu bindings (these tests never unmount their instances).
@@ -128,7 +122,8 @@ beforeEach(() => {
 
 describe('RemotesMenuPage (selection screen)', () => {
   it('lists the configured remotes with name and endpoint', async () => {
-    const { lastFrame } = renderRemotes(fakeRepository(REMOTES));
+    stubRemotes(REMOTES);
+    const { lastFrame } = renderRemotes();
     const frame = await settle(lastFrame, f => f.includes('Select a remote'), 1000);
 
     expect(frame).toContain('Select a remote');
@@ -137,7 +132,8 @@ describe('RemotesMenuPage (selection screen)', () => {
   });
 
   it('starts the cursor on the first remote', async () => {
-    const { lastFrame } = renderRemotes(fakeRepository(REMOTES));
+    stubRemotes(REMOTES);
+    const { lastFrame } = renderRemotes();
     const frame = await settle(lastFrame, f => f.includes('Select a remote'), 1000);
 
     expect(frame).toContain('❯ nas');
@@ -145,7 +141,8 @@ describe('RemotesMenuPage (selection screen)', () => {
   });
 
   it('moves the cursor with j', async () => {
-    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES));
+    stubRemotes(REMOTES);
+    const { stdin, lastFrame } = renderRemotes();
     await settle(lastFrame, f => f.includes('❯ nas'), 1000);
 
     const frame = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ web'));
@@ -153,7 +150,8 @@ describe('RemotesMenuPage (selection screen)', () => {
   });
 
   it('Enter activates a store remote directly (9.14: the route shim then enters /tasks)', async () => {
-    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, storeWithPassword));
+    stubRemotes(REMOTES, storeWithPassword);
+    const { stdin, lastFrame } = renderRemotes();
     await settle(lastFrame, f => f.includes('❯ nas'), 1000);
 
     // The page's contract is the activation callback (mirrored by the harness
@@ -165,10 +163,11 @@ describe('RemotesMenuPage (selection screen)', () => {
   });
 
   it('redirects to /remotes/add when no remotes are configured', async () => {
+    stubRemotes([]);
     const { lastFrame } = render(
       <MemoryRouter initialEntries={['/remotes']}>
         <LocationEcho />
-        <Harness repository={fakeRepository([])} />
+        <Harness />
       </MemoryRouter>
     );
 
@@ -177,17 +176,9 @@ describe('RemotesMenuPage (selection screen)', () => {
   });
 
   it('shows an error state when the configured list cannot be read', async () => {
-    const repository: RemoteRepository = {
-      existsByName: vi.fn(async () => false),
-      existsByEndpoint: vi.fn(async () => false),
-      save: vi.fn(async () => {}),
-      getByName: vi.fn(async () => null),
-      list: vi.fn(async () => {
-        throw new Error('conf unreadable');
-      }),
-    };
+    vi.mocked(listRemotes).mockRejectedValue(new Error('conf unreadable'));
 
-    const { lastFrame } = renderRemotes(repository);
+    const { lastFrame } = renderRemotes();
     const frame = await settle(lastFrame, f => f.includes('Could not read'), 1000);
 
     expect(frame).toContain('Could not read configured remotes.');
@@ -198,8 +189,9 @@ describe('RemotesMenuPage (selection screen)', () => {
 describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => {
   const SECRET = 'S3cret!pw-xyz';
 
-  it('4.8 RED: prompt screen renders for an interactive selection', async () => {
-    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, interactiveRemote));
+  it('4.8: prompt screen renders for an interactive selection', async () => {
+    stubRemotes(REMOTES, interactiveRemote);
+    const { stdin, lastFrame } = renderRemotes();
     await settle(lastFrame, f => f.includes('❯ nas'), 1000);
 
     const frame = await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
@@ -213,12 +205,14 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
   // to 2 × KEY_FLUSH_MS of settle) and React 19 delays passive effects under
   // full-suite parallel load — this test once exceeded 5s that way.
   it(
-    '4.8 RED: correct password activates the remote, selection list remains visible',
+    '4.8: correct password activates the remote, selection list remains visible',
     { timeout: 15_000 },
     async () => {
+      stubRemotes(REMOTES, interactiveRemote);
+      stubValidator(SECRET);
       const { lastFrame, stdin } = render(
         <MemoryRouter initialEntries={['/remotes']}>
-          <Harness repository={fakeRepository(REMOTES, interactiveRemote)} validateConnection={fakeValidator(SECRET)} />
+          <Harness />
         </MemoryRouter>
       );
       await settle(lastFrame, f => f.includes('❯ nas'), 1000);
@@ -237,8 +231,9 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
     }
   );
 
-  it('4.8 RED: wrong password re-prompts with an auth message, remote stays inactive', async () => {
-    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, interactiveRemote));
+  it('4.8: wrong password re-prompts with an auth message, remote stays inactive', async () => {
+    stubRemotes(REMOTES, interactiveRemote);
+    const { stdin, lastFrame } = renderRemotes();
     await settle(lastFrame, f => f.includes('❯ nas'), 1000);
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
@@ -250,8 +245,9 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
     expect(frame).not.toContain('wrong-pw');
   });
 
-  it('4.8 RED: Esc cancels the prompt and restores the selection list', async () => {
-    const { stdin, lastFrame } = renderRemotes(fakeRepository(REMOTES, interactiveRemote));
+  it('4.8: Esc cancels the prompt and restores the selection list', async () => {
+    stubRemotes(REMOTES, interactiveRemote);
+    const { stdin, lastFrame } = renderRemotes();
     await settle(lastFrame, f => f.includes('❯ nas'), 1000);
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 

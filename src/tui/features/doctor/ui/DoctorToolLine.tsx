@@ -2,7 +2,7 @@
 // Shows green check or red X with tool name and version.
 import { Text } from 'ink';
 
-import type { ToolCheckResult } from '../../../../domains/system/domain/types.js';
+import type { ToolCheckResult } from '../../../../services/system.js';
 
 const TOOL_LABELS: Record<string, string> = {
   ssh: 'ssh',

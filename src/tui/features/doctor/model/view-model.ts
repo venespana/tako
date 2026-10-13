@@ -1,5 +1,5 @@
 // tui/features/doctor/model/view-model.ts — Pure projection: SystemCheckResult → missing-only list
-import type { SystemCheckResult, ToolCheckResult } from '../../../../domains/system/domain/types.js';
+import type { SystemCheckResult, ToolCheckResult } from '../../../../services/system.js';
 
 /**
  * Filter SystemCheckResult.results to only those with status === 'not-found',

@@ -2,8 +2,9 @@
 // and lets the user activate one. Always available (active remote status lives
 // in App runtime). Zero remotes redirects to the add wizard. Interactive remotes
 // open a connect-time masked password prompt before activation; Esc cancels back
-// to the list. All state arrives as props from the route shim (pages never
-// import app/, per FSD).
+// to the list. The model consumes services/remotes directly (ADR-0019 §7);
+// only the activation callback arrives as a prop (App-owned state via the
+// route shim).
 import { useCallback, useMemo } from 'react';
 
 import { Box, Text } from 'ink';
@@ -11,8 +12,6 @@ import { Box, Text } from 'ink';
 import { PasswordInput } from '@inkjs/ui';
 import { useNavigate } from 'react-router';
 
-import type { RemoteRepository } from '../../../../domains/remotes/application/RemoteRepository.js';
-import type { ValidateSshConnection } from '../../../../domains/remotes/application/ValidateSshConnection.js';
 import { withEnablement } from '../../../features/menu/index.js';
 import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 import { EditingGuard } from '../../../shared/ui/EditingGuard.js';
@@ -20,25 +19,15 @@ import { ActionMenu } from '../../../widgets/action-menu/index.js';
 import { useRemotesSelection } from '../model/remotes-selection.js';
 
 export interface RemotesMenuPageProps {
-  /** Persistence port, injected by the route shim (composition lives in app/). */
-  repository: RemoteRepository;
-  /** SSH validation port for the connect-time gate (route shim injected). */
-  validateConnection: ValidateSshConnection;
   /** Activates the session's remote (App-owned state via the route shim). */
   onActivateRemote: (name: string, password?: string) => void;
 }
 
-export function RemotesMenuPage({
-  repository,
-  validateConnection,
-  onActivateRemote,
-}: RemotesMenuPageProps): React.ReactElement {
+export function RemotesMenuPage({ onActivateRemote }: RemotesMenuPageProps): React.ReactElement {
   const navigate = useNavigate();
 
   const handleEmpty = useCallback(() => navigate('/remotes/add'), [navigate]);
   const selection = useRemotesSelection({
-    repository,
-    validateConnection,
     enabled: true,
     onActivate: onActivateRemote,
     onEmpty: handleEmpty,
