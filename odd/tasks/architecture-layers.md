@@ -188,29 +188,45 @@ single-file fix) and removed its own scratch prompt file.
       slice deleted, eslint ADR-0014 excepts removed, R3-001/002 restored; user-staged
       subset, INTERIM tree) + `729bad5` (wizard absorbed into pages/remotes-add — the page
       EMBEDDED the wizard; doctor formatting to cli; tui→domains production imports zero).
-      Suite 807/807, lint 0/0. Native review BLOCKED: 15+ output_refused/provider_failed
-      across foreground/background/manual-relay; 3 complete raw lens results exist
-      (resilience 4, readability 6, reliability 8 — zero blockers) but unadmittable
-      (transport refuses foreground materialization; background results bypass the hook;
-      manual --input relay rejects reconstruction). CLOSED by user's personal review of the
-      raw results (2026-10-13) with the caveat recorded here. 18 findings: 2 introduced
-      WARNINGs → fixed in E3 (stdin drain blocks non-TTY even with all flags; parsePort
-      silent coercion to 22), 6 SUGGESTIONs introduced → backlog, 10 pre-existing → backlog.
-- [ ] E3 Dead-code cleanup + E2 advisory fixes: stdin gate before readLines; parsePort
-      loud refusal mirroring --type; parseType validation co-located; vestigial
-      DoctorScreen props; sweep for wizard-deletion corpses; tests for the fixes.
-- [ ] E4 Validation: eslint zones (shared/domains/application/FSD + scoped *.test.*
-      config), steiger + knip scripts, zero-violation re-scan, flaky remotes test
-      hunt, R3-004 services test, full suite.
-- [ ] E5 Delivery: version bump (repo rule 5), PR architecture-layers → main.
+      Native review: first lineage stuck in transport-refusal lottery → abandoned
+      (operator_disposition, risk-lens result discarded); retry lineage review-cd8e1e6a:
+      3 CRITICALs (R1-001 password-in-argv, R4-001 stdin hang) → correction declared
+      (150/200 lines) → correction commit `e9fccdc` on the review line → targeted
+      validator APPROVED → acknowledged, authority burned (target 01a83857, corrected
+      candidate). 18 advisories (informational) recorded → Backlog below.
+- [x] E3 Dead-code cleanup + E2 advisory fixes: committed `9c4d3f2` (stdin gate before
+      readLines; parsePort loud refusal 1-65535 mirroring --type; parseType/parsePort
+      ParsedFlag outcomes; DoctorScreen vestigial cascade removed). User-reviewed.
+- [x] E4 Validation: committed `7e5520e` (13 eslint zones; *.test.* un-blinded — first
+      run 437 problems → 0; cli→domains via no-restricted-imports + agent-run
+      off-override; knip + steiger configured as scripts; dead: view-model.ts,
+      menu-submenu.ts, remotes-menu.ts, menu/types.ts, ~20 exports, picocolors;
+      8 tui test files → services re-exports; flaky hardened + 18 green runs;
+      R3-004 typed-error assertion; cli --version → generated 0.2.0). User-reviewed.
+      Steiger 3 policy findings recorded → Backlog (NOT restructured per mandate).
+
+## Review receipts
+- F0+F1: approved+acknowledged (review-5998dff5). F2: approved+acknowledged zero findings
+  (review-89ff96c1). E0 (F3 cli+tui pieces): approved+acknowledged, 4 advisories
+  (review-5e056314). E2 corrected candidate: approved+acknowledged, 18 advisories
+  (review-cd8e1e6a, target 01a83857).
+- E1: medium under_budget — no native review required (user-reviewed anyway).
+- e9c9b11 (F3 services piece): readability lens gap — user review stood as substitute.
+- E3+E4 (9c4d3f2+7e5520e): user-reviewed; optional native review before E5.
 
 ## Backlog (recorded, not scheduled)
-- outcome-mapper duplication in remote-add (R2-004); hostkey not-saved/throwing paths
-  unasserted (R3-005); commander flag mapping untested (R3-008); service wrappers
-  listRemotes/getRemote/testSshConnection untested (R3-006); .then-only chains in wizard
-  + remotes-menu gate (R4-002/003, R3-003/004); TOOL_LABELS duplicated cli/tui (R2-003);
-  doctor formatter untested + Spanish header 'revision de los comandos' (R3-007/R2-005);
-  fakeValidator duplicated in remotes-menu tests (R2-006); DoctorScreen vestigial props.
+- From E2 corrected-candidate review: R1-002 scripted hostkey accept never displays the
+  fingerprint (security UX — show fingerprint before trust); parsePort silent coercion
+  exists in the E2 candidate but is FIXED on the branch tip (9c4d3f2); TOOL_LABELS
+  duplicated cli/tui; .then-only chains in wizard + remotes-menu gate; doctor formatter
+  untested; Spanish header 'revision de los comandos'; service wrappers untested;
+  commander flag mapping untested; fakeValidator duplicated in menu tests.
+- Steiger policy (E4): entities/job + features/doctor flagged insignificant-slice
+  (ADR-0018 deliberately keeps entities/job; features/doctor is a candidate for
+  absorption into pages/doctor); app/providers segments-by-purpose.
+- docs/architecture.md stale prose (services 'arrives in F3' status, enforcement column
+  partially updated).
 
 ## Next step
-E3 writer → parent verify → user diff review → commit → E4.
+E5 Delivery: version bump (repo rule 5), PR architecture-layers → main (optional native
+review of the E3+E4 range first), steiger policy decisions to user.
