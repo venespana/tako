@@ -26,7 +26,6 @@ const REGISTRY: ActionGroup[] = deepFreeze([
         command: 'doctor',
         kind: 'action',
         enabledWhen: 'always',
-        handlerKey: 'doctor',
         route: '/doctor',
       },
     ],
@@ -41,7 +40,6 @@ const REGISTRY: ActionGroup[] = deepFreeze([
         command: 'select',
         kind: 'action',
         enabledWhen: 'always',
-        handlerKey: 'remotes.select',
         route: '/remotes',
       },
       {
@@ -50,7 +48,6 @@ const REGISTRY: ActionGroup[] = deepFreeze([
         command: 'add',
         kind: 'action',
         enabledWhen: 'always',
-        handlerKey: 'remotes.add',
         route: '/remotes/add',
       },
       {
@@ -59,7 +56,6 @@ const REGISTRY: ActionGroup[] = deepFreeze([
         command: 'delete',
         kind: 'action',
         enabledWhen: 'always',
-        handlerKey: 'remotes.delete',
         route: '/remotes/rm',
       },
       // 9.14d: no home Tasks entry — the tasks workspace is the REMOTE's menu,

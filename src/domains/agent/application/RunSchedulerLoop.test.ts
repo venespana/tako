@@ -8,12 +8,12 @@
 // never double-fired by a later tick.
 import { describe, expect, it } from 'vitest';
 
-import type { JobDefinition, JobView, RunMode } from '../domain/types.js';
-import { InMemoryJobStore } from '../testing/InMemoryJobStore.js';
 import { ExecuteRun } from './ExecuteRun.js';
 import type { JobExecutionOutcome, JobHandler } from './JobHandler.js';
 // RED: import the module that doesn't exist yet
 import { DEFAULT_TICK_INTERVAL_MS, RunSchedulerLoop, type SchedulerTimer } from './RunSchedulerLoop.js';
+import type { JobDefinition, JobView, RunMode } from '../domain/types.js';
+import { InMemoryJobStore } from '../testing/InMemoryJobStore.js';
 import { JobNotFoundError } from './use-cases/TriggerJob.js';
 
 const T0 = '2026-09-18T08:00:00.000Z';
@@ -54,9 +54,11 @@ class FakeTimer implements SchedulerTimer {
   }
 }
 
-const okHandler: JobHandler = { async execute(): Promise<JobExecutionOutcome> {
-  return { status: 'succeeded', result: { ok: true } };
-} };
+const okHandler: JobHandler = {
+  async execute(): Promise<JobExecutionOutcome> {
+    return { status: 'succeeded', result: { ok: true } };
+  },
+};
 
 /** Serial-execution probe: records start/end and holds each run on a manual gate. */
 class GatedJobHandler implements JobHandler {
@@ -93,7 +95,13 @@ class DisabledJobStore extends InMemoryJobStore {
 }
 
 function hourlyJob(id: string): JobDefinition {
-  return { id, type: 'stack-lifecycle', op: 'pull', stackDir: `/srv/stacks/${id}`, schedule: { kind: 'cron', expr: '0 * * * *' } };
+  return {
+    id,
+    type: 'stack-lifecycle',
+    op: 'pull',
+    stackDir: `/srv/stacks/${id}`,
+    schedule: { kind: 'cron', expr: '0 * * * *' },
+  };
 }
 
 /** Seed a job whose watermark sits `missedHours` behind the clock (guard optional). */
@@ -361,7 +369,7 @@ describe('RunSchedulerLoop — triggered runs through the serial queue (8.0)', (
   it('8.0 RED: a triggered run drains SERIALLY behind a scheduled fire (one queue, FIFO, concurrency 1)', async () => {
     const store = new InMemoryJobStore();
     const clock = new FakeClock(T0);
-    const a = await seedJob(store, 'job-a', T0);
+    const _a = await seedJob(store, 'job-a', T0);
     await seedJob(store, 'job-b', T0);
     clock.advance(1.5 * HOUR); // 09:30 — the 09:00 fire is due for both
     const handler = new GatedJobHandler();

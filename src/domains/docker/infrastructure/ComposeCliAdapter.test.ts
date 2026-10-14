@@ -67,8 +67,6 @@ describe('ComposeCliAdapter — argv execution (no shell)', () => {
   });
 
   it('rejects on spawn failure (binary missing) — a transport-style error', async () => {
-    await expect(adapter.run({ argv: ['/nonexistent/tako-fake-bin', 'arg'], cwd: tmpdir() })).rejects.toThrow(
-      /ENOENT/
-    );
+    await expect(adapter.run({ argv: ['/nonexistent/tako-fake-bin', 'arg'], cwd: tmpdir() })).rejects.toThrow(/ENOENT/);
   });
 });

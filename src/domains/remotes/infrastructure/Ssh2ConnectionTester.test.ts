@@ -1,8 +1,8 @@
 // infrastructure/Ssh2ConnectionTester.test.ts — STRICT TDD RED phase
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import type { SshTestConfig } from '../domain/types.js';
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
+
+import { describe, it, expect, vi, afterEach } from 'vitest';
 
 // Partial module mocks (ESM namespaces are non-configurable, so vi.spyOn
 // cannot intercept them — and the SUT's named imports could never be spied).
@@ -24,6 +24,7 @@ afterEach(() => {
 
 // RED: import the class that doesn't exist yet
 import { Ssh2ConnectionTester } from './Ssh2ConnectionTester.js';
+import type { SshTestConfig } from '../domain/types.js';
 
 // Helper type for mock client - we use any because the implementation doesn't need the full Client interface
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

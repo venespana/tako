@@ -1,19 +1,19 @@
 // ActionMenu.test.tsx — Unit tests for the ActionMenu widget.
 // ActionMenu is a pure renderer: render-ready groups (items carry a
-// pre-computed `enabled` flag) + the focused item's id. There is no view
-// prop — the remotes submenu renders subaction labels because the page
-// composes the screen with the subactions as the group items (see submenu
-// tests below).
-import { describe, it, expect } from 'vitest';
+// pre-computed `enabled` flag) + the focused item's id. Fixtures use the
+// widget's OWN input-contract types (ADR-0018 point 6) — no menu-feature
+// import. There is no view prop — the remotes submenu renders subaction
+// labels because the page composes the screen with the subactions as the
+// group items (see submenu tests below).
 import { render } from 'ink-testing-library';
+import { describe, it, expect } from 'vitest';
+
 import { ActionMenu } from './ActionMenu.js';
-import type { RenderableActionItem, RenderableActionGroup } from '../../../features/menu/index.js';
+import type { RenderableActionGroup, RenderableActionItem } from './ActionMenu.js';
 
 const makeItem = (overrides: Partial<RenderableActionItem> = {}): RenderableActionItem => ({
   id: 'test',
   label: 'test',
-  command: 'test',
-  kind: 'action',
   enabled: true,
   ...overrides,
 });
@@ -81,7 +81,7 @@ describe('ActionMenu', () => {
           id: 'remote',
           label: 'Remote',
           items: [
-            makeItem({ id: 'remotes', label: 'remotes', kind: 'submenu', submenu: ['add', 'list'] }),
+            makeItem({ id: 'remotes', label: 'remotes' }),
             makeItem({ id: 'logs', label: 'logs', enabled: false }),
           ],
         }),
@@ -116,9 +116,6 @@ describe('ActionMenu', () => {
     const makeSubAction = (cmd: string): RenderableActionItem => ({
       id: `remotes-${cmd}`,
       label: cmd,
-      command: cmd,
-      kind: 'action',
-      handlerKey: `remotes.${cmd}`,
       enabled: true,
     });
 

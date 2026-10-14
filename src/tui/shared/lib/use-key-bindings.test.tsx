@@ -3,14 +3,15 @@
 // single-char matching (multi-char input ignored), and the documented
 // dispatch precedence. Keypresses settle before assertions (a fresh page's
 // first frame can paint before Ink's useInput effect subscribes).
-import { describe, expect, it, vi } from 'vitest';
 
 import { Text } from 'ink';
-import { render } from 'ink-testing-library';
 
-import { settle, wait } from '../../test-utils/ink-interactions.js';
+import { render } from 'ink-testing-library';
+import { describe, expect, it, vi } from 'vitest';
+
 import { useKeyBindings } from './use-key-bindings.js';
 import type { KeyBindings } from './use-key-bindings.js';
+import { settle, wait } from '../../test-utils/ink-interactions.js';
 
 function Probe({ bindings, isActive }: { bindings: KeyBindings; isActive?: boolean }): React.ReactElement {
   useKeyBindings(bindings, { isActive });

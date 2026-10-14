@@ -1,13 +1,8 @@
 // domain/job.test.ts — STRICT TDD RED phase (tasks 3.1, 3.2, 2.9/3.12)
 import { describe, it, expect } from 'vitest';
+
 // RED: import modules that don't exist yet
-import {
-  isJobDefinition,
-  isSlug,
-  isValidStackDir,
-  parseJobDefinition,
-  JobValidationError,
-} from './job.js';
+import { isJobDefinition, isSlug, isValidStackDir, parseJobDefinition, JobValidationError } from './job.js';
 import type { JobDefinition } from './types.js';
 
 describe('Slug guard (task 3.1 charset; tasks 2.9 + 3.12 hostile input)', () => {

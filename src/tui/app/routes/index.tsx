@@ -10,8 +10,8 @@
 // about routing, the shim never owns session state.
 import { useEffect } from 'react';
 
-import { useTasksStore } from '../../features/tasks/job-list/index.js';
 import { HomePage } from '../../pages/home/index.js';
+import { useTasksStore } from '../../pages/tasks/index.js';
 import type { RouteHandle } from '../../shared/lib/route-tree.js';
 import { useAppRuntimeStore } from '../providers/app-runtime-store.js';
 

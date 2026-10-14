@@ -3,8 +3,10 @@
 // pages show back/quit only. Back/quit are always visible (Esc/⌫/h →
 // navigate(-1), exit at home). 9.15a: pages publish a semantic hint list —
 // rendered left-to-right in declared order, with back/quit ALWAYS last.
-import { describe, it, expect } from 'vitest';
 import { renderToString } from 'ink';
+
+import { describe, it, expect } from 'vitest';
+
 import { KeyHints } from './KeyHints.js';
 
 // 9.15a semantic hint list (the KeyHint shape lands with the shared page-hints store).

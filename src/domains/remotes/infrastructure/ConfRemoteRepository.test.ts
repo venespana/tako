@@ -1,10 +1,11 @@
 // infrastructure/ConfRemoteRepository.test.ts — STRICT TDD RED phase
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Remote, RemoteDraft } from '../domain/types.js';
+import { describe, it, expect, vi } from 'vitest';
+
+import { ConfRemoteRepository } from './ConfRemoteRepository.js';
 import type { RemoteRepository } from '../application/RemoteRepository.js';
+import type { Remote } from '../domain/types.js';
 
 // RED: import the class that doesn't exist yet
-import { ConfRemoteRepository } from './ConfRemoteRepository.js';
 
 function createMockConf(initialStore: Record<string, unknown> = {}) {
   let store = { ...initialStore };

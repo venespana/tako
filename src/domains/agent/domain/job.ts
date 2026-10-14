@@ -146,8 +146,3 @@ export function isJobDefinition(value: unknown): value is JobDefinition {
     return false;
   }
 }
-
-/** True when a job view/definition carries this id — the idempotent identity check. */
-export function hasJobId(job: { readonly id: Slug }, id: Slug): boolean {
-  return job.id === id;
-}

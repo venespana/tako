@@ -12,8 +12,8 @@
 // point of this witness test and stays confined here.
 import { describe, expect, it } from 'vitest';
 
-import { PRUNE_SCOPES as AGENT_PRUNE_SCOPES, type PruneScopes } from '../../agent/domain/types.js';
 import { PRUNE_SCOPES as DOCKER_PRUNE_SCOPES, type PruneScope } from './types.js';
+import { PRUNE_SCOPES as AGENT_PRUNE_SCOPES, type PruneScopes } from '../../agent/domain/types.js';
 
 describe('agent ↔ docker prune scope parity (9.7)', () => {
   it('agent/domain PruneScopes and docker/domain PruneScope are member-wise identical', () => {

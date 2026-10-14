@@ -1,9 +1,10 @@
 // domain/endpoint.test.ts — STRICT TDD RED phase
 import { describe, it, expect } from 'vitest';
+
+import { toEndpoint } from './endpoint.js';
 import type { RemoteDraft } from './types.js';
 
 // Import the function that doesn't exist yet — this is RED
-import { toEndpoint } from './endpoint.js';
 
 describe('toEndpoint', () => {
   it('1.2 RED: standard port 22 is included explicitly', () => {

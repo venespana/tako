@@ -1,9 +1,10 @@
 // infrastructure/ConfSecretVault.test.ts — STRICT TDD RED phase
 import { describe, it, expect, vi } from 'vitest';
+
+import { ConfSecretVault } from './ConfSecretVault.js';
 import type { SecretVault } from '../application/SecretVault.js';
 
 // RED: import the class that doesn't exist yet
-import { ConfSecretVault } from './ConfSecretVault.js';
 
 // Minimal mock conf - just enough to verify the adapter pattern
 type MockConf = {

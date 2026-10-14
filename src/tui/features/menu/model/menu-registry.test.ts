@@ -1,5 +1,6 @@
 // menu-registry.test.ts — Unit tests for the declarative action registry.
 import { describe, it, expect } from 'vitest';
+
 import { getRegistry } from './menu-registry.js';
 
 describe('getRegistry', () => {
@@ -48,11 +49,6 @@ describe('getRegistry', () => {
   it('no registry item routes to /tasks — the workspace is reached via Select (9.14d)', () => {
     const allItems = getRegistry().flatMap(g => g.items);
     expect(allItems.filter(i => i.route === '/tasks')).toEqual([]);
-  });
-
-  it('doctor action has handlerKey', () => {
-    const local = getRegistry().find(g => g.id === 'local')!;
-    expect(local.items[0]!.handlerKey).toBe('doctor');
   });
 
   it('no hidden unimplemented commands appear', () => {

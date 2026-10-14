@@ -3,14 +3,15 @@
 // against an empty list. The probe renders the cursor so frames assert it.
 // Keypresses wait for their expected frame (a fresh page's first frame can
 // paint before Ink's useInput effect subscribes — keys would be dropped).
-import { describe, it, expect, vi } from 'vitest';
-import { render } from 'ink-testing-library';
 import { Text } from 'ink';
 
-import { KEY_FLUSH_MS, pressAndSettle, settle, wait } from '../../../test-utils/ink-interactions.js';
+import { render } from 'ink-testing-library';
+import { describe, it, expect, vi } from 'vitest';
+
+import type { ActionItem } from './menu-items.js';
 import { useMenuList } from './use-menu-list.js';
 import type { UseMenuListOptions } from './use-menu-list.js';
-import type { ActionItem } from './menu-items.js';
+import { KEY_FLUSH_MS, pressAndSettle, settle, wait } from '../../../test-utils/ink-interactions.js';
 
 const fakeItem = (id: string): ActionItem => ({ id, label: id, command: id, kind: 'action' });
 

@@ -1,15 +1,15 @@
 // application/ValidateSshConnection.test.ts — STRICT TDD RED phase
 import { describe, it, expect, vi } from 'vitest';
-import type { SshTestConfig, SshValidationOutcome } from '../domain/types.js';
-import type { SshConnectionTester } from './SshConnectionTester.js';
 
+import type { SshConnectionTester } from './SshConnectionTester.js';
 // Import the class that doesn't exist yet — this is RED
 import { ValidateSshConnection } from './ValidateSshConnection.js';
+import type { SshTestConfig, SshValidationOutcome } from '../domain/types.js';
 
 describe('ValidateSshConnection', () => {
   function fakeTester(outcome: SshValidationOutcome): SshConnectionTester {
     return {
-      test: vi.fn(async (config: SshTestConfig) => outcome),
+      test: vi.fn(async (_config: SshTestConfig) => outcome),
     };
   }
 

@@ -4,6 +4,7 @@
 // command argvs; these bytes are rejected at the domain guard so no
 // downstream assembler ever receives them.
 import { describe, expect, it } from 'vitest';
+
 import { StackDirValidationError, assertValidStackDir, isValidStackDir } from './stack-dir.js';
 
 describe('stack-dir — hostile input rejection', () => {

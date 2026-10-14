@@ -1,10 +1,15 @@
-// tui/test-utils/fake-agent-session.ts — Test doubles for the agent protocol
-// surface: a canned-response FakeAgentSession (with manual push events) and a
-// FakeTasksGateway over it. Test infrastructure, outside the FSD layers:
-// importable only from test files.
-import type { AgentHandshake, AgentSession } from '../../domains/agent/application/AgentTransport.js';
-import type { AgentFrame, AgentRequestMap, AgentRequestType } from '../../domains/agent/domain/protocol.js';
-import type { AgentInstallOutcome, TasksGateway } from '../features/tasks/job-list/model/tasks-store.js';
+// tui/test-utils/fake-agent-session.ts — Test double for the agent protocol
+// surface: a canned-response FakeAgentSession (with manual push events) to
+// pair with the MOCKED services/agent module (ADR-0019 §7: tests mock service
+// modules instead of injecting gateway fakes). Test infrastructure, outside
+// the FSD layers: importable only from test files.
+import type {
+  AgentFrame,
+  AgentHandshake,
+  AgentRequestMap,
+  AgentRequestType,
+  AgentSession,
+} from '../../services/agent.js';
 
 export class FakeAgentSession implements AgentSession {
   handshake: AgentHandshake = { ack: { agentVersion: '0.1.2', protocol: 1, agentStartId: 'start-test' } };
@@ -13,6 +18,13 @@ export class FakeAgentSession implements AgentSession {
   readonly listeners: Array<(frame: AgentFrame) => void> = [];
   failNext: Error | null = null;
   closed = false;
+
+  constructor() {
+    // A real agent answers EVERY request type; default the unseeded ones to
+    // empty-agent shapes so unspecified queries behave honestly.
+    this.responses.set('jobs.list', { jobs: [] });
+    this.responses.set('jobs.history', { runs: [], lastSeq: 0 });
+  }
 
   async request<K extends AgentRequestType>(
     type: K,
@@ -39,55 +51,10 @@ export class FakeAgentSession implements AgentSession {
   emit(frame: AgentFrame): void {
     for (const listener of [...this.listeners]) listener(frame);
   }
-}
-
-export class FakeTasksGateway implements TasksGateway {
-  readonly remote: string;
-  readonly session = new FakeAgentSession();
-  connectCalls = 0;
-  cursor = 0;
-  readonly savedCursors: number[] = [];
-  connectError: Error | null = null;
-  /** Number of install() attempts (auto or r-retry). */
-  installCalls = 0;
-  /**
-   * Scripted install behavior (9.19): receives the gateway's onLine sink and
-   * resolves the outcome. Default — no lines, immediate success.
-   */
-  installScript: ((onLine: (line: string) => void) => Promise<AgentInstallOutcome>) | null = null;
-
-  constructor(remote = 'nas') {
-    this.remote = remote;
-    // A real agent answers EVERY request type; default the unseeded ones to
-    // empty-agent shapes so unspecified queries behave honestly.
-    this.session.responses.set('jobs.list', { jobs: [] });
-    this.session.responses.set('jobs.history', { runs: [], lastSeq: 0 });
-  }
-
-  async connect(): Promise<AgentSession> {
-    this.connectCalls += 1;
-    if (this.connectError !== null) throw this.connectError;
-    return this.session;
-  }
-
-  async install(onLine: (line: string) => void): Promise<AgentInstallOutcome> {
-    this.installCalls += 1;
-    if (this.installScript !== null) return this.installScript(onLine);
-    return { ok: true };
-  }
-
-  loadCursor(): number {
-    return this.cursor;
-  }
-
-  saveCursor(seq: number): void {
-    this.cursor = seq;
-    this.savedCursors.push(seq);
-  }
 
   /** Seed agent.status + reconcile.sync with the given jobs/runs. */
   seedAgent(jobs: unknown[], runs: unknown[] = []): void {
-    this.session.responses.set('agent.status', {
+    this.responses.set('agent.status', {
       agentVersion: '0.1.2',
       protocol: 1,
       uptimeSec: 42,
@@ -96,6 +63,6 @@ export class FakeTasksGateway implements TasksGateway {
       linger: true,
       lingerByTako: true,
     });
-    this.session.responses.set('reconcile.sync', { jobs, runs, lastSeq: 7 });
+    this.responses.set('reconcile.sync', { jobs, runs, lastSeq: 7 });
   }
 }

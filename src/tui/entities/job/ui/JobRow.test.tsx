@@ -1,11 +1,10 @@
 // entities/job/ui/JobRow.test.tsx — STRICT TDD RED phase (task 8.12)
+import { render } from 'ink-testing-library';
 import { describe, expect, it } from 'vitest';
 
-import { render } from 'ink-testing-library';
-
-import type { JobDefinition, JobView } from '../../../../domains/agent/domain/types.js';
-import { theme } from '../../../shared/ui/theme.js';
 import { JobRow } from './JobRow.js';
+import type { JobDefinition, JobView } from '../../../../services/agent.js';
+import { theme } from '../../../shared/ui/theme.js';
 
 const PRUNE_JOB: JobDefinition = {
   id: 'nas-prune',

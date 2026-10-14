@@ -1,22 +1,28 @@
-// RemotesAddPage.test.tsx — Unit tests for the remotes.add page: it embeds
-// the add-remote-wizard feature component with an injected use case, resets
-// the wizard store's session state on mount (and unmount), and navigates
-// back to '/remotes' when the wizard completes. MemoryRouter supplies the
-// router context the navigation needs.
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render } from 'ink-testing-library';
+// RemotesAddPage.test.tsx — Unit tests for the remotes.add page: it renders
+// the absorbed add-remote wizard and resets the wizard store's session state
+// on mount (and unmount), and navigates back to the main menu when the wizard
+// completes. Per ADR-0019 §7 the wizard consumes services/remotes directly,
+// so the service module is mocked (the page drives the store; the service
+// only needs to resolve). MemoryRouter supplies the router context.
 import { Text } from 'ink';
+
+import { render } from 'ink-testing-library';
 import { MemoryRouter, useLocation } from 'react-router';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import type { AddRemote } from '../../../../domains/remotes/application/AddRemote.js';
-import { useWizardStore } from '../../../features/remotes/add-remote-wizard/index.js';
-import { settle } from '../../../test-utils/ink-interactions.js';
 import { RemotesAddPage } from './RemotesAddPage.js';
+import { confirmAddRemote } from '../../../../services/remotes.js';
+import { settle } from '../../../test-utils/ink-interactions.js';
+import { useWizardStore } from '../model/wizard-store.js';
 
-const fakeAddRemote = {
-  execute: vi.fn(async () => ({ saved: false, reason: 'validation' })),
-  save: vi.fn(async () => ({ saved: true })),
-} as unknown as AddRemote;
+vi.mock('../../../../services/remotes.js', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../../../services/remotes.js')>();
+  return {
+    ...actual,
+    addRemote: vi.fn(async () => ({ saved: true })),
+    confirmAddRemote: vi.fn(async () => ({ saved: true })),
+  };
+});
 
 function LocationEcho() {
   return <Text>at:{useLocation().pathname}</Text>;
@@ -26,7 +32,7 @@ const renderAdd = () =>
   render(
     <MemoryRouter initialEntries={['/remotes/add']}>
       <LocationEcho />
-      <RemotesAddPage addRemoteUc={fakeAddRemote} />
+      <RemotesAddPage />
     </MemoryRouter>
   );
 
@@ -34,6 +40,7 @@ describe('RemotesAddPage', () => {
   beforeEach(() => {
     useWizardStore.getState().reset();
     vi.clearAllMocks();
+    vi.mocked(confirmAddRemote).mockResolvedValue({ saved: true });
   });
 
   it('renders the embedded wizard (first step prompt)', async () => {
@@ -70,7 +77,7 @@ describe('RemotesAddPage', () => {
     const { lastFrame, unmount } = renderAdd();
     await settle(lastFrame, f => f.includes('Connection name:'), 1000);
 
-    // Complete the wizard: done step fires the save effect, then onComplete
+    // Complete the wizard: done step fires the confirm save, then onComplete
     // navigates to the main menu.
     useWizardStore.getState().validationSuccess('AA:BB:CC', true);
     const frame = await settle(lastFrame, f => f.includes('at:/'), 1000);

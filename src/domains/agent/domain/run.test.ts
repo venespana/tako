@@ -1,5 +1,6 @@
 // domain/run.test.ts — STRICT TDD RED phase (task 3.4)
 import { describe, it, expect } from 'vitest';
+
 // RED: import the module that doesn't exist yet
 import { canTransitionRun, transitionRun, IllegalRunTransitionError } from './run.js';
 import type { RunStatus } from './types.js';

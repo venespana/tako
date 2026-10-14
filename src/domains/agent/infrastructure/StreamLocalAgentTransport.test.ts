@@ -6,9 +6,9 @@ import { Duplex } from 'node:stream';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { PROTOCOL_VERSION, helloAckFrame, eventFrame, errorFrame } from '../domain/protocol.js';
-import type { AgentChannel } from '../../remotes/application/AgentChannel.js';
 import { StreamLocalAgentTransport } from './StreamLocalAgentTransport.js';
+import type { AgentChannel } from '../../remotes/application/AgentChannel.js';
+import { PROTOCOL_VERSION, helloAckFrame, eventFrame, errorFrame } from '../domain/protocol.js';
 
 const CLIENT_VERSION = '0.1.2';
 
@@ -57,7 +57,10 @@ class FakeChannelStream extends Duplex {
   }
 }
 
-function createTransport(ack: Parameters<typeof helloAckFrame>[0] | 'error' | 'garbage', version = CLIENT_VERSION): {
+function createTransport(
+  ack: Parameters<typeof helloAckFrame>[0] | 'error' | 'garbage',
+  version = CLIENT_VERSION
+): {
   transport: StreamLocalAgentTransport;
   stream: FakeChannelStream;
 } {
@@ -86,7 +89,11 @@ describe('StreamLocalAgentTransport — handshake', () => {
     const session = await transport.connect();
 
     expect(stream.writes[0]).toBeDefined();
-    const hello = JSON.parse(stream.writes[0] ?? '{}') as { kind: string; type: string; payload: { protocol: number; clientVersion: string } };
+    const hello = JSON.parse(stream.writes[0] ?? '{}') as {
+      kind: string;
+      type: string;
+      payload: { protocol: number; clientVersion: string };
+    };
     expect(hello.kind).toBe('hello');
     expect(hello.payload.protocol).toBe(PROTOCOL_VERSION);
     expect(hello.payload.clientVersion).toBe(CLIENT_VERSION);

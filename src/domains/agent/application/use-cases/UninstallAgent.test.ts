@@ -1,5 +1,6 @@
 // application/use-cases/UninstallAgent.test.ts — STRICT TDD RED phase (task 3.10)
 import { describe, it, expect } from 'vitest';
+
 // RED: import the modules that don't exist yet
 import { UNINSTALL_STEPS, shouldDisableLinger, uninstallLingerGuard } from './UninstallAgent.js';
 

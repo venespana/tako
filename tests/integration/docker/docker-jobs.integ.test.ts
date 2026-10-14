@@ -11,16 +11,15 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import Dockerode from 'dockerode';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import Dockerode from 'dockerode';
-
-import { ComposeCliAdapter } from '../../../src/domains/docker/infrastructure/ComposeCliAdapter.js';
-import { DockerodePruneAdapter } from '../../../src/domains/docker/infrastructure/DockerodePruneAdapter.js';
 import { RunPrune } from '../../../src/domains/docker/application/RunPrune.js';
 import { RunStackLifecycle } from '../../../src/domains/docker/application/RunStackLifecycle.js';
 import { stoppedContainersListFilters } from '../../../src/domains/docker/domain/prune-policy.js';
+import { ComposeCliAdapter } from '../../../src/domains/docker/infrastructure/ComposeCliAdapter.js';
+import { DockerodePruneAdapter } from '../../../src/domains/docker/infrastructure/DockerodePruneAdapter.js';
 
 const COMPOSE_YAML = `services:
   sleeper:
@@ -158,7 +157,10 @@ describe.skipIf(!daemonAvailable)('docker jobs — docker:dind sidecar', () => {
     // correctly skip it.
     runHostDockerCli(['cp', stackDir, `${dind.getId()}:/stack`]);
     runHostDockerCli([
-      'exec', dind.getId(), 'sh', '-c',
+      'exec',
+      dind.getId(),
+      'sh',
+      '-c',
       'cd /stack && DOCKER_BUILDKIT=1 docker build -t tako-cache-probe . && docker rmi tako-cache-probe',
     ]);
 

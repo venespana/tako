@@ -1,8 +1,10 @@
 // Logo.test.tsx — Unit tests for the Logo widget. The old widgets.test.tsx
 // suite asserted the same box-drawing fragment twice; these tests pin the
 // actual ASCII art content (the TAKO block-letter header).
-import { describe, it, expect } from 'vitest';
 import { renderToString } from 'ink';
+
+import { describe, it, expect } from 'vitest';
+
 import { Logo } from './Logo.js';
 
 // Fragments of the TAKO block-letter art (first and last rows).

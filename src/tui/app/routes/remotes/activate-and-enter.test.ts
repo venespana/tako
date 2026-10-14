@@ -7,9 +7,8 @@ import { activateAndEnterTasks } from './activate-and-enter.js';
 describe('activateAndEnterTasks (9.14b)', () => {
   it('activates the remote, then navigates to /tasks — in that order', () => {
     const calls: string[] = [];
-    const handler = activateAndEnterTasks(
-      { activateRemote: name => calls.push(`activate:${name}`) },
-      path => calls.push(`navigate:${path}`)
+    const handler = activateAndEnterTasks({ activateRemote: name => calls.push(`activate:${name}`) }, path =>
+      calls.push(`navigate:${path}`)
     );
 
     handler('nas');

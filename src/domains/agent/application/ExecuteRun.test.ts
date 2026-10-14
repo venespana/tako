@@ -7,14 +7,14 @@
 // the firing is accounted for exactly once, whatever the outcome).
 import { describe, expect, it } from 'vitest';
 
+import type { Clock } from './Clock.js';
+import { ExecuteRun, type RunEngineEvent } from './ExecuteRun.js';
+import { UNSUPPORTED_OUTCOME, type JobExecutionOutcome, type JobHandler } from './JobHandler.js';
+import type { CreateRunInput } from './JobStore.js';
 import { IllegalRunTransitionError } from '../domain/run.js';
 import type { JobDefinition, RunMode, RunStatus, RunView } from '../domain/types.js';
 import { InMemoryJobStore } from '../testing/InMemoryJobStore.js';
-import type { Clock } from './Clock.js';
-import { UNSUPPORTED_OUTCOME, type JobExecutionOutcome, type JobHandler } from './JobHandler.js';
-import type { CreateRunInput } from './JobStore.js';
 // RED: import the module that doesn't exist yet
-import { ExecuteRun, type RunEngineEvent } from './ExecuteRun.js';
 
 const hourlyJob = (id: string): JobDefinition => ({
   id,
@@ -77,7 +77,11 @@ describe('ExecuteRun — one run through the state machine (7.2)', () => {
     const job = hourlyJob('nas-pull');
     await store.upsertJob(job);
     // The loop set the crash guard when it enqueued this firing.
-    await store.saveScheduleState({ jobId: job.id, lastScheduledFire: '2026-09-18T08:00:00.000Z', lastFireEnqueued: true });
+    await store.saveScheduleState({
+      jobId: job.id,
+      lastScheduledFire: '2026-09-18T08:00:00.000Z',
+      lastFireEnqueued: true,
+    });
     const handler = new FakeJobHandler({ status: 'succeeded', result: { pulled: ['caddy:2'] } });
     const executeRun = new ExecuteRun({ store, clock, handler, onEvent: event => events.push(event) });
 
@@ -114,7 +118,11 @@ describe('ExecuteRun — one run through the state machine (7.2)', () => {
     const { store, clock, events } = build();
     const job = hourlyJob('nas-pull');
     await store.upsertJob(job);
-    await store.saveScheduleState({ jobId: job.id, lastScheduledFire: '2026-09-18T08:00:00.000Z', lastFireEnqueued: true });
+    await store.saveScheduleState({
+      jobId: job.id,
+      lastScheduledFire: '2026-09-18T08:00:00.000Z',
+      lastFireEnqueued: true,
+    });
     const handler = new FakeJobHandler(new Error('docker daemon unreachable'));
     const executeRun = new ExecuteRun({ store, clock, handler, onEvent: event => events.push(event) });
 
@@ -140,7 +148,11 @@ describe('ExecuteRun — one run through the state machine (7.2)', () => {
     const { store, clock } = build();
     const job = hourlyJob('nas-pull');
     await store.upsertJob(job);
-    await store.saveScheduleState({ jobId: job.id, lastScheduledFire: '2026-09-18T08:00:00.000Z', lastFireEnqueued: false });
+    await store.saveScheduleState({
+      jobId: job.id,
+      lastScheduledFire: '2026-09-18T08:00:00.000Z',
+      lastFireEnqueued: false,
+    });
     const handler = new FakeJobHandler({ status: 'succeeded', result: { planned: true } });
     const executeRun = new ExecuteRun({ store, clock, handler });
 
@@ -161,7 +173,11 @@ describe('ExecuteRun — one run through the state machine (7.2)', () => {
     const { store, clock } = build();
     const job: JobDefinition = { id: 'srv-cfg', type: 'server-config', schedule: { kind: 'cron', expr: '0 3 * * *' } };
     await store.upsertJob(job);
-    await store.saveScheduleState({ jobId: job.id, lastScheduledFire: '2026-09-18T02:00:00.000Z', lastFireEnqueued: true });
+    await store.saveScheduleState({
+      jobId: job.id,
+      lastScheduledFire: '2026-09-18T02:00:00.000Z',
+      lastFireEnqueued: true,
+    });
     const executeRun = new ExecuteRun({ store, clock, handler: new FakeJobHandler(UNSUPPORTED_OUTCOME) });
 
     const run = await executeRun.execute({

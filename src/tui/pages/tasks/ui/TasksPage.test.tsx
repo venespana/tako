@@ -1,18 +1,32 @@
-// pages/tasks/ui/TasksPage.test.tsx — STRICT TDD RED phase (task 8.11/8.14)
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { render } from 'ink-testing-library';
-
+// pages/tasks/ui/TasksPage.test.tsx — STRICT TDD RED phase (task 8.11/8.14).
+// Per ADR-0019 §7 the page consumes services/agent directly, so these tests
+// MOCK the service module instead of injecting a gateway fake.
 import { Text } from 'ink';
 
-import type { JobDefinition } from '../../../../domains/agent/domain/types.js';
-import { FakeTasksGateway } from '../../../test-utils/fake-agent-session.js';
-// Public API only (9.7): the slice index exports the test reset seam — no
-// test-only deep import into model/.
-import { resetTasksStoreForTests } from '../../../features/tasks/job-list/index.js';
+import { render } from 'ink-testing-library';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { TasksPage } from './TasksPage.js';
+import type { JobDefinition } from '../../../../services/agent.js';
+import { connectAgentSession, installAgent } from '../../../../services/agent.js';
 import { useEditingStore } from '../../../shared/lib/editing-store.js';
 import { usePageHintsStore } from '../../../shared/lib/page-hints-store.js';
-import { TasksPage } from './TasksPage.js';
+import { FakeAgentSession } from '../../../test-utils/fake-agent-session.js';
+import { resetTasksStoreForTests } from '../model/tasks-store.js';
+
+vi.mock('../../../../services/agent.js', async importOriginal => {
+  // Spread the REAL module so the pure domain re-exports the page and the
+  // job form consume (SLUG_PATTERN, isValidCronExpr, isValidStackDir) keep
+  // working; only the transport-bearing functions are replaced.
+  const actual = await importOriginal<typeof import('../../../../services/agent.js')>();
+  return {
+    ...actual,
+    connectAgentSession: vi.fn(),
+    installAgent: vi.fn(),
+    loadReconcileCursor: vi.fn(() => 0),
+    saveReconcileCursor: vi.fn(),
+  };
+});
 
 const PRUNE_JOB: JobDefinition = {
   id: 'nas-prune',
@@ -25,9 +39,16 @@ function jobView(job: JobDefinition) {
   return { job, enabled: true, createdAt: 't', updatedAt: 't' };
 }
 
-async function renderWith(gateway: FakeTasksGateway) {
+/** A connected-by-default fake: the session is served by the mocked service. */
+function fakeConnected(): FakeAgentSession {
+  const session = new FakeAgentSession();
+  vi.mocked(connectAgentSession).mockResolvedValue({ kind: 'connected', session });
+  return session;
+}
+
+async function renderWith(_session: FakeAgentSession) {
   resetTasksStoreForTests();
-  const instance = render(<TasksPage gateway={gateway} />);
+  const instance = render(<TasksPage remote='nas' />);
   await new Promise(resolve => setTimeout(resolve, 50)); // connect + reconcile settle
   return instance;
 }
@@ -43,6 +64,7 @@ beforeEach(() => {
   // 9.20: the footer hints + editing flag are module-scope zustand stores —
   // reset them alongside the tasks store so no test inherits a previous
   // test's published hints or a leaked EditingGuard flag.
+  vi.clearAllMocks();
   resetTasksStoreForTests();
   useEditingStore.setState({ isEditing: false });
   usePageHintsStore.setState({ hints: [], formMode: false });
@@ -50,21 +72,20 @@ beforeEach(() => {
 
 describe('TasksPage (8.11)', () => {
   it('no active remote: prompts to select one first', () => {
-    const { lastFrame } = render(<TasksPage gateway={null} />);
+    const { lastFrame } = render(<TasksPage remote={null} />);
     expect(lastFrame() ?? '').toContain('No remote selected');
   });
 
   it('agent unreachable: the in-TUI install panel replaces the terminal hint (9.14b)', async () => {
-    const gateway = new FakeTasksGateway('nas');
-    gateway.connectError = new Error('channel open failed');
-    // 9.19: the install is the gateway's in-process install — script it to
+    vi.mocked(connectAgentSession).mockRejectedValue(new Error('channel open failed'));
+    // 9.19: the install is the service's in-process install — script it to
     // stream a progress line and fail.
-    gateway.installScript = onLine => {
-      onLine('ssh: connect refused');
-      return Promise.resolve({ ok: false, error: 'ssh: connect refused' });
-    };
+    vi.mocked(installAgent).mockImplementation(async ({ onLine }) => {
+      onLine?.('ssh: connect refused');
+      return { kind: 'failed', error: 'ssh: connect refused' };
+    });
     resetTasksStoreForTests();
-    const instance = render(<TasksPage gateway={gateway} />);
+    const instance = render(<TasksPage remote='nas' />);
     await until(() => (instance.lastFrame() ?? '').includes('install failed (ssh: connect refused)'));
 
     const frame = instance.lastFrame() ?? '';
@@ -76,33 +97,41 @@ describe('TasksPage (8.11)', () => {
     instance.unmount();
   });
 
-  it('9.14b: install success reconnects the workspace (fresh handshake, same gateway)', async () => {
-    const gateway = new FakeTasksGateway('nas');
-    gateway.seedAgent([]);
-    gateway.connectError = new Error('channel open failed');
-    // The install "fixes" the remote: the gateway becomes reachable right
+  it('9.14b: install success reconnects the workspace (fresh handshake, NEW session)', async () => {
+    let reconnectedSession: FakeAgentSession | null = null;
+    const first = new FakeAgentSession();
+    first.seedAgent([]);
+    vi.mocked(connectAgentSession)
+      .mockRejectedValueOnce(new Error('channel open failed'))
+      .mockImplementation(async () => {
+        // The reconnect is a FRESH session (the service resolves the remote
+        // and builds a fresh SSH stack per connect call).
+        reconnectedSession = new FakeAgentSession();
+        reconnectedSession.seedAgent([]);
+        return { kind: 'connected', session: reconnectedSession };
+      });
+    // The install "fixes" the remote: the service becomes installable right
     // before its success lands, so the automatic reconnect succeeds.
-    gateway.installScript = () => {
-      gateway.connectError = null;
-      return Promise.resolve({ ok: true });
-    };
+    vi.mocked(installAgent).mockResolvedValue({ kind: 'installed' });
     resetTasksStoreForTests();
-    const instance = render(<TasksPage gateway={gateway} />);
+    const instance = render(<TasksPage remote='nas' />);
 
     // First connect fails (agent missing) → panel runs → success → reconnect.
-    await until(() => gateway.connectCalls === 2);
+    await until(() => vi.mocked(connectAgentSession).mock.calls.length === 2);
     await until(() => (instance.lastFrame() ?? '').includes('No jobs yet'));
 
-    expect(gateway.session.closed).toBe(false);
+    expect(first.closed).toBe(false);
+    // The closure assignment is invisible to TS's flow analysis; read through the widened type.
+    expect((reconnectedSession as FakeAgentSession | null)?.closed).toBe(false);
     instance.unmount();
   });
 
   it('9.14a: publishes the handshake agent version to the app runtime', async () => {
-    const gateway = new FakeTasksGateway('nas');
-    gateway.seedAgent([jobView(PRUNE_JOB)]);
+    const session = fakeConnected();
+    session.seedAgent([jobView(PRUNE_JOB)]);
     const onAgentVersion = vi.fn();
     resetTasksStoreForTests();
-    const instance = render(<TasksPage gateway={gateway} onAgentVersion={onAgentVersion} />);
+    const instance = render(<TasksPage remote='nas' onAgentVersion={onAgentVersion} />);
 
     await until(() => onAgentVersion.mock.calls.length > 0);
     expect(onAgentVersion).toHaveBeenCalledWith('0.1.2');
@@ -110,63 +139,64 @@ describe('TasksPage (8.11)', () => {
   });
 
   it('ready: renders the agent header and the job list from reconcile', async () => {
-    const gateway = new FakeTasksGateway('nas');
-    gateway.seedAgent([jobView(PRUNE_JOB)]);
-    const { lastFrame } = await renderWith(gateway);
-    const frame = lastFrame() ?? '';
+    const session = fakeConnected();
+    session.seedAgent([jobView(PRUNE_JOB)]);
+    const instance = await renderWith(session);
+    const frame = instance.lastFrame() ?? '';
     expect(frame).toContain('nas-prune');
     expect(frame).toContain('active');
+    instance.unmount();
   });
 
   it('r queues a dry-run trigger for the selected job (jobs.trigger over the protocol)', async () => {
-    const gateway = new FakeTasksGateway('nas');
-    gateway.seedAgent([jobView(PRUNE_JOB)]);
-    gateway.session.responses.set('jobs.trigger', {
+    const session = fakeConnected();
+    session.seedAgent([jobView(PRUNE_JOB)]);
+    session.responses.set('jobs.trigger', {
       run: { seq: 8, id: 'r8', jobId: 'nas-prune', mode: 'dry-run', status: 'pending', catchup: false, startedAt: 't' },
     });
-    const instance = await renderWith(gateway);
+    const instance = await renderWith(session);
 
     instance.stdin.write('r');
-    await until(() => gateway.session.requests.some(request => request.type === 'jobs.trigger'));
+    await until(() => session.requests.some(request => request.type === 'jobs.trigger'));
 
-    const trigger = gateway.session.requests.find(request => request.type === 'jobs.trigger');
+    const trigger = session.requests.find(request => request.type === 'jobs.trigger');
     expect(trigger).toEqual({ type: 'jobs.trigger', payload: { jobId: 'nas-prune', mode: 'dry-run' } });
+    instance.unmount();
   });
 
   it('d removes the selected job (jobs.delete over the protocol)', async () => {
-    const gateway = new FakeTasksGateway('nas');
-    gateway.seedAgent([jobView(PRUNE_JOB)]);
-    gateway.session.responses.set('jobs.delete', { deleted: true });
-    const instance = await renderWith(gateway);
+    const session = fakeConnected();
+    session.seedAgent([jobView(PRUNE_JOB)]);
+    session.responses.set('jobs.delete', { deleted: true });
+    const instance = await renderWith(session);
 
     instance.stdin.write('d');
-    await until(() => gateway.session.requests.some(request => request.type === 'jobs.delete'));
+    await until(() => session.requests.some(request => request.type === 'jobs.delete'));
 
-    expect(gateway.session.requests).toEqual(
-      expect.arrayContaining([expect.objectContaining({ type: 'jobs.delete' })])
-    );
+    expect(session.requests).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'jobs.delete' })]));
+    instance.unmount();
   });
 
   it('unmount disconnects the session (effect cleanup)', async () => {
-    const gateway = new FakeTasksGateway('nas');
-    gateway.seedAgent([jobView(PRUNE_JOB)]);
-    const instance = await renderWith(gateway);
+    const session = fakeConnected();
+    session.seedAgent([jobView(PRUNE_JOB)]);
+    const instance = await renderWith(session);
 
     instance.unmount();
     await new Promise(resolve => setTimeout(resolve, 20));
 
-    expect(gateway.session.closed).toBe(true);
+    expect(session.closed).toBe(true);
   });
 });
 
 describe('TasksPage form mode (9.15c: Esc-only cancel, chars are data entry)', () => {
   it('with the form open, t/d/r/a fire NOTHING and type into the focused field; ONLY Esc returns to browse', async () => {
-    const gateway = new FakeTasksGateway('nas');
-    gateway.seedAgent([jobView(PRUNE_JOB)]);
-    gateway.session.responses.set('jobs.trigger', {
+    const session = fakeConnected();
+    session.seedAgent([jobView(PRUNE_JOB)]);
+    session.responses.set('jobs.trigger', {
       run: { seq: 8, id: 'r8', jobId: 'nas-prune', mode: 'dry-run', status: 'pending', catchup: false, startedAt: 't' },
     });
-    const instance = await renderWith(gateway);
+    const instance = await renderWith(session);
 
     instance.stdin.write('n'); // open the create form
     await until(() => (instance.lastFrame() ?? '').includes('New job'));
@@ -178,8 +208,8 @@ describe('TasksPage form mode (9.15c: Esc-only cancel, chars are data entry)', (
     instance.stdin.write('t123o');
     await new Promise(resolve => setTimeout(resolve, 120));
 
-    expect(gateway.session.requests.some(request => request.type === 'jobs.trigger')).toBe(false);
-    expect(gateway.session.requests.some(request => request.type === 'jobs.delete')).toBe(false);
+    expect(session.requests.some(request => request.type === 'jobs.trigger')).toBe(false);
+    expect(session.requests.some(request => request.type === 'jobs.delete')).toBe(false);
     expect(instance.lastFrame() ?? '').toContain('tdrat123o'); // chars reached the focused field
     expect(instance.lastFrame() ?? '').toContain('New job'); // still the form
 
@@ -189,14 +219,14 @@ describe('TasksPage form mode (9.15c: Esc-only cancel, chars are data entry)', (
 
     // Back in browse, the actions are live again (the gating is mode-scoped).
     instance.stdin.write('r');
-    await until(() => gateway.session.requests.some(request => request.type === 'jobs.trigger'));
+    await until(() => session.requests.some(request => request.type === 'jobs.trigger'));
     instance.unmount();
   });
 
   it('the old inline hint line is gone from the page body (9.15a: footer only)', async () => {
-    const gateway = new FakeTasksGateway('nas');
-    gateway.seedAgent([jobView(PRUNE_JOB)]);
-    const instance = await renderWith(gateway);
+    const session = fakeConnected();
+    session.seedAgent([jobView(PRUNE_JOB)]);
+    const instance = await renderWith(session);
 
     const frame = instance.lastFrame() ?? '';
     expect(frame).not.toContain('n new ·');
@@ -213,16 +243,16 @@ describe('TasksPage footer hint publication (9.15a: single writer per page)', ()
   }
 
   it('browse publishes the action hints; the install state takes the footer over on failure', async () => {
-    const gateway = new FakeTasksGateway('nas');
-    gateway.seedAgent([jobView(PRUNE_JOB)]);
-    gateway.installScript = onLine => {
-      onLine('ssh: connect refused');
-      return Promise.resolve({ ok: false, error: 'ssh: connect refused' });
-    };
+    const session = fakeConnected();
+    session.seedAgent([jobView(PRUNE_JOB)]);
+    vi.mocked(installAgent).mockImplementation(async ({ onLine }) => {
+      onLine?.('ssh: connect refused');
+      return { kind: 'failed', error: 'ssh: connect refused' };
+    });
     resetTasksStoreForTests();
     const instance = render(
       <>
-        <TasksPage gateway={gateway} />
+        <TasksPage remote='nas' />
         <FooterSpy />
       </>
     );
@@ -233,7 +263,7 @@ describe('TasksPage footer hint publication (9.15a: single writer per page)', ()
     // the page hands the footer to the r retry hint (ready → error handoff).
     // The in-process install settles a microtask after the status flip, so
     // both assertions poll (footer first, then the pane's failure line).
-    gateway.session.failNext = new Error('channel closed');
+    session.failNext = new Error('channel closed');
     instance.stdin.write('r');
     await until(() => (instance.lastFrame() ?? '').includes('footer: r retry'));
     await until(() => (instance.lastFrame() ?? '').includes('install failed'));

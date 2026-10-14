@@ -1,6 +1,6 @@
 // entities/job/model/job-label.ts — one-line label builders for JobRow (task
 // 8.12). Pure: the job type from agent/domain drives what the line shows.
-import type { JobDefinition, Schedule } from '../../../../domains/agent/domain/types.js';
+import type { JobDefinition, Schedule } from '../../../../services/agent.js';
 
 /** The middle segment: what this job actually does. */
 export function formatJobDetail(job: JobDefinition): string {

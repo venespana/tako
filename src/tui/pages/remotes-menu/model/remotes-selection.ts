@@ -1,5 +1,5 @@
 // remotes-selection.ts — The remotes menu page's selection-screen model:
-// fetches the configured remotes through the repository port (async, with
+// fetches the configured remotes through services/remotes (async, with
 // loading/error states) and owns the list interaction (cursor + Enter via
 // the menu feature's useMenuList). Carries the redirect decision (empty
 // list → add wizard) and the CONNECT-TIME GATE: interactive remotes (no
@@ -10,10 +10,8 @@
 // keys go inert, so the page can render the submenu instead.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { RemoteRepository } from '../../../../domains/remotes/application/RemoteRepository.js';
-import type { ValidateSshConnection } from '../../../../domains/remotes/application/ValidateSshConnection.js';
-import { requiresConnectPrompt } from '../../../../domains/remotes/domain/normalize.js';
-import type { Remote, RemoteSummary } from '../../../../domains/remotes/domain/types.js';
+import { getRemote, listRemotes, requiresConnectPrompt, testSshConnection } from '../../../../services/remotes.js';
+import type { Remote, RemoteSummary } from '../../../../services/remotes.js';
 import type { ActionItem } from '../../../features/menu/index.js';
 import { useMenuList } from '../../../features/menu/index.js';
 
@@ -34,10 +32,6 @@ interface GateState {
 }
 
 export interface UseRemotesSelectionOptions {
-  /** Persistence port — the page receives it as a prop from the route shim. */
-  repository: RemoteRepository;
-  /** SSH validation port — used by the connect-time gate. */
-  validateConnection: ValidateSshConnection;
   /** Whether the selection screen is the active page mode. */
   enabled: boolean;
   /**
@@ -90,13 +84,7 @@ function toSelectionItem(remote: RemoteSummary): ActionItem {
   };
 }
 
-export function useRemotesSelection({
-  repository,
-  validateConnection,
-  enabled,
-  onActivate,
-  onEmpty,
-}: UseRemotesSelectionOptions): RemotesSelection {
+export function useRemotesSelection({ enabled, onActivate, onEmpty }: UseRemotesSelectionOptions): RemotesSelection {
   const [remotes, setRemotes] = useState<RemoteSummary[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [gate, setGate] = useState<GateState | null>(null);
@@ -105,7 +93,7 @@ export function useRemotesSelection({
   // deactivation/unmount (or a superseded refresh) are ignored.
   const fetchList = useCallback(() => {
     let cancelled = false;
-    repository.list().then(
+    listRemotes().then(
       list => {
         if (!cancelled) setRemotes(list);
       },
@@ -119,7 +107,7 @@ export function useRemotesSelection({
     return () => {
       cancelled = true;
     };
-  }, [repository]);
+  }, []);
 
   // Fetch once per activation.
   useEffect(() => {
@@ -134,13 +122,13 @@ export function useRemotesSelection({
     if (enabled && !failed && gate === null && remotes !== null && remotes.length === 0) onEmpty();
   }, [enabled, failed, gate, remotes, onEmpty]);
 
-  // Enter over a row: resolve the FULL remote through the port. A null
+  // Enter over a row: resolve the FULL remote through the service. A null
   // outcome means it vanished between list and Enter → refresh and stay.
   // Non-interactive remotes activate directly; interactive ones open the
   // connect-time password gate.
   const handleSelect = useCallback(
     (name: string) => {
-      void repository.getByName(name).then(remote => {
+      void getRemote(name).then(remote => {
         if (remote === null) {
           setRemotes(null);
           fetchList();
@@ -153,7 +141,7 @@ export function useRemotesSelection({
         setGate({ remote, phase: 'prompt', error: null });
       });
     },
-    [repository, fetchList, onActivate]
+    [fetchList, onActivate]
   );
 
   // Validate the just-typed password over a real SSH connection. Each
@@ -163,27 +151,25 @@ export function useRemotesSelection({
       if (gate === null || gate.phase !== 'prompt') return;
       const { remote } = gate;
       setGate({ remote, phase: 'validating', error: null });
-      void validateConnection
-        .validate({
-          host: remote.host,
-          port: remote.port,
-          username: remote.username,
-          auth: { type: 'password', password },
-        })
-        .then(outcome => {
-          if (outcome.ok) {
-            setGate(null);
-            onActivate(remote.name, password);
-          } else {
-            setGate({
-              remote,
-              phase: 'prompt',
-              error: { category: outcome.category, message: connectErrorMessage(outcome.category, outcome.message) },
-            });
-          }
-        });
+      void testSshConnection({
+        host: remote.host,
+        port: remote.port,
+        username: remote.username,
+        auth: { type: 'password', password },
+      }).then(outcome => {
+        if (outcome.ok) {
+          setGate(null);
+          onActivate(remote.name, password);
+        } else {
+          setGate({
+            remote,
+            phase: 'prompt',
+            error: { category: outcome.category, message: connectErrorMessage(outcome.category, outcome.message) },
+          });
+        }
+      });
     },
-    [gate, validateConnection, onActivate]
+    [gate, onActivate]
   );
 
   const cancelPrompt = useCallback(() => setGate(null), []);

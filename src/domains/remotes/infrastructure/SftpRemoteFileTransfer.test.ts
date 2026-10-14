@@ -4,13 +4,13 @@ import { copyFile, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SFTPWrapper } from 'ssh2';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // RED: import the port and adapter that don't exist yet
-import { TransferIntegrityError } from '../application/RemoteFileTransfer.js';
-import type { RemoteCommandResult, RemoteCommandRunner } from '../application/RemoteCommandRunner.js';
 import { SftpRemoteFileTransfer } from './SftpRemoteFileTransfer.js';
+import type { RemoteCommandResult, RemoteCommandRunner } from '../application/RemoteCommandRunner.js';
+import { TransferIntegrityError } from '../application/RemoteFileTransfer.js';
 
 interface FakeSftp {
   fastPut: ReturnType<typeof vi.fn>;
@@ -46,7 +46,10 @@ describe('SftpRemoteFileTransfer', () => {
     };
   }
 
-  function createRunnerFake(remotePath: () => string, overrides?: Partial<RemoteCommandResult>): {
+  function createRunnerFake(
+    remotePath: () => string,
+    overrides?: Partial<RemoteCommandResult>
+  ): {
     runner: RemoteCommandRunner;
     run: ReturnType<typeof vi.fn>;
   } {
@@ -63,10 +66,7 @@ describe('SftpRemoteFileTransfer', () => {
     return { runner: { run }, run };
   }
 
-  function createTransfer(
-    fakeSftp: FakeSftp,
-    runner: RemoteCommandRunner
-  ): SftpRemoteFileTransfer {
+  function createTransfer(fakeSftp: FakeSftp, runner: RemoteCommandRunner): SftpRemoteFileTransfer {
     return new SftpRemoteFileTransfer(async () => fakeSftp as unknown as SFTPWrapper, runner);
   }
 

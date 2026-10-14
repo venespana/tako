@@ -1,5 +1,6 @@
 // domain/protocol.test.ts — STRICT TDD RED phase (task 3.5)
 import { describe, it, expect } from 'vitest';
+
 // RED: import the module that doesn't exist yet
 import {
   PROTOCOL_VERSION,
@@ -16,7 +17,7 @@ import {
   ProtocolFrameError,
 } from './protocol.js';
 import type { AgentFrame } from './protocol.js';
-import type { JobDefinition, RunView } from './types.js';
+import type { JobDefinition } from './types.js';
 
 const pruneJob: JobDefinition = {
   id: 'nas-prune',
@@ -24,21 +25,6 @@ const pruneJob: JobDefinition = {
   scopes: ['stopped-containers'],
   schedule: { kind: 'cron', expr: '0 3 * * *' },
 };
-
-function sampleRun(overrides: Partial<RunView> = {}): RunView {
-  return {
-    seq: 1,
-    id: 'run-1',
-    jobId: 'nas-prune',
-    mode: 'apply',
-    status: 'succeeded',
-    catchup: false,
-    startedAt: '2026-09-18T03:00:00.000Z',
-    finishedAt: '2026-09-18T03:00:05.000Z',
-    result: { removed: 3 },
-    ...overrides,
-  };
-}
 
 describe('protocol constants', () => {
   it('3.5 RED: PROTOCOL_VERSION is 1 and frames carry it', () => {
@@ -84,7 +70,9 @@ describe('codec roundtrip', () => {
   });
 
   it('3.5 RED: encoded frames are single-line JSON (no embedded raw newlines)', () => {
-    const line = encodeFrame(eventFrame('job.state_changed', { jobId: 'a', runId: 'r', from: 'pending', to: 'running', at: 'x' }));
+    const line = encodeFrame(
+      eventFrame('job.state_changed', { jobId: 'a', runId: 'r', from: 'pending', to: 'running', at: 'x' })
+    );
     expect(line).not.toContain('\n');
     expect(() => JSON.parse(line)).not.toThrow();
   });
@@ -99,7 +87,13 @@ describe('codec roundtrip', () => {
 
 describe('oversized frame rejection', () => {
   it('3.5 RED: encodeFrame rejects payloads beyond 1 MiB', () => {
-    const hugeJob: JobDefinition = { ...pruneJob, id: 'huge', type: 'stack-lifecycle', op: 'up', stackDir: 'x'.repeat(MAX_FRAME_BYTES) } as JobDefinition;
+    const hugeJob: JobDefinition = {
+      ...pruneJob,
+      id: 'huge',
+      type: 'stack-lifecycle',
+      op: 'up',
+      stackDir: 'x'.repeat(MAX_FRAME_BYTES),
+    } as JobDefinition;
     const frame = requestFrame('c1', 'jobs.upsert', hugeJob);
     expect(() => encodeFrame(frame)).toThrow(ProtocolFrameError);
     try {
@@ -113,7 +107,16 @@ describe('oversized frame rejection', () => {
   it('3.5 RED: decodeFrame rejects oversized lines', () => {
     const bigLine = `{"v":1,"kind":"event","type":"protocol.warning","payload":{"blob":"${'x'.repeat(MAX_FRAME_BYTES)}"}}`;
     expect(() => decodeFrame(bigLine)).toThrow(ProtocolFrameError);
-    expect(((): string => { try { decodeFrame(bigLine); } catch (e) { return (e as ProtocolFrameError).code; } return ''; })()).toBe('too_large');
+    expect(
+      ((): string => {
+        try {
+          decodeFrame(bigLine);
+        } catch (e) {
+          return (e as ProtocolFrameError).code;
+        }
+        return '';
+      })()
+    ).toBe('too_large');
   });
 });
 
@@ -175,13 +178,27 @@ describe('factories and handshake types', () => {
   });
 
   it('3.5 RED: responseFrame references the request correlation id', () => {
-    const frame = responseFrame('c1', 'agent.status', { agentVersion: 'x', protocol: 1, uptimeSec: 1, jobCount: 0, unitState: 'active', linger: false, lingerByTako: false });
+    const frame = responseFrame('c1', 'agent.status', {
+      agentVersion: 'x',
+      protocol: 1,
+      uptimeSec: 1,
+      jobCount: 0,
+      unitState: 'active',
+      linger: false,
+      lingerByTako: false,
+    });
     expect(frame.id).toBe('c1');
     expect(frame.kind).toBe('response');
   });
 
   it('3.5 RED: eventFrame has no correlation id (push, not reply)', () => {
-    const frame = eventFrame('job.state_changed', { jobId: 'nas-prune', runId: 'run-1', from: 'pending', to: 'running', at: 't' });
+    const frame = eventFrame('job.state_changed', {
+      jobId: 'nas-prune',
+      runId: 'run-1',
+      from: 'pending',
+      to: 'running',
+      at: 't',
+    });
     expect(frame.id).toBeUndefined();
     expect(frame.kind).toBe('event');
     expect(frame.type).toBe('job.state_changed');
@@ -194,7 +211,11 @@ describe('factories and handshake types', () => {
   });
 
   it('3.5 RED: protocolWarningFrame carries both versions and detail, session continues', () => {
-    const frame = protocolWarningFrame({ clientVersion: '0.2.0', agentVersion: '0.1.2', detail: 'client newer than agent' });
+    const frame = protocolWarningFrame({
+      clientVersion: '0.2.0',
+      agentVersion: '0.1.2',
+      detail: 'client newer than agent',
+    });
     expect(frame.type).toBe('protocol.warning');
     expect(frame.kind).toBe('event');
   });

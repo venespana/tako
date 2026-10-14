@@ -1,27 +1,14 @@
 // DoctorPage.tsx — Doctor route: composes useDoctorCheck and renders DoctorScreen.
+// The check is the services/system function (ADR-0019): adapters compose at
+// call time inside the service, so importing the reference here does no
+// module-level work (the Bun.spawn-binding constructor only runs per check).
 import React, { useMemo } from 'react';
 
-import type { SystemCheckResult } from '../../../../domains/system/domain/types.js';
+import { checkHostDependencies, type SystemCheckResult } from '../../../../services/system.js';
 import { DoctorScreen } from '../../../features/doctor/index.js';
-
-/**
- * Composes the check function lazily to avoid instantiating Bun.spawn at
- * module level (LocalHostToolChecker constructor references Bun.spawn.bind).
- * The actual Bun.spawn call happens inside runCheck when the hook fires.
- */
-function createDoctorCheck(): () => Promise<SystemCheckResult> {
-  return async (): Promise<SystemCheckResult> => {
-    // Dynamic imports so Bun.spawn is called at execution time, not import time
-    const { CheckHostDependencies } = await import('../../../../domains/system/application/CheckHostDependencies.js');
-    const { LocalHostToolChecker } = await import('../../../../domains/system/infrastructure/LocalHostToolChecker.js');
-    const checker = new LocalHostToolChecker();
-    const useCase = new CheckHostDependencies(checker);
-    return useCase.checkAll();
-  };
-}
 
 export function DoctorPage(): React.ReactElement {
   // Memoize so the function reference is stable across re-renders
-  const runCheck = useMemo(() => createDoctorCheck(), []);
+  const runCheck = useMemo((): (() => Promise<SystemCheckResult>) => () => checkHostDependencies(), []);
   return <DoctorScreen runCheck={runCheck} />;
 }

@@ -10,17 +10,14 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import type { BinarySource } from '../application/use-cases/InstallAgent.js';
-import type {
-  RemoteCommandResult,
-  RemoteCommandRunner,
-} from '../../remotes/application/RemoteCommandRunner.js';
+import { HybridBinaryProvisioner } from './HybridBinaryProvisioner.js';
+import type { RemoteCommandResult, RemoteCommandRunner } from '../../remotes/application/RemoteCommandRunner.js';
 import type {
   RemoteTransferResult,
   RemoteFileTransfer,
   RemoteUploadRequest,
 } from '../../remotes/application/RemoteFileTransfer.js';
-import { HybridBinaryProvisioner } from './HybridBinaryProvisioner.js';
+import type { BinarySource } from '../application/use-cases/InstallAgent.js';
 
 const HOME = '/home/ops';
 const TARGET = `${HOME}/.tako/tako`;
@@ -106,7 +103,10 @@ describe('HybridBinaryProvisioner — copy path (arch match)', () => {
   it('uploads to tako.new, verifies the remote sha256, then moves atomically with chmod 700', async () => {
     const { runner, transfer, provisioner, localBinary, localSha } = createHarness();
     runner.register(`sha256sum '${STAGING}'`, { stdout: `${localSha}  ${STAGING}` });
-    runner.register(`sha256sum '${TARGET}'`, { exitCode: 1, stderr: `sha256sum: ${TARGET}: No such file or directory` });
+    runner.register(`sha256sum '${TARGET}'`, {
+      exitCode: 1,
+      stderr: `sha256sum: ${TARGET}: No such file or directory`,
+    });
 
     const result = await provisioner.provision({
       source: copySource,
@@ -233,7 +233,10 @@ describe('HybridBinaryProvisioner — 3.13 decoy-file refusal', () => {
   it('9.7 RED: a failing sha256sum on the staged upload fails the copy path explicitly (unhashable, not "missing")', async () => {
     const { runner, provisioner, localBinary, localSha } = createHarness();
     runner.register(`sha256sum '${STAGING}'`, { exitCode: 1, stderr: 'sha256sum: write error' });
-    runner.register(`sha256sum '${TARGET}'`, { exitCode: 1, stderr: `sha256sum: ${TARGET}: No such file or directory` });
+    runner.register(`sha256sum '${TARGET}'`, {
+      exitCode: 1,
+      stderr: `sha256sum: ${TARGET}: No such file or directory`,
+    });
 
     await expect(
       provisioner.provision({
@@ -242,7 +245,9 @@ describe('HybridBinaryProvisioner — 3.13 decoy-file refusal', () => {
         localBinaryPath: localBinary,
         clientSha256: localSha,
       })
-    ).rejects.toThrow(/sha256 mismatch after upload — local .* vs remote unhashable: sha256sum exited 1: sha256sum: write error/);
+    ).rejects.toThrow(
+      /sha256 mismatch after upload — local .* vs remote unhashable: sha256sum exited 1: sha256sum: write error/
+    );
     expect(runner.ran('mv -f')).toBe(false);
   });
 });
@@ -254,9 +259,12 @@ describe('HybridBinaryProvisioner — Releases download fallback (arch mismatch)
     runner.register(`curl -fsSL 'https://github.com/venespana/tako/releases/download/v0.1.2/tako-linux-arm64' -o`, {
       exitCode: 0,
     });
-    runner.register(`curl -fsSL 'https://github.com/venespana/tako/releases/download/v0.1.2/tako-linux-arm64.sha256' -o`, {
-      exitCode: 0,
-    });
+    runner.register(
+      `curl -fsSL 'https://github.com/venespana/tako/releases/download/v0.1.2/tako-linux-arm64.sha256' -o`,
+      {
+        exitCode: 0,
+      }
+    );
     runner.register(`cat '${sidecarPath}'`, { stdout: `${sidecar}  tako-linux-arm64` });
     runner.register(`sha256sum '${assetPath}'`, { stdout: `${assetSha}  ${assetPath}` });
   }
@@ -265,7 +273,10 @@ describe('HybridBinaryProvisioner — Releases download fallback (arch mismatch)
     const { runner, provisioner } = createHarness();
     const assetSha = 'bbbb'.repeat(16);
     registerDownload(runner, assetSha, assetSha);
-    runner.register(`sha256sum '${TARGET}'`, { exitCode: 1, stderr: `sha256sum: ${TARGET}: No such file or directory` });
+    runner.register(`sha256sum '${TARGET}'`, {
+      exitCode: 1,
+      stderr: `sha256sum: ${TARGET}: No such file or directory`,
+    });
 
     const result = await provisioner.provision({ source: downloadSource(), version: '0.1.2' });
 
@@ -287,10 +298,9 @@ describe('HybridBinaryProvisioner — Releases download fallback (arch mismatch)
 
   it('3.15 RED: fails explicitly when the .sha256 sidecar is missing (no egress or 404), naming the attempted path', async () => {
     const { runner, provisioner } = createHarness();
-    runner.register(
-      `curl -fsSL 'https://github.com/venespana/tako/releases/download/v0.1.2/tako-linux-arm64' -o`,
-      { exitCode: 0 }
-    );
+    runner.register(`curl -fsSL 'https://github.com/venespana/tako/releases/download/v0.1.2/tako-linux-arm64' -o`, {
+      exitCode: 0,
+    });
     runner.register(
       `curl -fsSL 'https://github.com/venespana/tako/releases/download/v0.1.2/tako-linux-arm64.sha256' -o`,
       { exitCode: 22, stderr: 'curl: (22) The requested URL returned error: 404' }
@@ -305,10 +315,10 @@ describe('HybridBinaryProvisioner — Releases download fallback (arch mismatch)
 
   it('fails explicitly when the asset itself cannot be downloaded, naming arch and attempted paths', async () => {
     const { runner, provisioner } = createHarness();
-    runner.register(
-      `curl -fsSL 'https://github.com/venespana/tako/releases/download/v0.1.2/tako-linux-arm64' -o`,
-      { exitCode: 28, stderr: 'curl: (28) Connection timed out' }
-    );
+    runner.register(`curl -fsSL 'https://github.com/venespana/tako/releases/download/v0.1.2/tako-linux-arm64' -o`, {
+      exitCode: 28,
+      stderr: 'curl: (28) Connection timed out',
+    });
 
     await expect(provisioner.provision({ source: downloadSource(), version: '0.1.2' })).rejects.toThrow(
       /tako-linux-arm64/

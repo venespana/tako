@@ -1,5 +1,6 @@
 // domain/schedule.test.ts — STRICT TDD RED phase (task 3.3)
 import { describe, it, expect } from 'vitest';
+
 // RED: import the module that doesn't exist yet
 import { matches, nextAfter, isValidCronExpr, InvalidCronError } from './schedule.js';
 

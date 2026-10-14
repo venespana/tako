@@ -8,10 +8,6 @@
 // dead daemon cannot hang the serial queue forever (7.5).
 import { describe, expect, it } from 'vitest';
 
-import type { JobHandler } from '../../domains/agent/application/JobHandler.js';
-import type { JobDefinition } from '../../domains/agent/domain/types.js';
-import type { PruneReport, StackLifecycleReport } from '../../domains/docker/domain/types.js';
-// RED: the watchdog exports don't exist yet
 import {
   DEFAULT_WATCHDOG_TIMEOUT_MS,
   WatchdogTimeoutError,
@@ -20,6 +16,10 @@ import {
   shutdownAgentProcess,
   withWatchdogTimeout,
 } from './agent-run.js';
+import type { JobHandler } from '../../domains/agent/application/JobHandler.js';
+import type { JobDefinition } from '../../domains/agent/domain/types.js';
+import type { PruneReport, StackLifecycleReport } from '../../domains/docker/domain/types.js';
+// RED: the watchdog exports don't exist yet
 
 const lifecycleReport = (status: StackLifecycleReport['status']): StackLifecycleReport => ({
   mode: 'apply',
@@ -109,13 +109,11 @@ describe('watchdog timeout for wedged job handlers (7.5)', () => {
 describe('composition-root shutdown sequence (9.7)', () => {
   it('RED: stops scheduler → server → store → meta, each fully settled before the next starts', async () => {
     const trace: string[] = [];
-    const asyncStep =
-      (name: string) =>
-      async (): Promise<void> => {
-        trace.push(`${name}:start`);
-        await new Promise(resolve => setTimeout(resolve, 1));
-        trace.push(`${name}:end`);
-      };
+    const asyncStep = (name: string) => async (): Promise<void> => {
+      trace.push(`${name}:start`);
+      await new Promise(resolve => setTimeout(resolve, 1));
+      trace.push(`${name}:end`);
+    };
 
     await shutdownAgentProcess({
       scheduler: { stop: asyncStep('scheduler') },

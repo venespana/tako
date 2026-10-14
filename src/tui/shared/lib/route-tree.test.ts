@@ -1,6 +1,7 @@
 // route-tree.test.ts — Unit tests for the route-tree infrastructure helpers.
-import { describe, expect, it } from 'vitest';
 import { createElement } from 'react';
+
+import { describe, expect, it } from 'vitest';
 
 import { defineRoute, hasMenuHandle } from './route-tree.js';
 import type { RouteModule } from './route-tree.js';

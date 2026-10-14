@@ -5,7 +5,9 @@
 // node:child_process adapter exposing the same Subprocess-shaped contract
 // (exited / stdout.text / stderr.text) the checker expects.
 import { spawn } from 'node:child_process';
+
 import { describe, it, expect } from 'vitest';
+
 import { LocalHostToolChecker } from '../../../src/domains/system/infrastructure/LocalHostToolChecker.js';
 
 interface SpawnedLike {

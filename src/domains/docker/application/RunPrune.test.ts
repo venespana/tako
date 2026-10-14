@@ -6,10 +6,10 @@
 // port in either mode.
 import { describe, expect, it } from 'vitest';
 
-import { PruneScopeValidationError } from '../domain/prune-policy.js';
-import type { PruneItem, PruneScope, PruneScopeReport } from '../domain/types.js';
 import { PruneValidationError, RunPrune } from './RunPrune.js';
 import type { DockerPruner } from './RunPrune.js';
+import { PruneScopeValidationError } from '../domain/prune-policy.js';
+import type { PruneItem, PruneScope, PruneScopeReport } from '../domain/types.js';
 
 /** Recording fake: proves which method ran (plan vs apply) and with what. */
 class RecordingPruner implements DockerPruner {
@@ -54,9 +54,10 @@ describe('RunPrune — dry-run plan (report only, nothing removed)', () => {
       { scope: 'build-cache', items: [], count: 0, spaceReclaimedBytes: 0 },
     ];
     const pruner = new RecordingPruner(entries);
-    const report = await new RunPrune(pruner).execute(
-      { scopes: ['stopped-containers', 'build-cache'], mode: 'dry-run' }
-    );
+    const report = await new RunPrune(pruner).execute({
+      scopes: ['stopped-containers', 'build-cache'],
+      mode: 'dry-run',
+    });
 
     expect(report.scopes).toEqual(['stopped-containers', 'build-cache']);
     expect(report.entries).toEqual(entries);
@@ -90,9 +91,7 @@ describe('RunPrune — forbidden scopes rejected before any port call (ADR-0008)
       await expect(new RunPrune(pruner).execute({ scopes: ['dangling-images', scope], mode })).rejects.toThrow(
         PruneScopeValidationError
       );
-      await expect(new RunPrune(pruner).execute({ scopes: [scope], mode })).rejects.toThrow(
-        PruneScopeValidationError
-      );
+      await expect(new RunPrune(pruner).execute({ scopes: [scope], mode })).rejects.toThrow(PruneScopeValidationError);
       expect(pruner.planCalls).toHaveLength(0);
       expect(pruner.applyCalls).toHaveLength(0);
     }
@@ -111,18 +110,19 @@ describe('RunPrune — forbidden scopes rejected before any port call (ADR-0008)
 
   it.each(['mutate', 'DRY-RUN', 42, null, undefined])('rejects mode %j', async mode => {
     const pruner = new RecordingPruner();
-    await expect(
-      new RunPrune(pruner).execute({ scopes: ['dangling-images'], mode })
-    ).rejects.toThrow(PruneValidationError);
+    await expect(new RunPrune(pruner).execute({ scopes: ['dangling-images'], mode })).rejects.toThrow(
+      PruneValidationError
+    );
     expect(pruner.planCalls).toHaveLength(0);
     expect(pruner.applyCalls).toHaveLength(0);
   });
 
   it('collapses duplicate scopes before the port sees them', async () => {
     const pruner = new RecordingPruner();
-    const report = await new RunPrune(pruner).execute(
-      { scopes: ['dangling-images', 'dangling-images', 'build-cache'], mode: 'apply' }
-    );
+    const report = await new RunPrune(pruner).execute({
+      scopes: ['dangling-images', 'dangling-images', 'build-cache'],
+      mode: 'apply',
+    });
 
     expect(pruner.applyCalls).toEqual([['dangling-images', 'build-cache']]);
     expect(report.scopes).toEqual(['dangling-images', 'build-cache']);

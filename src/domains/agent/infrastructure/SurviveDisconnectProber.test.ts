@@ -4,19 +4,19 @@
 // close connection A → wait → poll over independent connection B (unit active
 // + protocol handshake with expected agentVersion); failures NEVER report
 // success and collect diagnostics over B.
-import { Duplex } from 'node:stream';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Duplex } from 'node:stream';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { helloAckFrame } from '../domain/protocol.js';
-import type { AgentChannel } from '../../remotes/application/AgentChannel.js';
-import type { RemoteCommandResult, RemoteCommandRunner } from '../../remotes/application/RemoteCommandRunner.js';
-import { InMemoryJobStore } from '../testing/InMemoryJobStore.js';
 import { SurviveDisconnectProber } from './SurviveDisconnectProber.js';
 import { UnixSocketAgentServer } from './UnixSocketAgentServer.js';
+import type { AgentChannel } from '../../remotes/application/AgentChannel.js';
+import type { RemoteCommandResult, RemoteCommandRunner } from '../../remotes/application/RemoteCommandRunner.js';
+import { helloAckFrame } from '../domain/protocol.js';
+import { InMemoryJobStore } from '../testing/InMemoryJobStore.js';
 
 const AGENT_VERSION = '0.1.2';
 const FAST_DELAYS = { afterCloseMs: 1, pollIntervalMs: 1 };
@@ -99,9 +99,7 @@ describe('SurviveDisconnectProber — success path', () => {
         events.push('closed-A');
       },
       openVerifier: async () => ({
-        runner: createRunner(command =>
-          command.includes('is-active') ? ok('active\n') : ok('')
-        ),
+        runner: createRunner(command => (command.includes('is-active') ? ok('active\n') : ok(''))),
         channel: new FakeAgentChannel(AGENT_VERSION),
         close: async () => {
           events.push('closed-B');
@@ -211,7 +209,9 @@ describe('SurviveDisconnectProber — failure paths (never report success)', () 
         runner: createRunner(command => {
           if (command.includes('is-active')) return ok('active\n');
           if (command.startsWith('ls -la')) {
-            return ok('total 20\ndrwx------ 3 ops ops 4096 Sep 28 22:10 .\n-rw-r--r-- 1 ops ops 65 Sep 28 22:10 installed.sha256');
+            return ok(
+              'total 20\ndrwx------ 3 ops ops 4096 Sep 28 22:10 .\n-rw-r--r-- 1 ops ops 65 Sep 28 22:10 installed.sha256'
+            );
           }
           return ok('');
         }),

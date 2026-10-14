@@ -1,5 +1,6 @@
 // required-tools.test.ts — STRICT TDD RED phase
 import { describe, it, expect } from 'vitest';
+
 import { REQUIRED_HOST_TOOLS } from './required-tools.js';
 
 describe('REQUIRED_HOST_TOOLS', () => {

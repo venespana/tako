@@ -20,9 +20,6 @@ export interface ActionItem {
   submenu?: string[];
   /** When to show this item as enabled (selectable) */
   enabledWhen?: EnableCondition;
-  /** Stable action identifier for kind === 'action' (command namespacing; the
-   * old dispatch-map lookup was removed when routing replaced dispatching) */
-  handlerKey?: string;
   /** Target path (e.g. '/remotes/list') when kind === 'submenu'; also used by
    * action items that navigate. A plain path string on purpose: features stay
    * decoupled from the route tree; the router simply does not match unknown
@@ -37,18 +34,21 @@ export interface ActionGroup {
   items: ActionItem[];
 }
 
-/** Render-ready menu item: an ActionItem with its enablement pre-computed.
- * Pure renderers (widgets) consume this shape so they never evaluate the
- * enabledWhen business rule themselves. */
-export interface RenderableActionItem extends ActionItem {
+/**
+ * Feature-side gating result: an ActionItem with its enablement pre-computed
+ * (withEnablement). The ActionMenu widget owns the render-ready contract
+ * (RenderableActionGroup, ADR-0018 point 6); pages hand this shape to the
+ * widget — it is structurally compatible.
+ */
+export interface GatedActionItem extends ActionItem {
   /** Pre-computed by the menu feature (withEnablement): true when the item
    * passes the gating rule and is part of the selectable list. */
   enabled: boolean;
 }
 
-/** Render-ready group: same label structure, items carry `enabled`. */
-export interface RenderableActionGroup {
+/** Gated group: same label structure, items carry `enabled`. */
+export interface GatedActionGroup {
   id: string;
   label: string;
-  items: RenderableActionItem[];
+  items: GatedActionItem[];
 }

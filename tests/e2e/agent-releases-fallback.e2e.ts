@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { runAgentInstall, type AgentInstallDeps } from '../../src/cli/commands/agent-install.js';
+import { runAgentInstall, type AgentInstallDeps } from '../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
 
 const GATED = process.env['TAKO_E2E_RELEASES'] === '1';
 const RELEASE_VERSION = process.env['TAKO_E2E_RELEASE_VERSION'] ?? '';

@@ -22,7 +22,7 @@ import { join } from 'node:path';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { afterAll, describe, expect, it } from 'vitest';
 
-import { runAgentInstall, type AgentInstallDeps } from '../../src/cli/commands/agent-install.js';
+import { runAgentInstall, type AgentInstallDeps } from '../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
 import { StreamLocalAgentTransport } from '../../src/domains/agent/infrastructure/StreamLocalAgentTransport.js';
 import { SshConnectionManager } from '../../src/domains/remotes/infrastructure/SshConnectionManager.js';
 import { SshRemoteCommandRunner } from '../../src/domains/remotes/infrastructure/SshRemoteCommandRunner.js';

@@ -1,9 +1,10 @@
 // application/use-cases/GetAgentStatus.test.ts — STRICT TDD RED phase (task 3.10)
 import { describe, it, expect, vi } from 'vitest';
+
 // RED: import the modules that don't exist yet
 import { GetAgentStatus, computeAgentLifecycle } from './GetAgentStatus.js';
-import type { AgentSession, AgentTransport } from '../AgentTransport.js';
 import type { AgentStatusResult } from '../../domain/protocol.js';
+import type { AgentSession, AgentTransport } from '../AgentTransport.js';
 
 const STATUS: AgentStatusResult = {
   agentVersion: '0.1.2',
@@ -41,7 +42,9 @@ describe('computeAgentLifecycle (pure — design §Job & Run Model client view)'
   });
 
   it('3.10 RED: protocol mismatch wins over unit state → version_mismatch', () => {
-    expect(computeAgentLifecycle({ connected: true, protocolMatch: false, unitState: 'active' })).toBe('version_mismatch');
+    expect(computeAgentLifecycle({ connected: true, protocolMatch: false, unitState: 'active' })).toBe(
+      'version_mismatch'
+    );
   });
 
   it('3.10 RED: reachable, matching, unit active → active', () => {
@@ -49,11 +52,15 @@ describe('computeAgentLifecycle (pure — design §Job & Run Model client view)'
   });
 
   it('3.10 RED: unit not-found → not_installed', () => {
-    expect(computeAgentLifecycle({ connected: true, protocolMatch: true, unitState: 'not-found' })).toBe('not_installed');
+    expect(computeAgentLifecycle({ connected: true, protocolMatch: true, unitState: 'not-found' })).toBe(
+      'not_installed'
+    );
   });
 
   it('3.10 RED: inactive/failed/unknown/missing unit state → inactive_unit', () => {
-    expect(computeAgentLifecycle({ connected: true, protocolMatch: true, unitState: 'inactive' })).toBe('inactive_unit');
+    expect(computeAgentLifecycle({ connected: true, protocolMatch: true, unitState: 'inactive' })).toBe(
+      'inactive_unit'
+    );
     expect(computeAgentLifecycle({ connected: true, protocolMatch: true, unitState: 'failed' })).toBe('inactive_unit');
     expect(computeAgentLifecycle({ connected: true, protocolMatch: true, unitState: 'unknown' })).toBe('inactive_unit');
     expect(computeAgentLifecycle({ connected: true, protocolMatch: true, unitState: undefined })).toBe('inactive_unit');

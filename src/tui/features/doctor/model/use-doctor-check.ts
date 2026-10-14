@@ -2,7 +2,7 @@
 // No zustand store — stateless, each mount starts a fresh check.
 import { useCallback, useEffect, useState } from 'react';
 
-import type { SystemCheckResult } from '../../../../domains/system/domain/types.js';
+import type { SystemCheckResult } from '../../../../services/system.js';
 
 export type DoctorCheckStatus =
   | { readonly status: 'idle' }

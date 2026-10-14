@@ -12,13 +12,15 @@ import tseslint from 'typescript-eslint';
 const tsconfigRootDir = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig(
+  // Test files are NOT ignored (F4): the boundary zones and import rules
+  // below apply to them too — a test importing a layer it must not touch is
+  // the same architecture break as production code. Noise-specific
+  // relaxations live in the dedicated test block further down.
   globalIgnores([
     '**/node_modules',
     '**/dist',
     '**/build',
     '**/coverage',
-    '**/*.test.{ts,tsx,js,jsx}',
-    '**/*.spec.{ts,tsx,js,jsx}',
     '**/.env.*',
     '**/*.tsbuildinfo',
     'docs/**',
@@ -67,6 +69,20 @@ export default defineConfig(
         'warn',
         {
           groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index'], 'object', 'unknown'],
+          // React/Ink ordering: react/react-dom/ink sort as builtins, before everything.
+          pathGroups: [
+            {
+              pattern: 'react{,-dom{/**,}}',
+              group: 'builtin',
+              position: 'before',
+            },
+            {
+              pattern: 'ink{,-*/**}',
+              group: 'builtin',
+              position: 'before',
+            },
+          ],
+          pathGroupsExcludedImportTypes: ['react', 'react-dom', 'react-dom/**', 'ink', 'ink-*'],
           'newlines-between': 'always',
           alphabetize: {
             order: 'asc',
@@ -90,6 +106,7 @@ export default defineConfig(
         'error',
         {
           zones: [
+            // --- Presentation isolation (ADR-0020: one interactive client, one non-interactive) ---
             {
               target: ['src/tui/**/*'],
               from: ['src/cli/**/*'],
@@ -98,9 +115,43 @@ export default defineConfig(
             {
               target: ['src/cli/**/*'],
               from: ['src/tui/**/*'],
-              except: ['**/src/tui/features/remotes/add-remote-wizard/**', '**/src/tui/features/doctor/**'],
               message:
-                'Architecture rule: src/cli/ may not import from src/tui/ (ADR-0014 exceptions: add-remote-wizard and doctor feature slices)',
+                'Architecture rule: src/cli/ may not import from src/tui/ (ADR-0020: the CLI is strictly non-interactive — one interactive client, one non-interactive client)',
+            },
+            // --- ADR-0019 §4 dependency directions (server/clients model) ---
+            {
+              target: ['src/shared/**/*'],
+              from: ['src/domains/**/*', 'src/cli/**/*', 'src/tui/**/*', 'src/services/**/*'],
+              message: 'Architecture rule: src/shared/ is the shared kernel — it imports from nothing',
+            },
+            {
+              target: ['src/domains/**/*'],
+              from: ['src/cli/**/*', 'src/tui/**/*', 'src/services/**/*'],
+              message:
+                'Architecture rule: domains may import only src/shared/ — presentation and services never enter a domain (ADR-0019 §4)',
+            },
+            {
+              target: ['src/services/**/*'],
+              from: ['src/cli/**/*', 'src/tui/**/*'],
+              message:
+                'Architecture rule: services must not import presentation — clients import services, never the reverse (ADR-0019 §4)',
+            },
+            {
+              target: ['src/tui/**/*'],
+              from: ['src/domains/**/*'],
+              message:
+                'Architecture rule: src/tui/ must not import domains directly — contract types are re-exported through src/services/ (ADR-0019 §4)',
+            },
+            // The mirrored cli→domains direction is enforced below with
+            // no-restricted-imports: this rule's `except` filters import
+            // paths, so it cannot exempt the one documented target-file
+            // exception (the agent-run composition root).
+            // --- Clean Architecture inside each domain ---
+            {
+              target: ['src/domains/*/application/**/*'],
+              from: ['src/domains/*/infrastructure/**/*'],
+              message:
+                'Clean Architecture rule: application declares ports, infrastructure implements adapters — application never imports infrastructure',
             },
             {
               target: ['src/domains/agent/**/*'],
@@ -108,6 +159,40 @@ export default defineConfig(
               except: ['**/src/domains/remotes/application/**'],
               message:
                 'ADR-0015/D4: agent may import only remotes/application ports (type-only); runtime wiring lives in cli/tui composition roots',
+            },
+            // --- FSD layer direction inside the TUI (ADR-0018). Same-layer
+            // sibling cross-imports are Steiger's granularity, not a zone
+            // per pair — see ADR-0018 §4 division of labor. ---
+            {
+              target: ['src/tui/shared/**/*'],
+              from: [
+                'src/tui/entities/**/*',
+                'src/tui/features/**/*',
+                'src/tui/widgets/**/*',
+                'src/tui/pages/**/*',
+                'src/tui/app/**/*',
+              ],
+              message: 'FSD rule: shared is the lowest TUI layer — upward imports are banned (ADR-0018)',
+            },
+            {
+              target: ['src/tui/entities/**/*'],
+              from: ['src/tui/features/**/*', 'src/tui/widgets/**/*', 'src/tui/pages/**/*', 'src/tui/app/**/*'],
+              message: 'FSD rule: entities may not import features, widgets, pages, or app (ADR-0018 layer direction)',
+            },
+            {
+              target: ['src/tui/features/**/*'],
+              from: ['src/tui/widgets/**/*', 'src/tui/pages/**/*', 'src/tui/app/**/*'],
+              message: 'FSD rule: features may not import widgets, pages, or app (ADR-0018 layer direction)',
+            },
+            {
+              target: ['src/tui/widgets/**/*'],
+              from: ['src/tui/pages/**/*', 'src/tui/app/**/*'],
+              message: 'FSD rule: widgets may not import pages or app (ADR-0018 layer direction)',
+            },
+            {
+              target: ['src/tui/pages/**/*'],
+              from: ['src/tui/app/**/*'],
+              message: 'FSD rule: pages may not import app — composition flows downward (ADR-0018 layer direction)',
             },
           ],
         },
@@ -128,6 +213,40 @@ export default defineConfig(
             'ADR-0015/D4: agent imports remotes/application ports type-only (`import type`); runtime wiring lives in cli/tui composition roots',
         },
       ],
+    },
+  },
+  {
+    // ADR-0019 §4: the CLI consumes the services layer, never domains
+    // directly. `import-x/no-restricted-paths` cannot exempt a target file
+    // (its `except` filters import paths, and targets take no negation), so
+    // this direction uses the core no-restricted-imports rule (the import-x
+    // plugin no longer re-exports it) with an explicit off-override
+    // for the one documented exception below.
+    files: ['src/cli/**/*.ts', 'src/cli/**/*.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/domains/**'],
+              message:
+                'Architecture rule: src/cli/ must not import domains directly — contract types flow through src/services/ (ADR-0019 §4)',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // The documented exception (ADR-0015 `run` + ADR-0016): `agent-run` is the
+    // agent-mode SERVER composition root — it wires the domain (application
+    // use cases, the unix-socket server, persistence), it is not a client of
+    // the services layer. Only the domains ban is lifted here; every other
+    // rule, including the cli→tui zone, still applies to these files.
+    files: ['src/cli/commands/agent-run.ts', 'src/cli/commands/agent-run.test.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
     },
   },
   {
@@ -157,11 +276,30 @@ export default defineConfig(
   },
   {
     // `bun:sqlite` is a Bun built-in that Node-based resolvers cannot resolve.
-    // Scoped to the ADR-0016 persistence zone and the Bun-run integration
-    // fixtures; nowhere else may import Bun-only modules.
-    files: ['src/domains/agent/infrastructure/persistence/**/*.ts', 'tests/integration/agent/**/*.ts'],
+    // Scoped to the ADR-0016 persistence zone, the agent-mode composition
+    // root, and the Bun-run integration fixtures; nowhere else may import
+    // Bun-only modules.
+    files: [
+      'src/domains/agent/infrastructure/persistence/**/*.ts',
+      'src/cli/commands/agent-run.ts',
+      'tests/integration/agent/**/*.ts',
+    ],
     rules: {
       'import-x/no-unresolved': ['error', { ignore: ['bun:.*'] }],
+    },
+  },
+  {
+    // Test files (un-blinded in F4): the boundary zones and import rules in
+    // the blocks above apply to them in full. Relax ONLY what is noise for
+    // tests — fixture indexing relies on non-null assertions, and the
+    // ordering rule stays at its global `warn` so a misplaced test import is
+    // visible without failing the suite.
+    files: ['**/*.test.{ts,tsx,js,jsx}', '**/*.spec.{ts,tsx,js,jsx}'],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      // Tests build elements manually (React.createElement) — the named-member
+      // caution is production-idiom noise here.
+      'import-x/no-named-as-default-member': 'off',
     },
   },
 
@@ -177,31 +315,6 @@ export default defineConfig(
   {
     files: ['**/*.{js,mjs,cjs,ts,jsx,tsx}'],
     rules: {
-      // Override import ordering for React/Ink: react/react-dom/ink as builtin, before everything.
-      'import-x/order': [
-        'warn',
-        {
-          groups: ['builtin', 'external', 'internal', ['parent', 'sibling', 'index'], 'object', 'unknown'],
-          pathGroups: [
-            {
-              pattern: 'react{,-dom{/**,}}',
-              group: 'builtin',
-              position: 'before',
-            },
-            {
-              pattern: 'ink{,-*/**}',
-              group: 'builtin',
-              position: 'before',
-            },
-          ],
-          pathGroupsExcludedImportTypes: ['react', 'react-dom', 'react-dom/**', 'ink', 'ink-*'],
-          'newlines-between': 'always',
-          alphabetize: {
-            order: 'asc',
-            caseInsensitive: true,
-          },
-        },
-      ],
       // React-specific
       'react/display-name': 'off',
       'react/no-children-prop': 'off',
