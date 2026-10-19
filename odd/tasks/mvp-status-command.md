@@ -78,13 +78,13 @@ Part B — CLI surface:
       (0 ok · 1 refusal/invalid · 2 unexpected); register `status` in
       `buildProgram()` with lazy import. Unit tests with remote-add-style harness
       (unknown remote, ssh refusal, happy table, missing --host). Route: inline writer.
-- [ ] S7 — docs: expand docs/commands.md status section (usage, exit codes, example
+- [x] S7 — docs: expand docs/commands.md status section (usage, exit codes, example
       output); reconcile the `[--host X]` vs `<host>` ambiguity with the implemented
       shape. Structural check only. Route: inline.
 
 Close-out:
 
-- [ ] S8 — Bump `package.json` minor (new command) when opening the PR (repo rule:
+- [x] S8 — Bump `package.json` minor (new command) when opening the PR (repo rule:
       every PR bumps version). Delivery: forecast ≈ 600–700 authored lines (incl. tests)
       → strategy `ask-on-risk` (default): expect 2 chained slices (domain A / CLI B);
       ask once when the threshold is crossed.
@@ -115,9 +115,10 @@ lint` pass at close.
   under full-suite load (pass in isolation) — pre-existing, follow-up.
 - 2026-10-19: S4 committed (aff5f1b); S5 implemented (pure table formatter,
   RED→GREEN) — commit pending user approval.
-- 2026-10-19: S5 committed (5ced56d); S6 implemented (runStatus + CLI
-  registration, RED→GREEN, real-binary smoke for the missing-flag refusal)
-  — commit pending user approval.
+- 2026-10-19: S6 committed (111c76f); S7 done (docs/commands.md status section
+  reconciled to the implemented required `--host <remote>` shape) and S8 done
+  (package.json 1.0.0 → 1.1.0 + regenerated version.ts, which was stale at
+  0.2.0 in the repo). Commit pending user approval.
 
 ## Verification evidence
 
