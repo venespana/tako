@@ -49,17 +49,17 @@ Part A — docker domain (branch `feature/mvp-status-command` off `main`):
 
 - [x] S1 — `domain/stack-status.ts`: `StackStatusEntry` type + pure parser
       `parseComposeLsJson(stdout): StackStatusEntry[]` for `docker compose ls
-    --format json` output (array or JSON-lines tolerant). Unit test with fixture
+  --format json` output (array or JSON-lines tolerant). Unit test with fixture
       strings: happy path, empty list, malformed output (strict refusal, confirmed
       by user 2026-10-17 — loud-refusal convention; corrupt output is never
       partially rendered). Route: inline writer.
-- [ ] S2 — `application/GetStackStatus.ts`: port `ComposeStatusReader { read():
-    Promise<CommandExecution> }` co-declared; use case runs probe, treats nonzero
+- [x] S2 — `application/GetStackStatus.ts`: port `ComposeStatusReader { read():
+  Promise<CommandExecution> }` co-declared; use case runs probe, treats nonzero
       exit as refusal data, returns `{kind:'ok', entries} | {kind:'refusal', reason}`.
       Unit test with fake reader (exit 0 / exit 1 / empty output). Route: inline writer.
 - [ ] S3 — `infrastructure/RemoteComposeCliAdapter.ts`: implements the port over an
       injected `RemoteCommandRunner`; builds exact argv `docker compose ls --format
-    json`. Unit test with fake runner (assert command string). Integration test:
+  json`. Unit test with fake runner (assert command string). Integration test:
       slim sshd container + stub `docker` shell script on PATH emitting fixture JSON
       (no docker-in-docker needed). Route: inline writer (delegated if >2 files).
 - [ ] S4 — `services/docker.ts`: add `getStackStatus(host)` — lazy imports, private
@@ -107,6 +107,7 @@ lint` pass at close.
 - 2026-10-19: user manually reviewed S1 (validation harness + real docker output);
   ESLint conventions added (blank lines around control blocks, iterable ops over
   for loops) and S1 rewritten accordingly; S1 committed (see evidence).
+- 2026-10-19: S2 implemented (RED→GREEN) — commit pending user approval.
 
 ## Verification evidence
 
@@ -118,3 +119,8 @@ parser (S1)`. Re-verified 2026-10-19 after the lint-convention rewrite to
   `.map` (13/13, scoped lint, typecheck); lint rules shipped first in
   `chore(lint): require blank lines around control blocks, prefer iterable
 ops over for`.
+- S2 (2026-10-19): RED observed (module not found); GREEN 8/8
+  (`GetStackStatus.test.ts` — ok/refusal mapping, signal kill, strict parser
+  passthrough, single port read); scoped lint + `tsc --noEmit` clean. Pattern
+  mirrors `RunStackLifecycle` (class use case, co-declared port).
+  Commit: pending approval.
