@@ -158,3 +158,11 @@ ops over for`.
   `status` registered in `buildProgram()` with lazy import; real-binary smoke
   (`bun run src/index.tsx status`) prints the refusal and exits 1. Scoped lint
   - `tsc --noEmit` clean. Commit: pending approval.
+
+## Delivery
+
+- 2026-10-19: strategy `ask-on-risk` → user chose ONE PR (units were reviewed
+  manually one by one). PR #10: https://github.com/venespana/tako/pull/10
+  (base main, 10 commits). Follow-ups recorded: legacy lint cleanup (770
+  pre-existing violations under the 2026-10-19 conventions), flaky TUI
+  remotes-menu tests under load, TUI StatusPage wiring (separate feature).
