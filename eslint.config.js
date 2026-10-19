@@ -11,6 +11,27 @@ import tseslint from 'typescript-eslint';
 
 const tsconfigRootDir = fileURLToPath(new URL('.', import.meta.url));
 
+/**
+ * Team convention (2026-10-19): prefer iterable operations (.map/.forEach/
+ * .reduce/.some/.every/.find) over `for` loops. Declared once because flat
+ * config rule overrides are all-or-nothing per matching block: the agent D4
+ * block below must restate these selectors alongside its own or lose them.
+ */
+const PREFER_ITERABLE_OVER_FOR = [
+  {
+    selector: 'ForStatement',
+    message: 'Prefer iterable operations (.map/.forEach/.reduce/.some/.every/.find) over `for` loops',
+  },
+  {
+    selector: 'ForInStatement',
+    message: 'Prefer iterable operations (Object.keys/.entries + .map/.forEach/...) over `for...in` loops',
+  },
+  {
+    selector: 'ForOfStatement',
+    message: 'Prefer iterable operations (.map/.forEach/.reduce/.some/.every/.find) over `for...of` loops',
+  },
+];
+
 export default defineConfig(
   // Test files are NOT ignored (F4): the boundary zones and import rules
   // below apply to them too — a test importing a layer it must not touch is
@@ -212,6 +233,7 @@ export default defineConfig(
           message:
             'ADR-0015/D4: agent imports remotes/application ports type-only (`import type`); runtime wiring lives in cli/tui composition roots',
         },
+        ...PREFER_ITERABLE_OVER_FOR,
       ],
     },
   },
@@ -272,6 +294,19 @@ export default defineConfig(
       ],
       'no-shadow': 'off',
       'no-undef': 'off',
+      // Team convention (2026-10-19): blank line before and after block-like
+      // control statements. An if/else, try/catch or do/while is ONE
+      // statement for this rule, so no inner exceptions are needed — only
+      // case labels, whose first statement stays glued to the label.
+      // NOTE: deprecated in core since 8.53 (removed in 11); migrate to
+      // @stylistic/eslint-plugin when the repo upgrades past ESLint 10.
+      'padding-line-between-statements': [
+        'error',
+        { blankLine: 'always', prev: '*', next: ['if', 'for', 'while', 'do', 'switch', 'try'] },
+        { blankLine: 'always', prev: ['if', 'for', 'while', 'do', 'switch', 'try'], next: '*' },
+        { blankLine: 'never', prev: ['case', 'default'], next: ['if', 'for', 'while', 'do', 'switch', 'try'] },
+      ],
+      'no-restricted-syntax': ['error', ...PREFER_ITERABLE_OVER_FOR],
     },
   },
   {

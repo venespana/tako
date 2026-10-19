@@ -4,6 +4,7 @@
 import { Command } from 'commander';
 
 import type { RemoteAddFlags } from './commands/remote-add.js';
+import type { StatusFlags } from './commands/status.js';
 import { SESSION_PASSWORD_ENV } from '../shared/lib/session-password.js';
 import { VERSION } from '../shared/lib/version.js';
 
@@ -41,7 +42,6 @@ export function buildProgram(): Command {
 
   // Remote management subcommand
   const remote = program.command('remote').description('Manage remote connections');
-
   remote
     .command('add')
     .description(
@@ -62,6 +62,22 @@ export function buildProgram(): Command {
         // Lazy import to defer Ink/React loading (required for compile)
         const { runRemoteAddDefault } = await import('./commands/remote-add.js');
         process.exit(await runRemoteAddDefault(options));
+      } catch (err) {
+        console.error(err);
+        process.exit(2);
+      }
+    });
+
+  // Stack status family — the MVP read-only command over SSH.
+  program
+    .command('status')
+    .description('Show the compose stack status of one remote over SSH (non-interactive)')
+    .option('--host <name>', 'configured remote name (required — no default-remote fallback yet)')
+    .action(async (options: StatusFlags) => {
+      try {
+        // Lazy import to defer Ink/React loading (required for compile)
+        const { runStatus } = await import('./commands/status.js');
+        process.exit(await runStatus(options, { log: console.log, error: console.error }));
       } catch (err) {
         console.error(err);
         process.exit(2);
