@@ -73,7 +73,7 @@ Part B — CLI surface:
 - [x] S5 — `cli/commands/status.ts`: pure `formatStatusTable(entries): string[]`
       (padEnd label/value rows, style of `formatAgentStatus`). Unit test pure.
       Route: inline.
-- [ ] S6 — `cli/commands/status.ts`: `runStatus(io, {host})` — ParsedFlag loud
+- [x] S6 — `cli/commands/status.ts`: `runStatus(io, {host})` — ParsedFlag loud
       parsing, service call, outcome switch → print/error + exit code
       (0 ok · 1 refusal/invalid · 2 unexpected); register `status` in
       `buildProgram()` with lazy import. Unit tests with remote-add-style harness
@@ -115,6 +115,9 @@ lint` pass at close.
   under full-suite load (pass in isolation) — pre-existing, follow-up.
 - 2026-10-19: S4 committed (aff5f1b); S5 implemented (pure table formatter,
   RED→GREEN) — commit pending user approval.
+- 2026-10-19: S5 committed (5ced56d); S6 implemented (runStatus + CLI
+  registration, RED→GREEN, real-binary smoke for the missing-flag refusal)
+  — commit pending user approval.
 
 ## Verification evidence
 
@@ -147,4 +150,10 @@ ops over for`.
 - S5 (2026-10-19): RED observed; GREEN 3/3 (`status.test.ts` — aligned header+
   row, column widening, explicit empty state). One test expectation corrected
   (miscounted label width; implementation was right). Scoped lint + typecheck
-  clean. Commit: pending approval.
+  clean. Commit: 5ced56d.
+- S6 (2026-10-19): RED observed; GREEN 10/10 in `status.test.ts` (7 new —
+  missing/empty --host loud refusal, happy table + env session password
+  passthrough, empty listing, unknown-remote, refusal, unexpected throw → 2).
+  `status` registered in `buildProgram()` with lazy import; real-binary smoke
+  (`bun run src/index.tsx status`) prints the refusal and exits 1. Scoped lint
+  - `tsc --noEmit` clean. Commit: pending approval.
