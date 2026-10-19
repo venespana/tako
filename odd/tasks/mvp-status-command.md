@@ -49,17 +49,17 @@ Part A — docker domain (branch `feature/mvp-status-command` off `main`):
 
 - [x] S1 — `domain/stack-status.ts`: `StackStatusEntry` type + pure parser
       `parseComposeLsJson(stdout): StackStatusEntry[]` for `docker compose ls
-  --format json` output (array or JSON-lines tolerant). Unit test with fixture
+--format json` output (array or JSON-lines tolerant). Unit test with fixture
       strings: happy path, empty list, malformed output (strict refusal, confirmed
       by user 2026-10-17 — loud-refusal convention; corrupt output is never
       partially rendered). Route: inline writer.
 - [x] S2 — `application/GetStackStatus.ts`: port `ComposeStatusReader { read():
-  Promise<CommandExecution> }` co-declared; use case runs probe, treats nonzero
+Promise<CommandExecution> }` co-declared; use case runs probe, treats nonzero
       exit as refusal data, returns `{kind:'ok', entries} | {kind:'refusal', reason}`.
       Unit test with fake reader (exit 0 / exit 1 / empty output). Route: inline writer.
-- [ ] S3 — `infrastructure/RemoteComposeCliAdapter.ts`: implements the port over an
+- [x] S3 — `infrastructure/RemoteComposeCliAdapter.ts`: implements the port over an
       injected `RemoteCommandRunner`; builds exact argv `docker compose ls --format
-  json`. Unit test with fake runner (assert command string). Integration test:
+json`. Unit test with fake runner (assert command string). Integration test:
       slim sshd container + stub `docker` shell script on PATH emitting fixture JSON
       (no docker-in-docker needed). Route: inline writer (delegated if >2 files).
 - [ ] S4 — `services/docker.ts`: add `getStackStatus(host)` — lazy imports, private
@@ -108,6 +108,8 @@ lint` pass at close.
   ESLint conventions added (blank lines around control blocks, iterable ops over
   for loops) and S1 rewritten accordingly; S1 committed (see evidence).
 - 2026-10-19: S2 implemented (RED→GREEN) — commit pending user approval.
+- 2026-10-19: S2 committed (5fe2d96); S3 implemented (unit RED→GREEN + integration
+  over real ssh) — commit pending user approval.
 
 ## Verification evidence
 
@@ -123,4 +125,11 @@ ops over for`.
   (`GetStackStatus.test.ts` — ok/refusal mapping, signal kill, strict parser
   passthrough, single port read); scoped lint + `tsc --noEmit` clean. Pattern
   mirrors `RunStackLifecycle` (class use case, co-declared port).
-  Commit: pending approval.
+  Commit: 5fe2d96.
+- S3 (2026-10-19): unit RED observed; GREEN 4/4 (`RemoteComposeCliAdapter.test.ts`
+  — exact fixed command, field passthrough, composition with GetStackStatus,
+  exit-127 refusal). Integration (`remote-compose-status.integ.test.ts`): alpine
+  sshd built on the fly + stub `docker` on /usr/bin, production chain over real
+  ssh returns the fixture table; disabling the stub in-container yields the
+  refusal (`not found`). Integration project 7 passed / 5 env-skipped; unit
+  suite 823/823; scoped lint + `tsc --noEmit` clean. Commit: pending approval.
