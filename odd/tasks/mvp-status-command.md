@@ -62,7 +62,7 @@ Promise<CommandExecution> }` co-declared; use case runs probe, treats nonzero
 json`. Unit test with fake runner (assert command string). Integration test:
       slim sshd container + stub `docker` shell script on PATH emitting fixture JSON
       (no docker-in-docker needed). Route: inline writer (delegated if >2 files).
-- [ ] S4 — `services/docker.ts`: add `getStackStatus(host)` — lazy imports, private
+- [x] S4 — `services/docker.ts`: add `getStackStatus(host)` — lazy imports, private
       wiring: remotes service resolution → `SshConnectionManager` →
       `SshRemoteCommandRunner` → adapter → use case; `manager.end()` on all paths.
       Outcome union includes `unknown-remote`. Unit test mocking adapters
@@ -110,6 +110,9 @@ lint` pass at close.
 - 2026-10-19: S2 implemented (RED→GREEN) — commit pending user approval.
 - 2026-10-19: S2 committed (5fe2d96); S3 implemented (unit RED→GREEN + integration
   over real ssh) — commit pending user approval.
+- 2026-10-19: S3 committed (f212bd9); S4 implemented (service wiring, RED→GREEN)
+  — commit pending user approval. Note: 1-2 TUI remotes-menu tests are flaky
+  under full-suite load (pass in isolation) — pre-existing, follow-up.
 
 ## Verification evidence
 
@@ -132,4 +135,10 @@ ops over for`.
   sshd built on the fly + stub `docker` on /usr/bin, production chain over real
   ssh returns the fixture table; disabling the stub in-container yields the
   refusal (`not found`). Integration project 7 passed / 5 env-skipped; unit
-  suite 823/823; scoped lint + `tsc --noEmit` clean. Commit: pending approval.
+  suite 823/823; scoped lint + `tsc --noEmit` clean. Commit: f212bd9.
+- S4 (2026-10-19): RED observed; GREEN 8/8 (`services/docker.test.ts` — wiring
+  order, sessionPassword passthrough, unknown-remote/refusal without opening a
+  connection, `manager.end()` even on unexpected throw, laziness). Reuses
+  `resolveRemoteAuth` (fresh per call, union already carries `unknown-remote`).
+  Full suite 828/828 (1 TUI flaky on one run, green on rerun); scoped lint +
+  `tsc --noEmit` clean. Commit: pending approval.
