@@ -47,18 +47,19 @@ doc), `-a/--all` style flags beyond the contract, default-remote resolution.
 
 Part A — docker domain (branch `feature/mvp-status-command` off `main`):
 
-- [ ] S1 — `domain/stack-status.ts`: `StackStatusEntry` type + pure parser
+- [x] S1 — `domain/stack-status.ts`: `StackStatusEntry` type + pure parser
       `parseComposeLsJson(stdout): StackStatusEntry[]` for `docker compose ls
-      --format json` output (array or JSON-lines tolerant). Unit test with fixture
-      strings: happy path, empty list, malformed line skipped-or-refused (decide:
-      strict refusal, matching loud-refusal convention). Route: inline writer.
+    --format json` output (array or JSON-lines tolerant). Unit test with fixture
+      strings: happy path, empty list, malformed output (strict refusal, confirmed
+      by user 2026-10-17 — loud-refusal convention; corrupt output is never
+      partially rendered). Route: inline writer.
 - [ ] S2 — `application/GetStackStatus.ts`: port `ComposeStatusReader { read():
-      Promise<CommandExecution> }` co-declared; use case runs probe, treats nonzero
+    Promise<CommandExecution> }` co-declared; use case runs probe, treats nonzero
       exit as refusal data, returns `{kind:'ok', entries} | {kind:'refusal', reason}`.
       Unit test with fake reader (exit 0 / exit 1 / empty output). Route: inline writer.
 - [ ] S3 — `infrastructure/RemoteComposeCliAdapter.ts`: implements the port over an
       injected `RemoteCommandRunner`; builds exact argv `docker compose ls --format
-      json`. Unit test with fake runner (assert command string). Integration test:
+    json`. Unit test with fake runner (assert command string). Integration test:
       slim sshd container + stub `docker` shell script on PATH emitting fixture JSON
       (no docker-in-docker needed). Route: inline writer (delegated if >2 files).
 - [ ] S4 — `services/docker.ts`: add `getStackStatus(host)` — lazy imports, private
@@ -84,9 +85,9 @@ Part B — CLI surface:
 Close-out:
 
 - [ ] S8 — Bump `package.json` minor (new command) when opening the PR (repo rule:
-  every PR bumps version). Delivery: forecast ≈ 600–700 authored lines (incl. tests)
-  → strategy `ask-on-risk` (default): expect 2 chained slices (domain A / CLI B);
-  ask once when the threshold is crossed.
+      every PR bumps version). Delivery: forecast ≈ 600–700 authored lines (incl. tests)
+      → strategy `ask-on-risk` (default): expect 2 chained slices (domain A / CLI B);
+      ask once when the threshold is crossed.
 
 ## Acceptance criteria
 
@@ -95,13 +96,25 @@ Close-out:
 - Unknown host, refused SSH, missing compose, and absent `--host` each produce a
   clear stderr line and the documented exit code; nothing throws expected outcomes.
 - All units show RED→GREEN evidence; `bun run test && bun run typecheck && bun run
-  lint` pass at close.
+lint` pass at close.
 
 ## Progress
 
 - 2026-10-16: feature doc created from pattern mapping (explore handoff); S1–S8
   pending; awaiting user confirmation of the host-selection decision before S6.
+- 2026-10-17: host decision already confirmed; S1 parser strict-refusal confirmed
+  by user; S1 implemented (RED→GREEN).
+- 2026-10-19: user manually reviewed S1 (validation harness + real docker output);
+  ESLint conventions added (blank lines around control blocks, iterable ops over
+  for loops) and S1 rewritten accordingly; S1 committed (see evidence).
 
 ## Verification evidence
 
-(recorded per unit as it closes)
+- S1 (2026-10-17): RED observed (module not found); GREEN 13/13
+  (`stack-status.test.ts`); `bun run typecheck` clean; `bun run lint` clean
+  (after prettier --fix on the test fixture string); full unit suite 811/811.
+  Commit: this commit — `feat(docker): stack status type + strict compose ls
+parser (S1)`. Re-verified 2026-10-19 after the lint-convention rewrite to
+  `.map` (13/13, scoped lint, typecheck); lint rules shipped first in
+  `chore(lint): require blank lines around control blocks, prefer iterable
+ops over for`.

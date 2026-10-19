@@ -110,7 +110,9 @@ describe('parseComposeLsJson — strict refusal (user decision 2026-10-17)', () 
 
   it('refusal results carry a human-readable reason', () => {
     const result = parseComposeLsJson('[{"Status":"running(1)"}]');
+
     if (result.kind !== 'refusal') throw new Error('expected refusal');
+
     expect(result.reason.length).toBeGreaterThan(0);
   });
 });
