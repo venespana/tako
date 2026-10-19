@@ -70,7 +70,7 @@ json`. Unit test with fake runner (assert command string). Integration test:
 
 Part B — CLI surface:
 
-- [ ] S5 — `cli/commands/status.ts`: pure `formatStatusTable(entries): string[]`
+- [x] S5 — `cli/commands/status.ts`: pure `formatStatusTable(entries): string[]`
       (padEnd label/value rows, style of `formatAgentStatus`). Unit test pure.
       Route: inline.
 - [ ] S6 — `cli/commands/status.ts`: `runStatus(io, {host})` — ParsedFlag loud
@@ -113,6 +113,8 @@ lint` pass at close.
 - 2026-10-19: S3 committed (f212bd9); S4 implemented (service wiring, RED→GREEN)
   — commit pending user approval. Note: 1-2 TUI remotes-menu tests are flaky
   under full-suite load (pass in isolation) — pre-existing, follow-up.
+- 2026-10-19: S4 committed (aff5f1b); S5 implemented (pure table formatter,
+  RED→GREEN) — commit pending user approval.
 
 ## Verification evidence
 
@@ -141,4 +143,8 @@ ops over for`.
   connection, `manager.end()` even on unexpected throw, laziness). Reuses
   `resolveRemoteAuth` (fresh per call, union already carries `unknown-remote`).
   Full suite 828/828 (1 TUI flaky on one run, green on rerun); scoped lint +
-  `tsc --noEmit` clean. Commit: pending approval.
+  `tsc --noEmit` clean. Commit: aff5f1b.
+- S5 (2026-10-19): RED observed; GREEN 3/3 (`status.test.ts` — aligned header+
+  row, column widening, explicit empty state). One test expectation corrected
+  (miscounted label width; implementation was right). Scoped lint + typecheck
+  clean. Commit: pending approval.
