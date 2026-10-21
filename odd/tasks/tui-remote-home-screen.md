@@ -147,3 +147,13 @@ applies to PRs per ADR-0017 workflow note).
   Full suite 847 passing post-split; scoped eslint on touched dirs exit 1
   ONLY from the pre-existing padding-line/for-loop baseline (0 findings
   attributable to the splits).
+- 2026-10-21 (commits 3fc9693 + 47862bd): RDD assess → medium,
+  review_due (slice_budget_reached, 877 lines). Consent GRANTED by user;
+  lineage review-f1c382fe17abedfd froze (24 paths) but the reliability
+  lens slot was refused twice by the transport relay (output_refused —
+  same signature as 2026-10-16) → capture-unachievable recorded → STATUS
+  stop `unachievable_lens_slot`. User decisions: do NOT report to
+  gentle-ai; RDD stays ON for this clone (each future medium/high
+  candidate will consent → stop until the transport is fixed). Review
+  boundary does NOT advance: next assess keeps --base-ref main. Delivered
+  under ordinary repository policy; push/PR pending user decision.
