@@ -16,6 +16,7 @@ import { Box, Text } from 'ink';
 
 import { MultiSelect, Select, TextInput } from '@inkjs/ui';
 
+import { DoneRow } from './DoneRow.js';
 import type { JobDefinition, StackLifecycleOp, PruneScopes } from '../../../../services/agent.js';
 import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 import { EditingGuard } from '../../../shared/ui/EditingGuard.js';
@@ -52,15 +53,6 @@ const STEP_LABELS: Record<Step, string> = {
   scopes: 'scopes:',
   schedule: 'schedule:',
 };
-
-/** One-line row for a completed field (the wizard's DoneRow). */
-function DoneRow({ label, value }: { label: string; value: string }) {
-  return (
-    <Text dimColor>
-      {label} {value}
-    </Text>
-  );
-}
 
 /** Value a completed step shows on its done row. */
 function doneValue(step: Step, values: JobFormValues): string {

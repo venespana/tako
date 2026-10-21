@@ -4,7 +4,9 @@
 // status and version.
 import { Box, Text } from 'ink';
 
+import { CheckingState } from './CheckingState.js';
 import { DoctorToolLine } from './DoctorToolLine.js';
+import { ErrorState } from './ErrorState.js';
 import type { SystemCheckResult } from '../../../../services/system.js';
 import { useDoctorCheck } from '../model/use-doctor-check.js';
 
@@ -12,27 +14,6 @@ export type DoctorScreenProps = {
   /** Async check function — typically CheckHostDependencies.checkAll(). */
   runCheck: () => Promise<SystemCheckResult>;
 };
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function CheckingState(): React.ReactElement {
-  return (
-    <Box flexDirection='column' padding={1}>
-      <Text>Checking host dependencies...</Text>
-    </Box>
-  );
-}
-
-function ErrorState({ error }: { error: unknown }): React.ReactElement {
-  const message = error instanceof Error ? error.message : String(error);
-  return (
-    <Box flexDirection='column' padding={1}>
-      <Text color='red'>Error: {message}</Text>
-    </Box>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // DoctorScreen

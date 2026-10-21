@@ -10,6 +10,7 @@ import { Box, Text } from 'ink';
 
 import { TextInput, PasswordInput, Select } from '@inkjs/ui';
 
+import { DoneRow } from './DoneRow.js';
 import type { AddRemoteResult, SshCredentialType } from '../../../../services/remotes.js';
 import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 import { EditingGuard } from '../../../shared/ui/EditingGuard.js';
@@ -68,16 +69,6 @@ const STEP_FIELD: Record<WizardStep, FieldId | null> = {
   'hostkey-confirm': null,
   done: null,
 };
-
-// One-line row for a completed field; `value` is resolved at the call site so
-// the component can live at module level instead of being recreated per render.
-function DoneRow({ label, value }: { label: string; value: string }) {
-  return (
-    <Text dimColor>
-      {label} {value}
-    </Text>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // AddRemoteWizard
