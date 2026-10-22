@@ -226,3 +226,13 @@ the static fixture. Texts in ENGLISH (user decision — overrides the pen's
   keep the cursor column. 105 files / 945 tests green; committed and
   pushed as `fix(tui): keep hub group rows at column zero` (user request
   2026-10-22).
+- 2026-10-22 (R3-001 escalated — review-e5f5b53ca6955fd6, candidate C):
+  reviewer escalated a CRITICAL: the /remote-home shim had no route-level
+  test AND no no-remote redirect, diverging from the /status contract its
+  own comment claimed. Fixed: the shim now redirects home when no remote
+  is active (status-shim pattern) and `remote-home.test.tsx` covers props
+  injection, key remount and the redirect (3 tests). Suite 107 files /
+  956 tests. The escalated lineage stays terminal (informational); the
+  gap is covered for the next review boundary. Chain outcome: A approved
+  (acknowledged), B escalated (closed by status-shim tests), C escalated
+  (closed by this fix).
