@@ -10,6 +10,7 @@
 import { createElement } from 'react';
 
 import { Text } from 'ink';
+
 import { render } from 'ink-testing-library';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,21 +18,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import RemoteHomeRoute from './remote-home.js';
 import { initialAppRuntimeState, useAppRuntimeStore } from '../providers/app-runtime-store.js';
 
-const RemoteHomePage = vi.hoisted(() => vi.fn(() => null));
+const RemoteHomePage = vi.hoisted(() => vi.fn((_props: { remote: string; sessionPassword?: string }) => null));
 
 vi.mock('../../pages/remote-home/index.js', () => ({
   RemoteHomePage: RemoteHomePage,
 }));
 
 async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
-  for (let waited = 0; !predicate() && waited < timeoutMs; waited += 10) {
+  let waited = 0;
+
+  while (!predicate() && waited < timeoutMs) {
     await new Promise(resolve => setTimeout(resolve, 10));
+    waited += 10;
   }
+
   if (!predicate()) throw new Error('until: condition not met within timeout');
 }
 
 function renderRoute(): { lastFrame: () => string; unmount: () => void } {
-  return render(
+  const instance = render(
     createElement(
       MemoryRouter,
       { initialEntries: ['/remote-home'] },
@@ -39,10 +44,14 @@ function renderRoute(): { lastFrame: () => string; unmount: () => void } {
         Routes,
         null,
         createElement(Route, { path: '/remote-home', element: createElement(RemoteHomeRoute) }),
-        createElement(Route, { path: '/', element: createElement(Text, null, 'home-marker') }),
-      ),
+        createElement(Route, { path: '/', element: createElement(Text, null, 'home-marker') })
+      )
     )
   );
+
+  // The wrapper pins lastFrame to string: ink's Instance types it
+  // string | undefined, and every assertion here reads a settled frame.
+  return { lastFrame: () => instance.lastFrame()!, unmount: instance.unmount };
 }
 
 describe('RemoteHomeRoute shim (R3-001)', () => {
@@ -70,12 +79,10 @@ describe('RemoteHomeRoute shim (R3-001)', () => {
     await until(() => RemoteHomePage.mock.calls.length > 0);
 
     useAppRuntimeStore.setState({ activeRemote: 'vault', activeRemotePassword: 'two' });
-    await until(() =>
-      RemoteHomePage.mock.calls.some(call => (call[0] as { remote: string }).remote === 'vault')
-    );
+    await until(() => RemoteHomePage.mock.calls.some(call => call[0].remote === 'vault'));
 
-    const last = RemoteHomePage.mock.calls.at(-1)![0] as { remote: string; sessionPassword: string };
-    expect(last).toEqual({ remote: 'vault', sessionPassword: 'two' });
+    const lastCall = RemoteHomePage.mock.calls.at(-1);
+    expect(lastCall?.[0]).toEqual({ remote: 'vault', sessionPassword: 'two' });
   });
 
   it('navigates home when no remote is active', async () => {
