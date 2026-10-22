@@ -7,9 +7,11 @@
 // discipline, now owned by the service instead of the CLI handler).
 import { resolveRemoteAuth } from './remotes.js';
 import type { AgentConnectionAuth } from './remotes.js';
+import { GetContainers } from '../domains/docker/application/GetContainers.js';
 import { GetStackStatus } from '../domains/docker/application/GetStackStatus.js';
 import { RunPrune } from '../domains/docker/application/RunPrune.js';
 import { RunStackLifecycle } from '../domains/docker/application/RunStackLifecycle.js';
+import type { ContainerSnapshot } from '../domains/docker/domain/container-status.js';
 import type { StackStatusEntry } from '../domains/docker/domain/stack-status.js';
 import type {
   ExecutionMode,
@@ -28,6 +30,7 @@ export type {
   PruneScope,
   StackLifecycleReport,
 } from '../domains/docker/domain/types.js';
+export type { ContainerSnapshot } from '../domains/docker/domain/container-status.js';
 export type { StackStatusEntry } from '../domains/docker/domain/stack-status.js';
 
 /** One compose stack lifecycle operation (validated in-domain before anything runs). */
@@ -94,6 +97,48 @@ export async function getStackStatus(request: {
     const adapter = new RemoteComposeCliAdapter(new SshRemoteCommandRunner(manager));
 
     return await new GetStackStatus(adapter).execute();
+  } finally {
+    await manager.end();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Container listing over SSH (tui-remote-home-screen iteration 2)
+// ---------------------------------------------------------------------------
+
+/** Outcome of one container read (refusal-object style: expected outcomes never throw). */
+export type GetContainersOutcome =
+  | { readonly kind: 'ok'; readonly containers: readonly ContainerSnapshot[] }
+  | { readonly kind: 'unknown-remote'; readonly reason: string }
+  | { readonly kind: 'refusal'; readonly reason: string };
+
+/**
+ * The docker container list (including stopped ones) of one configured
+ * remote, over SSH (read-only). Same discipline as {@link getStackStatus}:
+ * the remote resolves FRESH per call, the SSH wiring stays private and
+ * LAZY, and the connection always ends — on every outcome and even when the
+ * use case throws unexpectedly.
+ */
+export async function getContainers(request: {
+  readonly remote: string;
+  readonly sessionPassword?: string;
+}): Promise<GetContainersOutcome> {
+  const resolution = await resolveRemoteAuth(request.remote, request.sessionPassword);
+
+  if (resolution.kind === 'unknown-remote') return { kind: 'unknown-remote', reason: resolution.reason };
+
+  if (resolution.kind === 'refusal') return { kind: 'refusal', reason: resolution.reason };
+
+  const { RemoteDockerPsAdapter } = await import('../domains/docker/infrastructure/RemoteDockerPsAdapter.js');
+  const { SshConnectionManager } = await import('../domains/remotes/infrastructure/SshConnectionManager.js');
+  const { SshRemoteCommandRunner } = await import('../domains/remotes/infrastructure/SshRemoteCommandRunner.js');
+
+  const manager = new SshConnectionManager(toConnectConfig(resolution.remote, resolution.auth));
+
+  try {
+    const adapter = new RemoteDockerPsAdapter(new SshRemoteCommandRunner(manager));
+
+    return await new GetContainers(adapter).execute();
   } finally {
     await manager.end();
   }

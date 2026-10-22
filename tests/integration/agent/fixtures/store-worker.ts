@@ -182,10 +182,12 @@ const commands: Record<string, (workerDbPath: string, workerArg?: string) => Pro
 
 try {
   const handler = command !== undefined ? commands[command] : undefined;
+
   if (handler === undefined || dbPath === undefined) {
     console.error(`unknown command: ${command ?? '(none)'}`);
     process.exit(2);
   }
+
   await handler(dbPath, arg);
   // Standalone CLI worker: exit deterministically (bunqueue keeps timers).
   process.exit(0);

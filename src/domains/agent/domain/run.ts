@@ -41,5 +41,6 @@ export function transitionRun(from: RunStatus, to: RunStatus): RunStatus {
   if (!canTransitionRun(from, to)) {
     throw new IllegalRunTransitionError(from, to);
   }
+
   return to;
 }

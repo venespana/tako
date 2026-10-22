@@ -37,9 +37,11 @@ export class ConfSecretVault implements SecretVault {
 
   reveal(cipher: string): string {
     const parts = cipher.split(':');
+
     if (parts.length !== 2) {
       throw new Error('Invalid cipher format');
     }
+
     const ivHex: string = parts[0]!;
     const encrypted: string = parts[1]!;
     const iv = Buffer.from(ivHex, 'hex');

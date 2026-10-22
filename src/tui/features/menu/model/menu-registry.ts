@@ -7,11 +7,12 @@ import type { ActionGroup } from './menu-items.js';
 
 function deepFreeze<T>(value: T): T {
   if (value !== null && (typeof value === 'object' || typeof value === 'function')) {
-    for (const key of Object.getOwnPropertyNames(value)) {
+    Object.getOwnPropertyNames(value).forEach(key => {
       deepFreeze((value as Record<string, unknown>)[key]);
-    }
+    });
     Object.freeze(value);
   }
+
   return value;
 }
 
@@ -57,6 +58,14 @@ const REGISTRY: ActionGroup[] = deepFreeze([
         kind: 'action',
         enabledWhen: 'always',
         route: '/remotes/rm',
+      },
+      {
+        id: 'status',
+        label: 'Status',
+        command: 'status',
+        kind: 'submenu',
+        route: '/status',
+        enabledWhen: 'hasActiveRemote',
       },
       // 9.14d: no home Tasks entry — the tasks workspace is the REMOTE's menu,
       // reached by selecting a remote (Select → /tasks), never from home.

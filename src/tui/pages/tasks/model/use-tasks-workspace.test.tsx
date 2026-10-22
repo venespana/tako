@@ -14,8 +14,11 @@ import type { JobView, RunMode, RunView, Slug } from '../../../../services/agent
 
 /** Poll until predicate() holds (Ink key flush + hook settle). */
 async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
-  for (let waited = 0; !predicate() && waited < timeoutMs; waited += 10) {
+  let waited = 0;
+
+  while (!predicate() && waited < timeoutMs) {
     await new Promise(resolve => setTimeout(resolve, 10));
+    waited += 10;
   }
 }
 
@@ -61,14 +64,17 @@ function WorkspaceHarness({ status, selected, latestDryRun, triggerJob }: Harnes
     triggerJob,
     upsertJob: () => Promise.resolve(null),
   });
+
   if (status !== 'ready' && status !== 'warning') {
     // The page hides the workspace behind its connecting early return while
     // the rules hook is still mounted (the 9.14e bug shape).
     return <Text>harness: connecting</Text>;
   }
+
   if (workspace.mode !== 'browse') {
     return <Text>harness: form ({workspace.mode})</Text>;
   }
+
   return <Text>harness: browse</Text>;
 }
 

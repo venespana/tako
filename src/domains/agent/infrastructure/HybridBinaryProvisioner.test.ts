@@ -42,9 +42,11 @@ class FakeRunner implements RemoteCommandRunner {
 
   async run(command: string): Promise<RemoteCommandResult> {
     this.commands.push(command);
-    for (const [token, handler] of this.handlers) {
-      if (command.includes(token)) return handler();
-    }
+
+    const hit = [...this.handlers].find(([token]) => command.includes(token));
+
+    if (hit !== undefined) return hit[1]();
+
     return { stdout: '', stderr: '', exitCode: 0 };
   }
 
@@ -216,6 +218,7 @@ describe('HybridBinaryProvisioner — 3.13 decoy-file refusal', () => {
     const realRun = runner.run.bind(runner);
     vi.spyOn(runner, 'run').mockImplementation(async (command: string) => {
       if (command.includes(`sha256sum '${TARGET}'`)) throw new Error('connection dropped');
+
       return realRun(command);
     });
 

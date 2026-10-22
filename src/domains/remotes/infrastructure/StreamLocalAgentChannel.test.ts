@@ -215,6 +215,7 @@ describe('StreamLocalAgentChannel', () => {
     const received = new Promise<void>(resolve => {
       stream.on('data', (frame: string) => {
         frames.push(frame);
+
         if (frames.length === 40) {
           resolve();
         }

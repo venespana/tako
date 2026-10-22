@@ -33,11 +33,14 @@ class FakeChannelStream extends Duplex {
       callback(new TypeError('frames must be strings'));
       return;
     }
+
     this.writes.push(frame);
+
     if (this.draining) {
       callback();
       return;
     }
+
     this.draining = true;
     setImmediate(callback);
   }

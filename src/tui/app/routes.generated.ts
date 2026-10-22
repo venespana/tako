@@ -12,6 +12,7 @@ import * as route_doctor from './routes/doctor.js';
 import * as route_index from './routes/index.js';
 import * as route_layout from './routes/layout.js';
 import * as route_logs from './routes/logs.js';
+import * as route_remote_home from './routes/remote-home.js';
 import * as route_remotes_add from './routes/remotes/add.js';
 import * as route_remotes_index from './routes/remotes/index.js';
 import * as route_remotes_list from './routes/remotes/list.js';
@@ -31,6 +32,7 @@ export const routeTree: RouteObject[] = [
       defineRoute({ path: 'cleanup', module: route_cleanup }),
       defineRoute({ path: 'doctor', module: route_doctor }),
       defineRoute({ path: 'logs', module: route_logs }),
+      defineRoute({ path: 'remote-home', module: route_remote_home }),
       defineRoute({ path: 'status', module: route_status }),
       defineRoute({ path: 'tasks', module: route_tasks }),
       defineRoute({

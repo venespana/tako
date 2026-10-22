@@ -31,6 +31,7 @@ export function formatAgentStatus(handshake: AgentHandshake, status: AgentStatus
 /** Default entry: resolve the remote through the services layer and print the table. */
 export async function runAgentStatusDefault(remoteName: string): Promise<number> {
   const outcome = await fetchAgentStatus({ remote: remoteName, sessionPassword: process.env[SESSION_PASSWORD_ENV] });
+
   switch (outcome.kind) {
     case 'refused':
       console.error(outcome.reason);

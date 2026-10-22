@@ -120,8 +120,11 @@ export function useTasksWorkspace(deps: TasksWorkspaceDeps): TasksWorkspace {
   // cancel).
   const pageHints = useMemo(() => {
     if (status === 'error') return RETRY_HINTS;
+
     if (mode !== 'browse') return FORM_HINTS;
+
     if (!workspaceVisible || !hasGateway) return NO_HINTS;
+
     return BROWSE_HINTS;
   }, [status, mode, workspaceVisible, hasGateway]);
   usePageHints(pageHints, mode !== 'browse');

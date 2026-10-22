@@ -142,9 +142,11 @@ export interface RunCompletedPayload {
 /** Encode one frame to its single-line JSON form (no trailing newline). */
 export function encodeFrame(frame: AgentFrame): string {
   const line = JSON.stringify(frame);
+
   if (Buffer.byteLength(line, 'utf8') > MAX_FRAME_BYTES) {
     throw new ProtocolFrameError('too_large', `frame exceeds ${MAX_FRAME_BYTES} bytes`);
   }
+
   return line;
 }
 
@@ -155,6 +157,7 @@ export function decodeFrame(line: string): AgentFrame {
   }
 
   let raw: unknown;
+
   try {
     raw = JSON.parse(line);
   } catch {
@@ -164,22 +167,28 @@ export function decodeFrame(line: string): AgentFrame {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     throw new ProtocolFrameError('shape', 'frame must be a JSON object');
   }
+
   const candidate = raw as Record<string, unknown>;
 
   if (candidate['v'] !== PROTOCOL_VERSION) {
     throw new ProtocolFrameError('version', `unsupported protocol version ${JSON.stringify(candidate['v'] ?? null)}`);
   }
+
   const kind = candidate['kind'];
+
   if (typeof kind !== 'string' || !isFrameKind(kind)) {
     throw new ProtocolFrameError('kind', `unknown frame kind ${JSON.stringify(kind ?? null)}`);
   }
+
   const type = candidate['type'];
+
   if (typeof type !== 'string' || !DOTTED_TYPE_PATTERN.test(type)) {
     throw new ProtocolFrameError(
       'type',
       `message type must be a dotted lowercase name, got ${JSON.stringify(type ?? null)}`
     );
   }
+
   if (candidate['id'] !== undefined && typeof candidate['id'] !== 'string') {
     throw new ProtocolFrameError('shape', 'correlation id must be a string');
   }

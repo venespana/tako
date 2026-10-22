@@ -47,11 +47,15 @@ export class RemoteInstallRecords {
     const home = await this.home();
     const path = `${home}/${AGENT_DIR_NAME}/${INSTALLED_SHA256_FILENAME}`;
     const result = await this.#exec(`cat '${path}' 2>/dev/null`);
+
     if (result.exitCode !== 0) return undefined;
+
     const sha = parseSha256Sum(result.stdout);
+
     if (sha === undefined) {
       throw new Error(`corrupted prior-install record at ${path}: expected a sha256 line`);
     }
+
     return sha;
   }
 
@@ -72,9 +76,11 @@ export class RemoteInstallRecords {
   async #resolveHome(): Promise<string> {
     const result = await this.#exec('printf %s "$HOME"');
     const home = result.stdout.trim();
+
     if (result.exitCode !== 0 || home === '') {
       throw new Error('could not resolve the remote home directory');
     }
+
     return home;
   }
 
@@ -84,6 +90,7 @@ export class RemoteInstallRecords {
 
   async #require(command: string, failure: string): Promise<void> {
     const result = await this.#exec(command);
+
     if (result.exitCode !== 0) {
       const detail = result.stderr.trim() || `exit code ${result.exitCode}`;
       throw new Error(`${failure}: ${detail}`);

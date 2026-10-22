@@ -18,10 +18,14 @@ export async function settle(
   timeoutMs: number
 ): Promise<string> {
   let frame = lastFrame() ?? '';
-  for (let waited = 0; !predicate(frame) && waited < timeoutMs; waited += 10) {
+  let waited = 0;
+
+  while (!predicate(frame) && waited < timeoutMs) {
     await wait(10);
     frame = lastFrame() ?? '';
+    waited += 10;
   }
+
   return frame;
 }
 
@@ -37,9 +41,13 @@ export async function pressAndSettle(
   expectFrame: (frame: string) => boolean
 ): Promise<string> {
   let frame = '';
-  for (let attempt = 0; attempt < 2 && !expectFrame(frame); attempt++) {
+  let attempt = 0;
+
+  while (attempt < 2 && !expectFrame(frame)) {
     stdin.write(key);
     frame = await settle(lastFrame, expectFrame, KEY_FLUSH_MS);
+    attempt++;
   }
+
   return frame;
 }

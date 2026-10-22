@@ -78,6 +78,7 @@ export function decideRemoteAuth(
             're-select it in the TUI to enter the password, or supply TAKO_SSH_PASSWORD for terminal runs',
         };
       }
+
       return { kind: 'resolved', auth: { type: 'password', password: sessionPassword } };
     case 'store':
       return {
@@ -104,14 +105,18 @@ export async function resolveRemoteAuth(
   sessionPassword: string | undefined
 ): Promise<RemoteAuthResolution> {
   const remote = await getRemoteByName(remoteName);
+
   if (remote === null) {
     return { kind: 'unknown-remote', reason: `unknown remote "${remoteName}" — add it first with "tako remote add"` };
   }
+
   const { vault } = openRemotesStorage();
   const decision = decideRemoteAuth(remoteName, remote, sessionPassword, cipher => vault.reveal(cipher));
+
   if (decision.kind === 'refusal') {
     return { kind: 'refusal', reason: decision.reason };
   }
+
   return { kind: 'resolved', remote, auth: decision.auth };
 }
 

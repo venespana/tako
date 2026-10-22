@@ -37,6 +37,7 @@ describe('Slug guard (task 3.1 charset; tasks 2.9 + 3.12 hostile input)', () => 
 
   it('2.9/3.12 RED: assertSlug path rejects hostile ids and names the field', () => {
     expect(() => parseJobDefinition(stackJobSpec({ id: 'nas;reboot' }))).toThrow(JobValidationError);
+
     try {
       parseJobDefinition(stackJobSpec({ id: '$(rm -rf /)' }));
       expect.unreachable('should have thrown');
@@ -72,6 +73,7 @@ describe('stackDir guard (validated before any command assembly — task 2.9)', 
 
   it('2.9/3.12 RED: parseJobDefinition rejects hostile stackDir BEFORE returning a job', () => {
     expect(() => parseJobDefinition(stackJobSpec({ stackDir: '/opt/$(reboot)' }))).toThrow(JobValidationError);
+
     try {
       parseJobDefinition(stackJobSpec({ stackDir: '/opt/x;rm -rf /' }));
       expect.unreachable('should have thrown');
@@ -185,10 +187,12 @@ function validStackJob(): JobDefinition {
 
 function expectIsInvalid(value: unknown): void {
   let caught: unknown;
+
   try {
     parseJobDefinition(value);
   } catch (error) {
     caught = error;
   }
+
   expect(caught).toBeInstanceOf(JobValidationError);
 }

@@ -71,14 +71,17 @@ export class ExecuteRun {
 
     let run =
       input.run ?? (await store.createRun({ jobId: job.id, mode, catchup, startedAt: clock.now().toISOString() }));
+
     try {
       run = await this.#transition(run, 'running');
       let outcome: JobExecutionOutcome;
+
       try {
         outcome = await handler.execute(job, mode);
       } catch (error) {
         outcome = { status: 'failed', result: { error: describeError(error) } };
       }
+
       const finishedAt = clock.now().toISOString();
       run = await this.#finish(run, outcome, finishedAt);
     } finally {
@@ -90,6 +93,7 @@ export class ExecuteRun {
         });
       }
     }
+
     return run;
   }
 
@@ -97,9 +101,11 @@ export class ExecuteRun {
     const from = run.status;
     transitionRun(from, to);
     const updated = await this.#options.store.updateRun(run.id, { status: to });
+
     if (updated === undefined) {
       throw new Error(`run ${run.id} vanished while transitioning ${from} → ${to}`);
     }
+
     this.#emit({
       type: 'job.state_changed',
       payload: {
@@ -122,9 +128,11 @@ export class ExecuteRun {
       finishedAt,
       ...(outcome.result !== undefined && { result: outcome.result }),
     });
+
     if (updated === undefined) {
       throw new Error(`run ${run.id} vanished while finishing as ${to}`);
     }
+
     this.#emit({
       type: 'job.state_changed',
       payload: { jobId: run.jobId, runId: run.id, from, to, at: finishedAt },

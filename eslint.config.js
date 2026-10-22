@@ -4,6 +4,7 @@ import js from '@eslint/js';
 import { defineConfig, globalIgnores } from 'eslint/config';
 import importPlugin from 'eslint-plugin-import-x';
 import prettier from 'eslint-plugin-prettier/recommended';
+import reactPlugin from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 import unusedImports from 'eslint-plugin-unused-imports';
 import globals from 'globals';
@@ -335,6 +336,9 @@ export default defineConfig(
       // Tests build elements manually (React.createElement) — the named-member
       // caution is production-idiom noise here.
       'import-x/no-named-as-default-member': 'off',
+      // Test harnesses define small helper components (Harness, Probe,
+      // LocationEcho) — the one-component-per-file policy is production-only.
+      'react/no-multi-comp': 'off',
     },
   },
 
@@ -349,13 +353,29 @@ export default defineConfig(
   },
   {
     files: ['**/*.{js,mjs,cjs,ts,jsx,tsx}'],
+    plugins: {
+      react: reactPlugin,
+    },
     rules: {
       // React-specific
       'react/display-name': 'off',
       'react/no-children-prop': 'off',
       'react/prop-types': 'off',
+      // Team convention (2026-10-21): ONE component per file — private
+      // sub-components get their own module in the same slice (FSD), so both
+      // the file name and the import graph say what is inside.
+      'react/no-multi-comp': 'error',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  {
+    // Test files: one-component-per-file is production-only. This block lives
+    // AFTER the React block on purpose — flat config is last-wins per matching
+    // file, so an override inside the earlier test block would be shadowed.
+    files: ['**/*.test.{ts,tsx,js,jsx}', '**/*.spec.{ts,tsx,js,jsx}'],
+    rules: {
+      'react/no-multi-comp': 'off',
     },
   },
   prettier

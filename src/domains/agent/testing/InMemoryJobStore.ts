@@ -71,7 +71,9 @@ export class InMemoryJobStore implements JobStore {
 
   async updateRun(runId: string, patch: RunPatch): Promise<RunView | undefined> {
     const current = this.#runs.get(runId);
+
     if (!current) return undefined;
+
     const updated: RunView = {
       ...current,
       ...(patch.status !== undefined && { status: patch.status }),
@@ -84,17 +86,17 @@ export class InMemoryJobStore implements JobStore {
 
   async listRuns(query: RunsQuery = {}): Promise<RunView[]> {
     let runs = [...this.#runs.values()].sort((a, b) => a.seq - b.seq);
+
     if (query.jobId !== undefined) runs = runs.filter(run => run.jobId === query.jobId);
+
     if (query.sinceSeq !== undefined) runs = runs.filter(run => run.seq > (query.sinceSeq as number));
+
     if (query.limit !== undefined) runs = runs.slice(0, query.limit);
+
     return runs;
   }
 
   async lastSeq(): Promise<number> {
-    let max = 0;
-    for (const run of this.#runs.values()) {
-      if (run.seq > max) max = run.seq;
-    }
-    return max;
+    return [...this.#runs.values()].reduce((max, run) => (run.seq > max ? run.seq : max), 0);
   }
 }

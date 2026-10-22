@@ -27,9 +27,11 @@ function computeStatus(result: SystemCheckResult): {
   const failed = result.results.filter(r => r.status === 'not-found').length;
   const warnings = result.results.filter(r => r.status === 'found' && !r.version).length;
   let status: 'Ok' | 'Failed' | 'Degraded';
+
   if (failed === 0) status = 'Ok';
   else if (passed === 0) status = 'Failed';
   else status = 'Degraded';
+
   return { passed, failed, warnings, status };
 }
 
@@ -41,15 +43,16 @@ export function formatDoctorText(result: SystemCheckResult): string {
   lines.push('revision de los comandos');
   lines.push('');
 
-  for (const r of result.results) {
+  result.results.forEach(r => {
     const label = TOOL_LABELS[r.tool] ?? r.tool;
+
     if (r.status === 'found') {
       const version = r.version ?? 'unknown version';
       lines.push(`  ✓ ${label} ${version}`);
     } else {
       lines.push(`  ✖ ${label} not found`);
     }
-  }
+  });
 
   lines.push('');
   const { passed, failed, warnings, status } = computeStatus(result);

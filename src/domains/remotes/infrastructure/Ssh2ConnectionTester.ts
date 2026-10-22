@@ -16,6 +16,7 @@ function expandPath(path: string): string {
   if (path.startsWith('~/') || path === '~') {
     return join(homedir(), path.slice(1));
   }
+
   return path;
 }
 
@@ -29,18 +30,22 @@ function categorizeError(err: Error & { code?: string; level?: string }): SshErr
   if (err.code === 'ECONNREFUSED' || err.code === 'ENOTFOUND' || err.code === 'ECONNRESET') {
     return 'network';
   }
+
   // ETIMEDOUT is a timeout
   if (err.code === 'ETIMEDOUT') {
     return 'timeout';
   }
+
   // Authentication failures
   if (err.level === 'client-authentication' || err.message?.toLowerCase().includes('auth')) {
     return 'auth';
   }
+
   // Hostkey issues
   if (err.level === 'client-verification' || err.message?.toLowerCase().includes('hostkey')) {
     return 'hostkey';
   }
+
   return 'unknown';
 }
 
@@ -57,6 +62,7 @@ export class Ssh2ConnectionTester implements SshConnectionTester {
         if (!resolved) {
           resolved = true;
         }
+
         try {
           client.end();
         } catch {
@@ -79,9 +85,13 @@ export class Ssh2ConnectionTester implements SshConnectionTester {
         const category = categorizeError(err);
         // Build detailed message with all available ssh2 error info
         const details: string[] = [err.message];
+
         if (err.level) details.push(`[level: ${err.level}]`);
+
         if (err.code) details.push(`[code: ${err.code}]`);
+
         if (err.desc) details.push(`[server: ${err.desc}]`);
+
         resolve({ ok: false, category, message: details.join(' ') });
       });
 

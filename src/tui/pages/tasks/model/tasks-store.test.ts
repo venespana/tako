@@ -72,7 +72,9 @@ class FakeSession implements AgentSession {
     payload: AgentRequestMap[K]['request']
   ): Promise<AgentRequestMap[K]['response']> {
     this.requests.push({ type, payload });
+
     if (this.failNext !== null) throw this.failNext;
+
     return structuredClone(this.responses.get(type)) as AgentRequestMap[K]['response'];
   }
 
@@ -80,6 +82,7 @@ class FakeSession implements AgentSession {
     this.listeners.push(listener);
     return () => {
       const index = this.listeners.indexOf(listener);
+
       if (index >= 0) this.listeners.splice(index, 1);
     };
   }
@@ -89,7 +92,7 @@ class FakeSession implements AgentSession {
   }
 
   emit(frame: AgentFrame): void {
-    for (const listener of [...this.listeners]) listener(frame);
+    [...this.listeners].forEach(listener => listener(frame));
   }
 }
 

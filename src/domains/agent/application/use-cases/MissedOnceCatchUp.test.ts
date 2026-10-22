@@ -91,7 +91,9 @@ describe('decideCatchUp — missed-once policy', () => {
       lastFireEnqueued: false,
       now,
     });
+
     if (first.action !== 'enqueue') throw new Error('expected enqueue');
+
     // Loop persists: watermark := nextWatermark, guard cleared.
     const second = decideCatchUp({ expr: HOURLY, watermark: first.nextWatermark, lastFireEnqueued: false, now });
     expect(second.action).toBe('none');

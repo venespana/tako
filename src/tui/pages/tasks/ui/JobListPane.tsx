@@ -25,6 +25,7 @@ export function JobListPane({ jobs, onSelect }: JobListPaneProps): React.ReactEl
     (delta: number) => {
       setCursor(previous => {
         if (jobs.length === 0) return 0;
+
         return Math.min(jobs.length - 1, Math.max(0, previous + delta));
       });
     },
@@ -37,6 +38,7 @@ export function JobListPane({ jobs, onSelect }: JobListPaneProps): React.ReactEl
       moveDown: () => move(1),
       confirm: () => {
         const focused = jobs[cursor];
+
         if (focused !== undefined) onSelect(focused.job.id);
       },
     },

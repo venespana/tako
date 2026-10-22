@@ -21,6 +21,7 @@ function createRunner(impl: (command: string) => RemoteCommandResult | Promise<R
 } {
   const run = vi.fn(async (command: string) => {
     if (command === HOME_PROBE) return ok(REMOTE_HOME);
+
     return impl(command);
   });
   return { runner: { run }, run };
@@ -85,6 +86,7 @@ describe('SystemdRemoteController — unit file (fixed template, foreign-unit gu
       if (command.includes('cat ')) {
         return ok('[Service]\nExecStart=%h/.tako/tako agent run\nRestart=on-failure\n');
       }
+
       return ok();
     });
     const controller = new SystemdRemoteController({ runner: { run } });
@@ -98,6 +100,7 @@ describe('SystemdRemoteController — unit file (fixed template, foreign-unit gu
       if (command.includes('cat ') && !command.includes('cat >')) {
         return ok('[Service]\nExecStart=/usr/bin/something-else --serve\n');
       }
+
       return ok();
     });
     const controller = new SystemdRemoteController({ runner: { run } });
@@ -109,6 +112,7 @@ describe('SystemdRemoteController — unit file (fixed template, foreign-unit gu
   it('surfaces stderr when the write itself fails', async () => {
     const { run } = createRunner(command => {
       if (command.includes('cat >')) return fail('mkdir: permission denied');
+
       return ok();
     });
     const controller = new SystemdRemoteController({ runner: { run } });
@@ -234,7 +238,9 @@ describe('SystemdRemoteController — KillUserProcesses detection', () => {
   it('falls back to /etc/systemd/logind.conf when busctl fails', async () => {
     const { run } = createRunner(command => {
       if (command.includes('busctl')) return fail('busctl: no such file');
+
       if (command.includes('logind.conf')) return ok('#KillUserProcesses=no\nKillUserProcesses=yes\n');
+
       return ok();
     });
     const controller = new SystemdRemoteController({ runner: { run } });

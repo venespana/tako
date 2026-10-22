@@ -14,9 +14,11 @@ export interface JobHistoryQuery {
 
 function assertNonNegativeInt(value: number | undefined, name: string): number | undefined {
   if (value === undefined) return undefined;
+
   if (!Number.isInteger(value) || value < 0) {
     throw new JobValidationError(`${name} must be a non-negative integer, got ${JSON.stringify(value)}`);
   }
+
   return value;
 }
 

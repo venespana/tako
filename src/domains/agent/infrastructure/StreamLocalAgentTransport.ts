@@ -83,6 +83,7 @@ class ConnectedAgentSession implements AgentSession {
     if (this.#closed) {
       throw new AgentTransportClosedError('requests are not accepted after close()');
     }
+
     const result = await new Promise<unknown>((resolve, reject) => {
       const id = nextCorrelationId(this.#pending);
       const timer = setTimeout(() => {
@@ -134,10 +135,11 @@ export class StreamLocalAgentTransport implements AgentTransport {
     const listeners = new Set<(frame: AgentFrame) => void>();
 
     const rejectAll = (detail: string): void => {
-      for (const entry of pending.values()) {
+      [...pending.values()].forEach(entry => {
         clearTimeout(entry.timer);
         entry.reject(new AgentTransportClosedError(detail));
-      }
+      });
+
       pending.clear();
     };
 
@@ -169,16 +171,20 @@ export class StreamLocalAgentTransport implements AgentTransport {
     this.#writeFrame(stream, helloFrame(this.#clientVersion));
 
     const firstFrame = await this.#nextFrame(stream, DEFAULT_HANDSHAKE_TIMEOUT_MS);
+
     if (firstFrame.kind === 'error') {
       const payload = (firstFrame.payload ?? {}) as { code?: string; message?: string };
       throw new Error(`agent handshake failed (${payload.code ?? 'error'}): ${payload.message ?? 'no detail'}`);
     }
+
     if (firstFrame.kind !== 'hello_ack') {
       throw new ProtocolFrameError('kind', `expected hello_ack, got ${firstFrame.kind}`);
     }
+
     const ack = firstFrame.payload as HelloAckPayload;
 
     let warning: ProtocolWarningPayload | undefined;
+
     if (ack.protocol !== PROTOCOL_VERSION) {
       warning = {
         clientVersion: this.#clientVersion,
@@ -192,22 +198,26 @@ export class StreamLocalAgentTransport implements AgentTransport {
         detail: `agent version differs from client: client=${this.#clientVersion} agent=${ack.agentVersion} — re-run "tako agent install" to upgrade`,
       };
     }
+
     return { ack, ...(warning !== undefined && { warning }) };
   }
 
   #nextFrame(stream: Duplex, timeoutMs: number): Promise<AgentFrame> {
     return new Promise((resolve, reject) => {
       const buffered = stream.read();
+
       if (buffered !== null) {
         resolve(this.#decode(buffered as string));
         return;
       }
+
       const timer = setTimeout(() => {
         cleanup();
         reject(new Error(`agent handshake timed out after ${timeoutMs}ms`));
       }, timeoutMs);
       const onData = (frame: string): void => {
         cleanup();
+
         try {
           resolve(this.#decode(frame));
         } catch (error) {
@@ -249,6 +259,7 @@ export class StreamLocalAgentTransport implements AgentTransport {
     const onError = (): void => rejectAll('channel error');
     stream.on('data', frame => {
       let decoded: AgentFrame;
+
       try {
         decoded = this.#decode(frame as string);
       } catch {
@@ -258,28 +269,34 @@ export class StreamLocalAgentTransport implements AgentTransport {
         stream.destroy();
         return;
       }
+
       switch (decoded.kind) {
         case 'response': {
           const entry = decoded.id !== undefined ? pending.get(decoded.id) : undefined;
+
           if (entry) {
             pending.delete(decoded.id as string);
             clearTimeout(entry.timer);
             entry.resolve(decoded.payload);
           }
+
           return;
         }
         case 'error': {
           const payload = (decoded.payload ?? {}) as { correlation?: string; code?: string; message?: string };
           const target = payload.correlation !== undefined ? pending.get(payload.correlation) : undefined;
+
           if (target) {
             pending.delete(payload.correlation as string);
             clearTimeout(target.timer);
             target.reject(new Error(`agent error (${payload.code ?? 'error'}): ${payload.message ?? 'no detail'}`));
           }
+
           return;
         }
         case 'event':
-          for (const listener of listeners) listener(decoded);
+          listeners.forEach(listener => listener(decoded));
+
           return;
         default:
           // hello/hello_ack after the handshake are protocol violations.
@@ -300,8 +317,10 @@ let correlationCounter = 0;
 
 function nextCorrelationId(pending: Map<string, PendingRequest>): string {
   let id = `c${++correlationCounter}`;
+
   while (pending.has(id)) {
     id = `c${++correlationCounter}`;
   }
+
   return id;
 }

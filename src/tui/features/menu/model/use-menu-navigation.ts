@@ -16,7 +16,9 @@ export function useMenuNavigation(): (item: ActionItem) => void {
   // inline handlers this hook replaced.
   return (item: ActionItem): void => {
     if (item.route === undefined) return;
+
     if (location.pathname === item.route) return;
+
     navigate(item.route);
   };
 }

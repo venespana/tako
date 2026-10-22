@@ -39,7 +39,9 @@ function fakeTransport(
     handshake,
     request: async type => {
       if (type !== 'agent.status') throw new Error(`unexpected ${String(type)}`);
+
       if (failRequest) throw failRequest;
+
       return { ...status, agentVersion: handshake.ack.agentVersion };
     },
     onEvent: () => () => {},

@@ -76,26 +76,34 @@ export function validateJobForm(values: JobFormValues): JobFormErrors {
   if (!SLUG_PATTERN.test(values.id.trim())) {
     errors.id = 'use lowercase letters, digits and inner dashes (e.g. nightly-prune)';
   }
+
   if (values.type === 'stack-lifecycle' && !isValidStackDir(values.stackDir)) {
     errors.stackDir = 'absolute path to the compose stack directory is required';
   }
+
   if (values.type === 'prune' && values.scopes.length === 0) {
     errors.scopes = 'pick at least one scope';
   }
+
   const expr = values.cron.trim();
+
   if (expr === '' || !isValidCronExpr(expr)) {
     errors.cron = 'five-field cron expression required (e.g. "0 4 * * *")';
   }
+
   return errors;
 }
 
 /** Build the exact JobDefinition union member; null when the form is invalid. */
 export function buildJobDefinition(values: JobFormValues): JobDefinition | null {
   if (Object.keys(validateJobForm(values)).length > 0) return null;
+
   const schedule: Schedule = { kind: 'cron', expr: values.cron.trim() };
+
   if (values.type === 'prune') {
     return { id: values.id.trim(), type: 'prune', scopes: [...values.scopes], schedule };
   }
+
   return {
     id: values.id.trim(),
     type: 'stack-lifecycle',

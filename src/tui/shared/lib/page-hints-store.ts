@@ -44,7 +44,9 @@ export const usePageHintsStore = create<PageHintsState>((set, get) => ({
     // Identity-preserving publication: republishing the SAME list (and mode)
     // must not re-render subscribers (9.10 lesson).
     const current = get();
+
     if (current.hints === hints && current.formMode === formMode) return;
+
     set({ hints, formMode });
   },
 }));

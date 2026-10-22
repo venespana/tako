@@ -17,28 +17,39 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
+
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function summarizeLifecycle(result: Record<string, unknown>): DryRunSummary | null {
   const command = result['command'];
+
   if (!isRecord(command) || !Array.isArray(command['argv'])) return null;
+
   const argv = command['argv'].filter((part): part is string => typeof part === 'string');
   const lines: string[] = [];
+
   if (typeof result['stackDir'] === 'string') lines.push(`stack: ${result['stackDir']}`);
+
   if (typeof result['op'] === 'string') lines.push(`operation: ${result['op']}`);
+
   lines.push('nothing was executed — this is the exact command that WOULD run');
   return { headline: `would run: ${argv.join(' ')}`, lines };
 }
 
 function summarizePrune(result: Record<string, unknown>): DryRunSummary | null {
   const entries = result['entries'];
+
   if (!Array.isArray(entries)) return null;
+
   const lines: string[] = [];
   let total = 0;
-  for (const entry of entries) {
-    if (!isRecord(entry)) continue;
+
+  entries.forEach(entry => {
+    if (!isRecord(entry)) return;
+
     const scope = typeof entry['scope'] === 'string' ? entry['scope'] : 'unknown scope';
     const count = typeof entry['count'] === 'number' ? entry['count'] : 0;
     total += count;
@@ -50,10 +61,12 @@ function summarizePrune(result: Record<string, unknown>): DryRunSummary | null {
       : [];
     const detail = descriptions.length > 0 ? ` — ${descriptions.join(', ')}` : '';
     lines.push(`${scope}: ${count} object(s)${detail}`);
+
     if (typeof entry['spaceReclaimedBytes'] === 'number' && entry['spaceReclaimedBytes'] > 0) {
       lines.push(`  would reclaim ~${formatBytes(entry['spaceReclaimedBytes'])}`);
     }
-  }
+  });
+
   lines.push('nothing was removed yet — apply is a separate, explicit action');
   return { headline: `would remove ${total} object(s)`, lines };
 }
@@ -63,10 +76,13 @@ export function summarizeDryRun(run: RunView): DryRunSummary {
   if (run.mode !== 'dry-run' || !isRecord(run.result)) {
     return { headline: 'dry-run report unavailable', lines: [] };
   }
+
   const failed = run.result['error'];
+
   if (typeof failed === 'string') {
     return { headline: `dry-run failed: ${failed}`, lines: [] };
   }
+
   const summary = summarizeLifecycle(run.result) ?? summarizePrune(run.result);
   return summary ?? { headline: 'dry-run report unavailable', lines: [] };
 }

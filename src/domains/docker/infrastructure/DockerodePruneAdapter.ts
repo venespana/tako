@@ -71,9 +71,11 @@ export class DockerodePruneAdapter implements DockerPruner {
     const settled = await Promise.allSettled(scopes.map(scope => run(scope)));
     return settled.map((outcome, index) => {
       const scope = scopes[index]!;
+
       if (outcome.status === 'fulfilled') {
         return outcome.value;
       }
+
       const message = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
       return { scope, items: [], count: 0, error: message };
     });
@@ -146,7 +148,8 @@ export class DockerodePruneAdapter implements DockerPruner {
         const result = await this.client.pruneImages({ filters: dockerPruneFilters('dangling-images') });
         const entries = Array.isArray(result['ImagesDeleted']) ? result['ImagesDeleted'] : [];
         const items: PruneItem[] = [];
-        for (const entry of entries) {
+
+        entries.forEach(entry => {
           if (entry && typeof entry === 'object') {
             if ('Deleted' in entry && typeof entry['Deleted'] === 'string') {
               items.push({ id: entry['Deleted'], description: 'deleted' });
@@ -154,7 +157,8 @@ export class DockerodePruneAdapter implements DockerPruner {
               items.push({ id: entry['Untagged'], description: 'untagged' });
             }
           }
-        }
+        });
+
         return { scope, items, count: items.length, spaceReclaimedBytes: result['SpaceReclaimed'] };
       }
       case 'build-cache': {

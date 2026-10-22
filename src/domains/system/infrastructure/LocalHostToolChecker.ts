@@ -77,6 +77,7 @@ export class LocalHostToolChecker implements HostToolChecker {
 
     try {
       let proc;
+
       if (cmd.length === 1) {
         proc = this.spawnFn([cmd[0]!, flag]);
       } else if (tool === 'ssh') {
@@ -101,6 +102,7 @@ export class LocalHostToolChecker implements HostToolChecker {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
         return { output: null, found: false };
       }
+
       return { output: null, found: false };
     }
   }
@@ -109,17 +111,21 @@ export class LocalHostToolChecker implements HostToolChecker {
     // ssl is a pseudo-tool — extract SSL version from ssh -V raw output
     if (tool === 'ssl') {
       const { output, found } = await this.spawnAndGetRaw('ssh');
+
       if (!found || !output) {
         return { tool: 'ssl', status: 'not-found', version: null };
       }
+
       const sslMatch = output.match(/OpenSSL[_\s]([^\s,]+)/);
       return { tool: 'ssl', status: 'found', version: sslMatch ? (sslMatch[1] ?? null) : null };
     }
 
     const { output, found } = await this.spawnAndGetRaw(tool);
+
     if (!found) {
       return { tool, status: 'not-found', version: null };
     }
+
     if (!output) {
       return { tool, status: 'found', version: null };
     }

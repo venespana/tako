@@ -50,35 +50,44 @@ export function useKeyBindings(bindings: KeyBindings, { isActive = true }: UseKe
         bindings.anyKey();
         return;
       }
+
       if (key.ctrl && input === 'c') {
         bindings.ctrlC?.();
         return;
       }
+
       if (key.upArrow || input === 'k') {
         bindings.moveUp?.();
         return;
       }
+
       if (key.downArrow || input === 'j') {
         bindings.moveDown?.();
         return;
       }
+
       if (key.return) {
         bindings.confirm?.();
         return;
       }
+
       if (key.escape) {
         bindings.cancel?.();
         return;
       }
+
       if (key.backspace) {
         bindings.backspace?.();
         return;
       }
+
       if (key.tab) {
         if (key.shift) bindings.shiftTab?.();
         else bindings.tab?.();
+
         return;
       }
+
       // Exact single characters only — multi-character input (paste) and
       // empty payloads never match a char binding.
       if (input.length === 1) bindings.chars?.[input]?.();

@@ -57,14 +57,18 @@ export interface DefineRouteOptions {
  * parents) and no handle. */
 export function defineRoute({ path, index, module, children }: DefineRouteOptions): RouteObject {
   const route: RouteObject = index ? { index: true } : { path };
+
   if (module !== undefined) {
     route.Component = module.default;
     route.handle = module.routeMeta ?? {};
+
     // 9.22: the module's Ink-safe error boundary (never react-router's
     // default — it renders raw text and crashes Ink).
     if (module.errorElement !== undefined) route.errorElement = module.errorElement;
   }
+
   if (children !== undefined) route.children = children;
+
   return route;
 }
 

@@ -81,8 +81,9 @@ describe('AppShell footer key hints (9.15a)', () => {
       expect(at).toBeGreaterThanOrEqual(0);
       return at;
     });
-    for (let i = 1; i < positions.length; i += 1) {
-      expect(positions[i]).toBeGreaterThan(positions[i - 1]!);
-    }
+
+    positions.slice(1).forEach((at, index) => {
+      expect(at).toBeGreaterThan(positions[index]!);
+    });
   });
 });

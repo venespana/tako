@@ -40,6 +40,7 @@ describe('Ssh2ConnectionTester', () => {
           if (event === 'ready') {
             setTimeout(() => cb(), 10);
           }
+
           return mockClient;
         }),
         connect: vi.fn(() => mockClient),
@@ -58,6 +59,7 @@ describe('Ssh2ConnectionTester', () => {
       const outcome = await tester.test(config);
 
       expect(outcome.ok).toBe(true);
+
       if (outcome.ok) {
         // SHA256 fingerprint format: base64 string
         expect(outcome.hostkeyFingerprint).toMatch(/^[A-Za-z0-9+/=]+$/);
@@ -72,6 +74,7 @@ describe('Ssh2ConnectionTester', () => {
             err.code = 'ECONNREFUSED';
             setTimeout(() => cb(err), 10);
           }
+
           return mockClient;
         }),
         connect: vi.fn(() => mockClient),
@@ -90,6 +93,7 @@ describe('Ssh2ConnectionTester', () => {
       const outcome = await tester.test(config);
 
       expect(outcome.ok).toBe(false);
+
       if (!outcome.ok) {
         expect(outcome.category).toBe('network');
       }
@@ -103,6 +107,7 @@ describe('Ssh2ConnectionTester', () => {
             err.code = 'ETIMEDOUT';
             setTimeout(() => cb(err), 10);
           }
+
           return mockClient;
         }),
         connect: vi.fn(() => mockClient),
@@ -121,6 +126,7 @@ describe('Ssh2ConnectionTester', () => {
       const outcome = await tester.test(config);
 
       expect(outcome.ok).toBe(false);
+
       if (!outcome.ok) {
         expect(outcome.category).toBe('timeout');
       }
@@ -134,6 +140,7 @@ describe('Ssh2ConnectionTester', () => {
             err.level = 'client-authentication';
             setTimeout(() => cb(err), 10);
           }
+
           return mockClient;
         }),
         connect: vi.fn(() => mockClient),
@@ -152,6 +159,7 @@ describe('Ssh2ConnectionTester', () => {
       const outcome = await tester.test(config);
 
       expect(outcome.ok).toBe(false);
+
       if (!outcome.ok) {
         expect(outcome.category).toBe('auth');
       }
@@ -165,6 +173,7 @@ describe('Ssh2ConnectionTester', () => {
             err.level = 'client-verification';
             setTimeout(() => cb(err), 10);
           }
+
           return mockClient;
         }),
         connect: vi.fn(() => mockClient),
@@ -183,6 +192,7 @@ describe('Ssh2ConnectionTester', () => {
       const outcome = await tester.test(config);
 
       expect(outcome.ok).toBe(false);
+
       if (!outcome.ok) {
         expect(outcome.category).toBe('hostkey');
       }
@@ -309,6 +319,7 @@ describe('Ssh2ConnectionTester', () => {
           if (event === 'ready') {
             setTimeout(() => cb(), 10);
           }
+
           return mockClient;
         }),
         connect: vi.fn(() => mockClient),
@@ -327,6 +338,7 @@ describe('Ssh2ConnectionTester', () => {
       const outcome = await tester.test(config);
 
       expect(outcome.ok).toBe(true);
+
       if (outcome.ok) {
         expect(outcome.hostkeyFingerprint).toBeTruthy();
       }

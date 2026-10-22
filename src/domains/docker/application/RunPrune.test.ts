@@ -86,7 +86,8 @@ describe('RunPrune — forbidden scopes rejected before any port call (ADR-0008)
   const forbidden: readonly unknown[] = ['volumes', 'all-images', 'dangling_images', 'Stopped-Containers', 42];
 
   it.each(forbidden)('rejects scope set containing %j in BOTH modes', async scope => {
-    for (const mode of ['dry-run', 'apply'] as const) {
+    await (['dry-run', 'apply'] as const).reduce(async (chain, mode) => {
+      await chain;
       const pruner = new RecordingPruner();
       await expect(new RunPrune(pruner).execute({ scopes: ['dangling-images', scope], mode })).rejects.toThrow(
         PruneScopeValidationError
@@ -94,7 +95,7 @@ describe('RunPrune — forbidden scopes rejected before any port call (ADR-0008)
       await expect(new RunPrune(pruner).execute({ scopes: [scope], mode })).rejects.toThrow(PruneScopeValidationError);
       expect(pruner.planCalls).toHaveLength(0);
       expect(pruner.applyCalls).toHaveLength(0);
-    }
+    }, Promise.resolve());
   });
 
   it.each([[[]], ['dangling-images', null], 'dangling-images', null, undefined])(

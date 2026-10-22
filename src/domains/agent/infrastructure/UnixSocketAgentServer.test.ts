@@ -39,7 +39,9 @@ function connectClient(socketPath: string): Promise<TestClient> {
         },
         nextFrame() {
           const existing = lines.shift();
+
           if (existing !== undefined) return Promise.resolve(JSON.parse(existing) as AgentFrame);
+
           return new Promise(resolveFrame => waiters.push(resolveFrame));
         },
         async raw() {
@@ -53,15 +55,18 @@ function connectClient(socketPath: string): Promise<TestClient> {
     socket.on('data', chunk => {
       buffer += decoder.write(chunk as Buffer);
       let index = buffer.indexOf('\n');
+
       while (index !== -1) {
         const line = buffer.slice(0, index);
         buffer = buffer.slice(index + 1);
         const waiter = waiters.shift();
+
         if (waiter !== undefined) {
           waiter(JSON.parse(line) as AgentFrame);
         } else {
           lines.push(line);
         }
+
         index = buffer.indexOf('\n');
       }
     });

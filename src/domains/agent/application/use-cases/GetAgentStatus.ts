@@ -18,9 +18,13 @@ export interface LifecycleInput {
 
 export function computeAgentLifecycle(input: LifecycleInput): AgentLifecycle {
   if (!input.connected) return 'unreachable';
+
   if (!input.protocolMatch) return 'version_mismatch';
+
   if (input.unitState === 'active') return 'active';
+
   if (input.unitState === 'not-found') return 'not_installed';
+
   return 'inactive_unit';
 }
 
@@ -30,6 +34,7 @@ export class GetAgentStatus {
   /** One-shot probe: connect → agent.status → close. */
   async execute(): Promise<AgentStatusResult> {
     const session = await this.transport.connect();
+
     try {
       return await session.request('agent.status', {});
     } finally {

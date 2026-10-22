@@ -69,6 +69,7 @@ function assertLifecycleOp(value: unknown): LifecycleOp {
   if (typeof value !== 'string' || !(LIFECYCLE_OPS as readonly string[]).includes(value)) {
     throw new StackLifecycleValidationError('op', `must be one of ${LIFECYCLE_OPS.join('|')}`);
   }
+
   return value as LifecycleOp;
 }
 
@@ -76,6 +77,7 @@ function assertExecutionMode(value: unknown): ExecutionMode {
   if (typeof value !== 'string' || !(EXECUTION_MODES as readonly string[]).includes(value)) {
     throw new StackLifecycleValidationError('mode', `must be one of ${EXECUTION_MODES.join('|')}`);
   }
+
   return value as ExecutionMode;
 }
 

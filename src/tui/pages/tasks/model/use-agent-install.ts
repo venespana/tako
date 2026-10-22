@@ -83,11 +83,14 @@ export function useAgentInstall({
     onStart();
     void install(line => {
       if (disposedRef.current || runIdRef.current !== runId) return;
+
       setLines(previous => [...previous, { id: nextLineIdRef.current++, text: line }].slice(-KEPT_LINES));
     })
       .then(outcome => {
         if (disposedRef.current || runIdRef.current !== runId) return;
+
         setPhase({ kind: 'done', outcome });
+
         if (outcome.ok) onInstalledRef.current();
       })
       .catch((error: unknown) => {
@@ -95,6 +98,7 @@ export function useAgentInstall({
         // land in `done` with the reason so the machine cannot wedge on
         // `running`.
         if (disposedRef.current || runIdRef.current !== runId) return;
+
         setPhase({
           kind: 'done',
           outcome: { ok: false, error: error instanceof Error ? error.message : String(error) },

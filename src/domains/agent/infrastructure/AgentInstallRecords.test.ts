@@ -38,6 +38,7 @@ const SHA_B = 'b'.repeat(64);
 function homeRunner(extra: (command: string) => RemoteCommandResult | undefined = () => undefined) {
   return new ScriptedRunner(command => {
     if (command === 'printf %s "$HOME"') return OK('/home/ops');
+
     return extra(command) ?? (command.includes(INSTALLED_SHA256_FILENAME) ? FAIL('No such file or directory') : OK());
   });
 }
@@ -92,7 +93,9 @@ describe('RemoteInstallRecords', () => {
   it('6.8 RED: record writes are exit-checked — a failing write throws', async () => {
     const runner = new ScriptedRunner(command => {
       if (command === 'printf %s "$HOME"') return OK('/home/ops');
+
       if (command.includes(INSTALLED_SHA256_FILENAME)) return FAIL('read-only file system');
+
       return OK();
     });
 

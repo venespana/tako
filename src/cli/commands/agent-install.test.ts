@@ -55,6 +55,7 @@ describe('runAgentInstallDefault — CLI endpoint mapping', () => {
   it('the command passes the env session password through (never argv)', async () => {
     process.env[SESSION_PASSWORD_ENV] = 'terminal-pw';
     vi.mocked(installAgent).mockResolvedValue({ kind: 'installed' });
+
     try {
       await runAgentInstallDefault('nas');
       expect(vi.mocked(installAgent)).toHaveBeenLastCalledWith({ remote: 'nas', sessionPassword: 'terminal-pw' });

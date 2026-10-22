@@ -86,11 +86,14 @@ export class SystemdRemoteController {
     if (this.#home === undefined) {
       const probe = await this.#run('printf %s "$HOME"');
       const home = probe.stdout.trim();
+
       if (probe.exitCode !== 0 || home.length === 0) {
         throw new Error(`cannot resolve the remote home directory — refusing to place the unit file blindly`);
       }
+
       this.#home = home;
     }
+
     return `${this.#home}/.config/systemd/user/${AGENT_UNIT_NAME}`;
   }
 
@@ -102,9 +105,11 @@ export class SystemdRemoteController {
   async writeUnitFile(): Promise<void> {
     const unitPath = await this.#unitFilePath();
     const existing = await this.#run(`cat '${unitPath}' 2>/dev/null || true`);
+
     if (existing.stdout.trim().length > 0 && !isTakoUnit(existing.stdout)) {
       throw new ForeignUnitFileError(unitPath);
     }
+
     const unitDir = unitPath.slice(0, unitPath.lastIndexOf('/'));
     await this.#run(
       `mkdir -p '${unitDir}' && cat > '${unitPath}' <<'TAKO_UNIT_EOF'\n${AGENT_UNIT_TEMPLATE}TAKO_UNIT_EOF`
@@ -147,25 +152,31 @@ export class SystemdRemoteController {
   /** `loginctl show-user` parse → true/false; unreadable → 'unknown'. */
   async showLinger(): Promise<boolean | 'unknown'> {
     const result = await this.#run('loginctl show-user "$USER" --property=Linger');
+
     if (result.exitCode !== 0) return 'unknown';
+
     return parseLingerShowUserOutput(result.stdout) ?? 'unknown';
   }
 
   /** Enable linger and record by-tako=true; polkit denial → actionable error. */
   async enableLinger(): Promise<void> {
     const result = await this.#runner.run('loginctl enable-linger');
+
     if (result.exitCode !== 0) {
       throw new PolkitLingerDeniedError(result.stderr);
     }
+
     this.#meta?.setLingerEnabledByTako(true);
   }
 
   /** Disable linger and record by-tako=false (only ever called when by-tako). */
   async disableLinger(): Promise<void> {
     const result = await this.#runner.run('loginctl disable-linger');
+
     if (result.exitCode !== 0) {
       throw new PolkitLingerDeniedError(result.stderr);
     }
+
     this.#meta?.setLingerEnabledByTako(false);
   }
 
@@ -178,25 +189,33 @@ export class SystemdRemoteController {
     const busctl = await this.#tryRun(
       'busctl get-property org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager KillUserProcesses'
     );
+
     if (busctl !== undefined && busctl.exitCode === 0) {
       const parsed = parseKillUserProcessesOutput(busctl.stdout);
+
       if (parsed !== undefined) return parsed;
     }
+
     const conf = await this.#tryRun('cat /etc/systemd/logind.conf');
+
     if (conf !== undefined && conf.exitCode === 0) {
       const parsed = parseKillUserProcessesConf(conf.stdout);
+
       if (parsed !== undefined) return parsed;
     }
+
     return 'unknown';
   }
 
   async #run(command: string): Promise<RemoteCommandResult> {
     const result = await this.#runner.run(command);
+
     if (result.exitCode !== 0 && isMutationCommand(command)) {
       const stderr = result.stderr.trim();
       const remedy = command.includes('systemctl') ? systemctlRemedy() : '';
       throw new Error(`remote command failed (exit ${result.exitCode ?? 'signal'}): ${command}\n${stderr}${remedy}`);
     }
+
     return result;
   }
 

@@ -37,6 +37,7 @@ function expandPath(path: string): string {
   if (path.startsWith('~/') || path === '~') {
     return join(homedir(), path.slice(1));
   }
+
   return path;
 }
 
@@ -104,9 +105,11 @@ export class SshConnectionManager implements SshChannelSource {
   async end(): Promise<void> {
     this.client?.end();
     this.client = undefined;
+
     if (this.connecting) {
       this.endWhileConnecting = true;
     }
+
     this.connecting = undefined;
   }
 
@@ -121,6 +124,7 @@ export class SshConnectionManager implements SshChannelSource {
           client.end();
           throw new Error('SSH connection closed while connecting');
         }
+
         this.client = client;
         this.connecting = undefined;
         return client;
@@ -157,6 +161,7 @@ export class SshConnectionManager implements SshChannelSource {
       };
       client.once('ready', onReady);
       client.once('error', onError);
+
       try {
         client.connect(this.buildConnectConfig());
       } catch (err) {

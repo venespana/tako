@@ -43,6 +43,7 @@ export function useMenuList(
   // populates after the initial render.
   const selectFocused = () => {
     const focused = selectable[cursor];
+
     if (focused !== undefined) onSelect(focused);
   };
 

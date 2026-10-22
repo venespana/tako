@@ -38,10 +38,13 @@ function parseFieldComponent(raw: string, componentName: string, min: number, ma
   if (!/^\d+$/.test(raw)) {
     throw new InvalidCronError(`${componentName} "${raw}" is not a number`);
   }
+
   const value = Number.parseInt(raw, 10);
+
   if (value < min || value > max) {
     throw new InvalidCronError(`${componentName} ${value} out of range ${min}-${max}`);
   }
+
   return value;
 }
 
@@ -49,16 +52,19 @@ function parseField(raw: string, min: number, max: number, componentName: string
   const values = new Set<number>();
   let starred = false;
 
-  for (const atom of raw.split(',')) {
+  raw.split(',').forEach(atom => {
     const parts = atom.split('/');
+
     if (parts.length > 2) {
       throw new InvalidCronError(`field "${raw}" has more than one step separator`);
     }
+
     const rangePart = parts[0] ?? '';
     const stepPart = parts[1];
 
     let lo: number;
     let hi: number;
+
     if (rangePart === '*') {
       starred = true;
       lo = min;
@@ -67,6 +73,7 @@ function parseField(raw: string, min: number, max: number, componentName: string
       const [loRaw = '', hiRaw = ''] = rangePart.split('-');
       lo = parseFieldComponent(loRaw, componentName, min, max);
       hi = parseFieldComponent(hiRaw, componentName, min, max);
+
       if (lo > hi) {
         throw new InvalidCronError(`inverted range "${rangePart}" in ${componentName}`);
       }
@@ -76,17 +83,20 @@ function parseField(raw: string, min: number, max: number, componentName: string
     }
 
     let step = 1;
+
     if (stepPart !== undefined) {
       step = parseFieldComponent(stepPart, 'step', 1, max);
     }
-    for (let v = lo; v <= hi; v += step) {
-      values.add(v);
-    }
-  }
+
+    Array.from({ length: Math.floor((hi - lo) / step) + 1 }, (_, index) => lo + index * step).forEach(v =>
+      values.add(v)
+    );
+  });
 
   if (values.size === 0) {
     throw new InvalidCronError(`field "${raw}" selects no values`);
   }
+
   return { values, starred };
 }
 
@@ -94,18 +104,20 @@ function parseDowField(raw: string): CronField {
   const field = parseField(raw, 0, 7, 'day-of-week');
   // Normalize 7 (Sunday) onto 0 so matching only needs getDay().
   const values = new Set<number>();
-  for (const v of field.values) {
-    values.add(v === 7 ? 0 : v);
-  }
+
+  [...field.values].forEach(v => values.add(v === 7 ? 0 : v));
+
   return { values, starred: field.starred };
 }
 
 /** Parse a 5-field cron expression; throws {@link InvalidCronError} on any violation. */
 export function parseCronExpr(expr: string): ParsedCron {
   const fields = expr.trim().split(/\s+/);
+
   if (fields.length !== 5) {
     throw new InvalidCronError(`expected 5 fields, got ${fields.length}`);
   }
+
   const [minuteRaw = '', hourRaw = '', domRaw = '', monthRaw = '', dowRaw = ''] = fields;
   const minute = parseField(minuteRaw, 0, 59, 'minute');
   const hour = parseField(hourRaw, 0, 23, 'hour');
@@ -129,9 +141,13 @@ export function isValidCronExpr(expr: string): boolean {
 function dayMatches(cron: ParsedCron, date: Date): boolean {
   const domOk = cron.dom.starred || cron.dom.values.has(date.getDate());
   const dowOk = cron.dow.starred || cron.dow.values.has(date.getDay());
+
   if (cron.dom.starred && cron.dow.starred) return true;
+
   if (cron.dom.starred) return dowOk;
+
   if (cron.dow.starred) return domOk;
+
   return domOk || dowOk;
 }
 
@@ -158,7 +174,8 @@ export function nextAfter(expr: string, after: Date): Date | null {
 
   let daysScanned = 0;
   let iterations = 0;
-  for (;;) {
+
+  while (true) {
     if (iterations++ > MAX_ITERATIONS || daysScanned > MAX_SCAN_DAYS) return null;
 
     if (!cron.month.values.has(t.getMonth() + 1)) {
@@ -167,20 +184,24 @@ export function nextAfter(expr: string, after: Date): Date | null {
       t.setHours(0, 0, 0, 0);
       continue;
     }
+
     if (!dayMatches(cron, t)) {
       daysScanned += 1;
       t.setDate(t.getDate() + 1);
       t.setHours(0, 0, 0, 0);
       continue;
     }
+
     if (!cron.hour.values.has(t.getHours())) {
       t.setHours(t.getHours() + 1, 0, 0, 0);
       continue;
     }
+
     if (!cron.minute.values.has(t.getMinutes())) {
       t.setMinutes(t.getMinutes() + 1, 0, 0);
       continue;
     }
+
     return t;
   }
 }

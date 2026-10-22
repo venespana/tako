@@ -131,6 +131,7 @@ export class BunqueueJobStore implements JobStore {
    */
   async open(): Promise<void> {
     if (this.#opened) return;
+
     this.#database = new Database(this.#dataPath);
     this.#database.run('PRAGMA journal_mode = WAL');
     this.#database.run('PRAGMA busy_timeout = 5000');
@@ -146,13 +147,16 @@ export class BunqueueJobStore implements JobStore {
   /** Remove every persisted bunqueue scheduler (the tako-agent queue is Tako's alone). */
   async #disarmLegacySchedulers(): Promise<void> {
     const stale = await this.#queue!.getJobSchedulers();
-    for (const scheduler of stale) {
+
+    await stale.reduce(async (chain, scheduler) => {
+      await chain;
       await this.#queue!.removeJobScheduler(scheduler.id);
-    }
+    }, Promise.resolve());
   }
 
   async close(): Promise<void> {
     if (!this.#opened) return;
+
     await this.#queue?.close();
     // The embedded cron runtime holds a safety-interval timer that would
     // otherwise keep the agent process alive after close; shut the shared
@@ -170,10 +174,13 @@ export class BunqueueJobStore implements JobStore {
       .query('SELECT * FROM tako_jobs ORDER BY created_at, id')
       .all() as unknown as JobRow[];
     const views: JobView[] = [];
-    for (const row of rows) {
+
+    rows.forEach(row => {
       const view = parseJobRow(row);
+
       if (view) views.push(view);
-    }
+    });
+
     return views;
   }
 
@@ -188,6 +195,7 @@ export class BunqueueJobStore implements JobStore {
     const specJson = JSON.stringify(job);
     const existing = db.query('SELECT created_at FROM tako_jobs WHERE id = ?').get(job.id) as
       { created_at: string } | undefined;
+
     if (existing) {
       db.run('UPDATE tako_jobs SET type = ?, spec_json = ?, updated_at = ? WHERE id = ?', [
         job.type,
@@ -205,11 +213,14 @@ export class BunqueueJobStore implements JobStore {
         now,
       ]);
     }
+
     // NO bunqueue scheduler here (FIRING AUTHORITY, module header): the
     // watermark tick in RunSchedulerLoop is the only firing authority; the
     // former scheduler mirror spawned unconsumed dead queue rows.
     const view = await this.getJob(job.id);
+
     if (!view) throw new Error(`upsertJob: job ${job.id} vanished after write`);
+
     return { job: view, created: existing === undefined };
   }
 
@@ -224,7 +235,9 @@ export class BunqueueJobStore implements JobStore {
   async getScheduleState(jobId: Slug): Promise<ScheduleState | undefined> {
     const row = this.#requireDb().query('SELECT * FROM tako_schedule_state WHERE job_id = ?').get(jobId) as unknown as
       ScheduleRow | undefined;
+
     if (!row) return undefined;
+
     return {
       jobId: row.job_id,
       ...(row.last_scheduled_fire !== null && { lastScheduledFire: row.last_scheduled_fire }),
@@ -261,7 +274,9 @@ export class BunqueueJobStore implements JobStore {
   async updateRun(runId: string, patch: RunPatch): Promise<RunView | undefined> {
     const db = this.#requireDb();
     const current = db.query('SELECT * FROM tako_runs WHERE id = ?').get(runId) as unknown as RunRow | undefined;
+
     if (!current) return undefined;
+
     const status = patch.status ?? current.status;
     const finishedAt = patch.finishedAt ?? current.finished_at;
     const resultJson = patch.result !== undefined ? JSON.stringify(patch.result) : current.result_json;
@@ -278,14 +293,17 @@ export class BunqueueJobStore implements JobStore {
   async listRuns(query: RunsQuery = {}): Promise<RunView[]> {
     const conditions: string[] = [];
     const params: Array<string | number> = [];
+
     if (query.jobId !== undefined) {
       conditions.push('job_id = ?');
       params.push(query.jobId);
     }
+
     if (query.sinceSeq !== undefined) {
       conditions.push('seq > ?');
       params.push(query.sinceSeq);
     }
+
     const where = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
     const limit = query.limit !== undefined ? ` LIMIT ${Math.floor(query.limit)}` : '';
     const rows = this.#requireDb()
@@ -305,6 +323,7 @@ export class BunqueueJobStore implements JobStore {
     if (!this.#database || !this.#opened) {
       throw new Error('BunqueueJobStore is not open — call open() first (agent-mode composition root)');
     }
+
     return this.#database;
   }
 }
