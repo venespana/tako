@@ -108,3 +108,12 @@ transport limitation recorded in the hub doc).
   the effect dispatches the second fetch). Parent fixed inline —
   `vi.waitFor` on the fetch call count; 3 focused runs + full suite
   (104 files / 920 tests) green.
+- 2026-10-22 (R3-001 escalated — review-72688e7aae1727c0): candidate B's
+  reviewer escalated a CRITICAL with unknown causality: the /status shim's
+  behavior (store→props injection, key remount, no-remote redirect home)
+  had no test. Parent recovered the finding from the review store and
+  closed the gap: `src/tui/app/routes/status.test.tsx` (3 tests — props
+  injection, key remount on remote switch, home redirect with the
+  empty-remote prop flow). Suite 106 files / 953 tests. The escalated
+  lineage stays terminal (informational for the maintainer); the gap is
+  covered for the next review boundary.
