@@ -27,13 +27,20 @@ describe('getRegistry', () => {
     expect(local.items[0]!.enabledWhen).toBe('always');
   });
 
-  it('Remote group contains Select, Add and Delete only — no home Tasks entry (9.14d)', () => {
+  it('Remote group contains Select, Add, Delete and Status', () => {
     const remote = getRegistry().find(g => g.id === 'remote')!;
-    expect(remote.items.map(i => i.id)).toEqual(['remote-select', 'remote-add', 'remote-delete']);
-    expect(remote.items.every(i => i.kind === 'action')).toBe(true);
-    // The tasks workspace is the REMOTE's menu (9.14d): every home remote
-    // entry is unconditionally selectable.
-    expect(remote.items.every(i => i.enabledWhen === 'always')).toBe(true);
+    expect(remote.items.map(i => i.id)).toEqual(['remote-select', 'remote-add', 'remote-delete', 'status']);
+    // Select/Add/Delete stay unconditionally selectable (9.14d: the remote's
+    // workspace is its menu); Status is the one gated entry — it needs an
+    // active remote to query.
+    const gated = remote.items.filter(i => i.id !== 'status');
+    expect(gated.every(i => i.kind === 'action')).toBe(true);
+    expect(gated.every(i => i.enabledWhen === 'always')).toBe(true);
+    expect(remote.items.find(i => i.id === 'status')).toMatchObject({
+      kind: 'submenu',
+      enabledWhen: 'hasActiveRemote',
+      route: '/status',
+    });
   });
 
   it('Remote items route correctly', () => {
@@ -54,7 +61,9 @@ describe('getRegistry', () => {
   it('no hidden unimplemented commands appear', () => {
     const allItems = getRegistry().flatMap(g => g.items);
     const ids = allItems.map(i => i.id);
-    const hidden = ['install', 'update', 'status', 'logs', 'cleanup', 'rollback', 'list', 'use', 'test', 'tasks'];
+    // 'status' is implemented since mvp-status-command — its home entry is
+    // gated by hasActiveRemote, not hidden.
+    const hidden = ['install', 'update', 'logs', 'cleanup', 'rollback', 'list', 'use', 'test', 'tasks'];
     hidden.forEach(id => {
       expect(ids).not.toContain(id);
     });
