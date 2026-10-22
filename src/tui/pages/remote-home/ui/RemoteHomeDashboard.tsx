@@ -11,6 +11,7 @@ import { Box, Text } from 'ink';
 import { CursorColumn } from './CursorColumn.js';
 import { STATUS_COLOR, DetailPanel } from './DetailPanel.js';
 import { Divider } from './Divider.js';
+import { theme } from '../../../shared/ui/theme.js';
 import { buildInventoryRows, groupSummary, selectableRows } from '../model/remote-home.js';
 import type { RemoteHomeView, ServiceGroup } from '../model/remote-home.js';
 
@@ -35,7 +36,8 @@ function uniformPaused(group: ServiceGroup): boolean {
 export function RemoteHomeDashboard({ view, collapsedIds, cursor }: RemoteHomeDashboardProps): React.ReactElement {
   // All rows for rendering; the walk for focus — the page filters the SAME
   // builder. An out-of-range cursor (the list shrank) yields undefined →
-  // no highlight, no detail.
+  // no highlight, no detail. Only a COLLAPSED group row can hold the
+  // group-focus slot; it marks in place via its glyph color.
   const rows = buildInventoryRows(view.groups, collapsedIds);
   const walk = selectableRows(view.groups, collapsedIds);
   const focused = walk[cursor];
@@ -60,6 +62,7 @@ export function RemoteHomeDashboard({ view, collapsedIds, cursor }: RemoteHomeDa
         {rows.map(row => {
           if (row.kind === 'group') {
             const expanded = row.group.expanded && !collapsedIds.has(row.group.id);
+            const focusedHere = !expanded && focusedCollapsedGroupId === row.group.id;
             const title = (
               <>
                 <Text bold>{row.group.name}</Text>
@@ -74,6 +77,11 @@ export function RemoteHomeDashboard({ view, collapsedIds, cursor }: RemoteHomeDa
               </>
             ) : null;
 
+            // ALL group rows start at column 0 with their glyph — no cursor
+            // column, ever, so expanding/collapsing never shifts layout. A
+            // collapsed row marks focus IN PLACE: its glyph turns cursor-
+            // cyan (the detail column switching to the group is the other
+            // half of the signal); unfocused stays dim.
             return expanded ? (
               <Text key={row.group.id}>
                 <Text dimColor>▼</Text>
@@ -83,8 +91,9 @@ export function RemoteHomeDashboard({ view, collapsedIds, cursor }: RemoteHomeDa
               </Text>
             ) : (
               <Text key={row.group.id}>
-                <CursorColumn focused={focusedCollapsedGroupId === row.group.id} />
-                <Text dimColor>▶</Text>
+                <Text dimColor={!focusedHere} color={focusedHere ? theme.cursorColor : undefined}>
+                  ▶
+                </Text>
                 {` `}
                 {title}
                 {pausedSuffix}

@@ -218,3 +218,11 @@ the static fixture. Texts in ENGLISH (user decision — overrides the pen's
   lands the cursor on the collapsed row at the same index). 105 files /
   944 tests green; focused suite stable ×3; parent spot check re-ran
   focused suite + typecheck.
+- 2026-10-22 (S11 alignment fix, user screenshot): collapsed group rows
+  rendered the cursor column and shifted right versus expanded rows.
+  Final layout: ALL group rows start at column 0 with the glyph (no
+  CursorColumn ever); focus on a collapsed row marks the glyph cyan in
+  place (zero layout shift) plus the detail-panel switch. Container rows
+  keep the cursor column. 105 files / 945 tests green; committed and
+  pushed as `fix(tui): keep hub group rows at column zero` (user request
+  2026-10-22).

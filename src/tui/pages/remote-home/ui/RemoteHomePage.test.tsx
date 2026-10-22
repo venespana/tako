@@ -226,19 +226,38 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
     stubContainers({ result: { kind: 'ok', containers: CONTAINERS } });
   });
 
-  it('space on a focused container collapses its group; the collapsed row takes the cursor', async () => {
+  it('space on a focused container collapses its group; the collapsed row renders at column 0', async () => {
     const { lastFrame, stdin } = renderPage();
     await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
 
-    const frame = await pressToggle(stdin, lastFrame, ' ', f => f.includes('❯ ▶ monitoring'));
+    const frame = await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
 
-    expect(frame).toContain('❯ ▶ monitoring 1/2');
+    expect(frame).toContain('▶ monitoring 1/2');
     // The summary comes from the real group, never a derived emptied view.
     expect(frame).not.toContain('grafana');
     expect(frame).not.toContain('prometheus');
     // Other groups are untouched.
     expect(frame).toContain('▼ proxy');
     expect(frame).toContain('caddy');
+  });
+
+  it("group rows never shift: the collapsed glyph sits at the expanded glyphs' indent", async () => {
+    const { lastFrame, stdin } = renderPage();
+    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+
+    const frame = await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
+
+    // No cursor column on ANY group row, focused or not.
+    expect(frame).not.toContain('❯ ▶');
+
+    // The collapsed glyph sits at the SAME indent as the expanded glyphs'
+    // (page padding + glyph) — expanding/collapsing never shifts layout.
+    const collapsedLine = frame.split('\n').find(line => line.includes('▶ monitoring'));
+    const expandedLine = frame.split('\n').find(line => line.includes('▼ proxy'));
+
+    expect(collapsedLine).toBeDefined();
+    expect(expandedLine).toBeDefined();
+    expect(collapsedLine?.indexOf('▶')).toBe(expandedLine?.indexOf('▼'));
   });
 
   it('space again expands the focused collapsed group — the row itself is the handle', async () => {
@@ -263,11 +282,12 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
     // leaves the cursor at index 1 — on caddy, NOT the collapsed row.
     await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ ● prometheus'));
 
-    const collapsed = await pressToggle(stdin, lastFrame, ' ', f => f.includes('  ▶ monitoring'));
+    const collapsed = await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
 
+    // The cursor still lands on caddy (container rows keep their column).
     expect(collapsed).toContain('❯ ● caddy');
     expect(collapsed).toContain('▶ monitoring');
-    expect(collapsed).not.toContain('❯ ▶ monitoring');
+    expect(collapsed).not.toContain('❯ ▶');
 
     // The next space collapses CADDY'S group (proxy) — monitoring stays
     // collapsed; nothing re-expands it from a distance.
@@ -275,14 +295,15 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
     expect(second).toContain('▶ monitoring');
     expect(second).not.toContain('▼ monitoring');
-    expect(second).toContain('❯ ▶ proxy');
+    expect(second).toContain('▶ proxy');
+    expect(second).not.toContain('❯ ▶');
   });
 
   it('l on a focused collapsed group row expands it', async () => {
     const { lastFrame, stdin } = renderPage();
     await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
 
-    await pressToggle(stdin, lastFrame, ' ', f => f.includes('❯ ▶ monitoring'));
+    await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
 
     const frame = await pressToggle(stdin, lastFrame, 'l', f => f.includes('▼ monitoring') && f.includes('grafana'));
 
@@ -306,7 +327,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
     const { lastFrame, stdin } = renderPage();
     await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
 
-    const frame = await pressToggle(stdin, lastFrame, ' ', f => f.includes('❯ ▶ monitoring'));
+    const frame = await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
 
     expect(frame).toContain('1/2');
     expect(frame).not.toContain('ACTIONS');
@@ -319,7 +340,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
     const { lastFrame, stdin } = renderPage();
     await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
 
-    await pressToggle(stdin, lastFrame, ' ', f => f.includes('❯ ▶ monitoring'));
+    await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
 
     let frame = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ ● caddy'));
 
@@ -368,19 +389,23 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
     const { lastFrame, stdin } = renderPage();
     await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
 
-    // monitoring↓: the cursor takes the collapsed row itself (index 0).
-    await pressToggle(stdin, lastFrame, ' ', f => f.includes('❯ ▶ monitoring'));
-    // j → caddy; space → proxy↓: the cursor takes proxy's collapsed row.
+    // monitoring↓: the cursor takes the collapsed row's WALK slot (index 0).
+    await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
+    // j → caddy; space → proxy↓: the walk slot moves to proxy's collapsed row.
     await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ ● caddy'));
-    await pressToggle(stdin, lastFrame, ' ', f => f.includes('❯ ▶ proxy'));
-    // j → portainer; space → Others↓: the cursor takes Others' collapsed row.
+    await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ proxy'));
+    // j → portainer; space → Others↓: the walk slot moves to Others' row.
     await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ ● portainer'));
-    const allCollapsed = await pressToggle(stdin, lastFrame, ' ', f => f.includes('❯ ▶ Others'));
+    const allCollapsed = await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ Others'));
 
-    expect(allCollapsed).toContain('  ▶ monitoring');
-    expect(allCollapsed).toContain('  ▶ proxy');
-    expect(allCollapsed).toContain('❯ ▶ Others');
-    expect(allCollapsed).not.toContain('❯ ▼');
+    // Only collapsed group rows remain — all at the pen column, none with a
+    // cursor column; focus is marked by the detail panel (cyan in a real
+    // terminal, stripped by the test renderer).
+    expect(allCollapsed).toContain('▶ monitoring');
+    expect(allCollapsed).toContain('▶ proxy');
+    expect(allCollapsed).toContain('▶ Others');
+    expect(allCollapsed).not.toContain('❯');
+    expect(allCollapsed).not.toContain('▼');
     expect(allCollapsed).not.toContain('grafana');
     expect(allCollapsed).not.toContain('caddy');
     expect(allCollapsed).not.toContain('portainer');
@@ -391,8 +416,8 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
     expect(reopened).toContain('▼ Others');
     expect(reopened).toContain('❯ ● portainer');
-    expect(reopened).toContain('  ▶ monitoring');
-    expect(reopened).toContain('  ▶ proxy');
+    expect(reopened).toContain('▶ monitoring');
+    expect(reopened).toContain('▶ proxy');
   });
 });
 
