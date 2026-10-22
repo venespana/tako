@@ -64,10 +64,12 @@ this doc; writer owns the listed source files only.
 
 ## Delivery
 
-Forecast ≈ 600–700 authored lines → over the ~400 slice advisory. Strategy
-ask-on-risk: propose two work-unit commits at delivery — (1) the status
-screen (model + ui + tests), (2) wiring (shim + registry). No version bump
-(direct branch commits, no PR yet).
+Delivered as **PR #11** (https://github.com/venespana/tako/pull/11, base
+`main`, version 1.2.0 per ADR-0017) with the hub iterations stacked
+(feature/tui-status-screen contains feature/tui-remote-home-screen).
+Forecast was exceeded (~3858 lines) — user chose a single PR over a chain.
+Native review: on hold awaiting the maintainer's corrections (known
+transport limitation recorded in the hub doc).
 
 ## Acceptance criteria
 
