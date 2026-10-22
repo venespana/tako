@@ -1,6 +1,6 @@
 {
   "name": "tako",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "TUI for managing docker-compose-based homelabs over SSH.",
   "license": "MIT",
   "type": "module",
