@@ -85,6 +85,29 @@ applies to PRs per ADR-0017 workflow note).
 - No change to /tasks route itself; tasks remains reachable (untouched for
   now).
 
+## Iteration 2 — live container inventory (2026-10-21, user request)
+
+The hub's Services tab shows the ACTIVE remote's real containers, replacing
+the static fixture. Texts in ENGLISH (user decision — overrides the pen's
+`Servicios` label; that was the only Spanish string).
+
+- [x] S7 — Docker domain: strict `docker ps -a --format '{{json .}}'` parser
+  (JSON-lines, refuse-on-corrupt mirroring parseComposeLsJson) +
+  GetContainers use case + RemoteDockerPsAdapter over RemoteCommandRunner
+  (port/adapter pattern of GetStackStatus/RemoteComposeCliAdapter).
+- [x] S8 — Service: `getContainers({ remote, sessionPassword })` in
+  `services/docker.ts` (refusal-object outcome, mirrors getStackStatus).
+- [x] S9 — Hub rework: `use-remote-home` hook (loading/ok/empty/error) consuming
+  the service; groups = compose project label (`com.docker.compose.project`),
+  label-less containers → Others; status mapping running→running,
+  paused→paused, everything else→exited; all groups expanded by default;
+  meta `N containers · M running` computed live.
+- [x] S10 — English labels: tab + section `Services`; full checks.
+- [x] S11 — Collapsible groups (user request): SPACE toggles the focused
+      group's expansion (Enter/l too on group rows); ↑↓ walks group and
+      container rows; group-focused detail shows name + summary; hint
+      `space collapse/expand` in the ok phase; pure row-builder + tests.
+
 ## Technical debt (deferred 2026-10-21, user decision)
 
 - steiger `fsd/insignificant-slice` ×2: `features/doctor` (solo lo usa
@@ -157,3 +180,41 @@ applies to PRs per ADR-0017 workflow note).
   candidate will consent → stop until the transport is fixed). Review
   boundary does NOT advance: next assess keeps --base-ref main. Delivered
   under ordinary repository policy; push/PR pending user decision.
+- 2026-10-21 (iteration 2, branch feature/tui-status-screen stacked via
+  fast-forward): S7–S10 completed by one delegated writer (4 RED→GREEN
+  rounds). Live inventory end-to-end: strict `docker ps` parser + use case
+  + adapter + `getContainers` service; hub renders real groups (compose
+  label grouping, Others last, computed totals) with loading/empty/error
+  states; labels in English (`Services`). Writer flagged a latent refresh
+  race in iteration-1's `use-status.test.ts`; parent hardened it inline
+  (`vi.waitFor` on the fetch call count before resolving the deferred) —
+  3 focused runs + full suite green after.
+
+## Verification evidence (iteration 2)
+
+- `bun run test` (full, post flake-fix): 104 files / 920 tests passing.
+- `bun run typecheck`: exit 0.
+- ESLint scoped: `no-multi-comp: 0`, zero findings in the new/edited files
+  (pre-existing findings remain in other docker-domain files — recorded
+  repo-wide lint debt).
+- Note: `use-remote-home` mirrors `use-status`; the same
+  loading-paint/fetch-dispatch race documented there applies to both
+  hooks' tests.
+- 2026-10-21 (S11): collapsible groups shipped in two writer passes — the
+  model slice (buildInventoryRows + 7 tests) landed, then the writer
+  STOPPED correctly at the surface fence (RemoteHomeDashboard.tsx was
+  missing from the derived surface; the ▼ glyph was hardcoded, not
+  flag-driven); the parent authorized the file and the same writer session
+  finished the UI slice. Spot check re-ran the focused suite (4 files /
+  47 tests) + typecheck. Full suite 105 files / 937 tests green.
+- 2026-10-21 (S11 correction round 2, user feedback): FINAL contract —
+  collapsed group rows are selectable (the reopen handle: `❯ ▶ name` via
+  the house cursor column), expanded group rows are pure headers (never
+  focused), SPACE collapses the focused container's owner group / expands
+  a focused collapsed row, Enter/l expands; DetailPanel group mode only
+  for collapsed groups. The sticky-toggle mechanism from round 1 was
+  removed entirely — with collapsed rows selectable, "space again
+  expands" falls out naturally (collapsing a group's first container
+  lands the cursor on the collapsed row at the same index). 105 files /
+  944 tests green; focused suite stable ×3; parent spot check re-ran
+  focused suite + typecheck.

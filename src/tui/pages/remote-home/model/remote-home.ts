@@ -1,12 +1,10 @@
-// remote-home.ts — Static view model for the Home/Remote hub screen (pen
-// frame "Screen - Home / Remote"). Visibility-only iteration: REMOTE_HOME_
-// FIXTURE mirrors the approved mock verbatim — no docker data, no
-// interaction state. Totals are COMPUTED from the groups (never
-// hand-maintained) so the section meta can never drift from the rendered
-// rows. The design's meta row (`14 containers · 12 running`) is authoritative
-// for the mock data: it matches the Screen - Status dashboard's canonical
-// counts, where the Others bucket carries THREE standalone containers — the
-// pen inventory only drew two rows, so uptime-kuma completes the set here.
+// remote-home.ts — Pure view model for the Home/Remote hub screen (pen
+// frame "Screen - Home / Remote", iteration 2): groups the ACTIVE remote's
+// REAL containers by compose project (the label-less ones land in an Others
+// bucket kept last), maps docker states onto the design's three lights, and
+// computes the section totals from the collection (never hand-maintained)
+// so the meta can never drift from the rendered rows. No React, no I/O.
+import type { ContainerSnapshot } from '../../../../services/docker.js';
 
 export type ContainerStatus = 'running' | 'exited' | 'paused';
 
@@ -34,13 +32,35 @@ export interface ContainerAction {
   key: string;
 }
 
-/** Static view data for one rendering of the hub screen. */
-export interface RemoteHomeFixture {
+/** View data for one rendering of the hub screen (derived from real containers). */
+export interface RemoteHomeView {
   totalContainers: number;
   runningContainers: number;
   groups: ServiceGroup[];
   actions: ContainerAction[];
 }
+
+const OTHERS_GROUP_ID = 'others';
+const OTHERS_GROUP_NAME = 'Others';
+
+/** The detail panel's static action list (this iteration's scope). */
+const CONTAINER_ACTIONS: readonly ContainerAction[] = [
+  { id: 'view-logs', label: 'View logs', key: 'l' },
+  { id: 'restart', label: 'Restart', key: 'r' },
+  { id: 'stop', label: 'Stop', key: 's' },
+  { id: 'inspect', label: 'Inspect', key: 'i' },
+];
+
+/** Typed lookup for the two states with their own light; everything else
+ * (exited, created, restarting, dead…) falls back to the exited light. */
+const STATUS_LIGHTS: Record<string, ContainerStatus> = { running: 'running', paused: 'paused' };
+
+/** Map a raw docker ps state onto the design's three lights. */
+function toContainerStatus(state: string): ContainerStatus {
+  return STATUS_LIGHTS[state] ?? 'exited';
+}
+
+const byName = (a: ContainerEntry, b: ContainerEntry): number => a.name.localeCompare(b.name);
 
 /** Compact per-group summary for the group row: "3/3" running/total for
  * compose groups, "2 · no compose" for the ad-hoc Others group. */
@@ -50,85 +70,103 @@ export function groupSummary(group: ServiceGroup): string {
   return group.composeProject === null ? `${running} · no compose` : `${running}/${group.containers.length}`;
 }
 
-const groups: ServiceGroup[] = [
-  {
-    id: 'media',
-    name: 'media',
-    composeProject: 'media',
-    expanded: true,
-    containers: [
-      { id: 'media/immich', name: 'immich', status: 'running' },
-      { id: 'media/jellyfin', name: 'jellyfin', status: 'running' },
-      { id: 'media/plex', name: 'plex', status: 'running' },
-    ],
-  },
-  {
-    id: 'proxy',
-    name: 'proxy',
-    composeProject: 'proxy',
-    expanded: false,
-    containers: [
-      { id: 'proxy/caddy', name: 'caddy', status: 'running' },
-      { id: 'proxy/cloudflared', name: 'cloudflared', status: 'running' },
-    ],
-  },
-  {
-    id: 'monitoring',
-    name: 'monitoring',
-    composeProject: 'monitoring',
-    expanded: false,
-    containers: [
-      { id: 'monitoring/prometheus', name: 'prometheus', status: 'running' },
-      { id: 'monitoring/grafana', name: 'grafana', status: 'running' },
-      { id: 'monitoring/node-exporter', name: 'node-exporter', status: 'running' },
-    ],
-  },
-  {
-    id: 'homeassistant',
-    name: 'homeassistant',
-    composeProject: 'homeassistant',
-    expanded: false,
-    containers: [{ id: 'homeassistant/homeassistant', name: 'homeassistant', status: 'running' }],
-  },
-  {
-    id: 'backup',
-    name: 'backup',
-    composeProject: 'backup',
-    expanded: false,
-    containers: [{ id: 'backup/restic', name: 'restic', status: 'exited' }],
-  },
-  {
-    id: 'downloads',
-    name: 'downloads',
-    composeProject: 'downloads',
-    expanded: false,
-    containers: [{ id: 'downloads/qbittorrent', name: 'qbittorrent', status: 'paused' }],
-  },
-  {
-    id: 'others',
-    name: 'Others',
-    composeProject: null,
-    expanded: true,
-    containers: [
-      { id: 'others/portainer', name: 'portainer', status: 'running' },
-      { id: 'others/watchtower', name: 'watchtower', status: 'running' },
-      { id: 'others/uptime-kuma', name: 'uptime-kuma', status: 'running' },
-    ],
-  },
-];
+/**
+ * Group containers by compose project: one group per project, sorted
+ * alphabetically, every group expanded; label-less containers land in the
+ * Others group, kept last and only when non-empty. Containers sort by name
+ * inside each group.
+ */
+export function toServiceGroups(containers: readonly ContainerSnapshot[]): ServiceGroup[] {
+  const byProject = new Map<string, ContainerEntry[]>();
+  const others: ContainerEntry[] = [];
 
-const actions: ContainerAction[] = [
-  { id: 'view-logs', label: 'View logs', key: 'l' },
-  { id: 'restart', label: 'Restart', key: 'r' },
-  { id: 'stop', label: 'Stop', key: 's' },
-  { id: 'inspect', label: 'Inspect', key: 'i' },
-];
+  containers.forEach(snapshot => {
+    const entry: ContainerEntry = {
+      id: snapshot.id,
+      name: snapshot.name,
+      status: toContainerStatus(snapshot.state),
+    };
 
-const allContainers = groups.flatMap(group => group.containers);
+    if (snapshot.composeProject === null) {
+      others.push(entry);
 
-export const REMOTE_HOME_FIXTURE: RemoteHomeFixture = {
-  totalContainers: allContainers.length,
-  runningContainers: allContainers.filter(container => container.status === 'running').length,
-  groups,
-  actions,
-};
+      return;
+    }
+
+    const bucket = byProject.get(snapshot.composeProject);
+
+    if (bucket === undefined) byProject.set(snapshot.composeProject, [entry]);
+    else bucket.push(entry);
+  });
+
+  const composeGroups = [...byProject.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([project, entries]) => ({
+      id: project,
+      name: project,
+      composeProject: project,
+      expanded: true,
+      containers: [...entries].sort(byName),
+    }));
+
+  if (others.length === 0) return composeGroups;
+
+  return [
+    ...composeGroups,
+    {
+      id: OTHERS_GROUP_ID,
+      name: OTHERS_GROUP_NAME,
+      composeProject: null,
+      expanded: true,
+      containers: [...others].sort(byName),
+    },
+  ];
+}
+
+/** The full hub view for a container collection: grouped rows plus totals
+ * computed from the same collection and the static action list. */
+export function toRemoteHomeView(containers: readonly ContainerSnapshot[]): RemoteHomeView {
+  const groups = toServiceGroups(containers);
+  const flat = groups.flatMap(group => group.containers);
+
+  return {
+    totalContainers: flat.length,
+    runningContainers: flat.filter(container => container.status === 'running').length,
+    groups,
+    actions: [...CONTAINER_ACTIONS],
+  };
+}
+
+/**
+ * The flat row list the page's cursor walks: every container of an expanded
+ * group plus every COLLAPSED group row — a closed group's row is the
+ * markable handle that reopens it. Expanded group rows are headers:
+ * rendered, never selectable. Same builder the dashboard renders, so cursor
+ * and render can never disagree.
+ */
+export function selectableRows(groups: readonly ServiceGroup[], collapsedIds: ReadonlySet<string>): InventoryRow[] {
+  return buildInventoryRows(groups, collapsedIds).flatMap(row =>
+    row.kind === 'container' || collapsedIds.has(row.group.id) ? [row] : []
+  );
+}
+
+/** One row of the hub's inventory list: a group header or one of its
+ * containers — the cursor walks both kinds (collapsible groups iteration). */
+export type InventoryRow =
+  { kind: 'group'; group: ServiceGroup } | { kind: 'container'; group: ServiceGroup; container: ContainerEntry };
+
+/**
+ * The flat row list the page's cursor walks, in render order: one group row
+ * per group, then that group's container rows. A collapsed group (id in
+ * `collapsedIds`, or `expanded: false`) contributes its group row only —
+ * rows and the ▼/▶ glyph share this same effective expanded state.
+ */
+export function buildInventoryRows(groups: readonly ServiceGroup[], collapsedIds: ReadonlySet<string>): InventoryRow[] {
+  return groups.flatMap(group => {
+    const row: InventoryRow = { kind: 'group', group };
+
+    if (!group.expanded || collapsedIds.has(group.id)) return [row];
+
+    return [row, ...group.containers.map(container => ({ kind: 'container' as const, group, container }))];
+  });
+}
