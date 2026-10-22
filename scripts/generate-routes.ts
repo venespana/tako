@@ -48,38 +48,38 @@ const OUTPUT_FILE = join('src', 'tui', 'app', 'routes.generated.ts');
  * by tests. */
 async function scanRouteFiles(routesDir: string): Promise<string[]> {
   const glob = new Bun.Glob('**/*.tsx');
-  const files: string[] = [];
-  for await (const file of glob.scan({ cwd: routesDir, onlyFiles: true })) {
-    if (!file.includes('.test.')) files.push(file);
-  }
-  return files.sort();
+  const files = await Array.fromAsync(glob.scan({ cwd: routesDir, onlyFiles: true }));
+
+  return files.filter(file => !file.includes('.test.')).sort();
 }
 
 /** Group scanned files by their directory ('' for the routes/ root), storing
  * basenames as list entries. */
 function groupByDir(files: string[]): Map<string, string[]> {
   const byDir = new Map<string, string[]>();
-  for (const file of [...files].sort()) {
+
+  [...files].sort().forEach(file => {
     const slash = file.lastIndexOf('/');
     const dir = slash === -1 ? '' : file.slice(0, slash);
     const basename = slash === -1 ? file : file.slice(slash + 1);
     const list = byDir.get(dir) ?? [];
     list.push(basename);
     byDir.set(dir, list);
-  }
+  });
+
   return byDir;
 }
 
 /** Direct subdirectories of `dir` that contain route files, sorted. */
 function directSubdirs(byDir: Map<string, string[]>, dir: string): string[] {
   const prefix = dir === '' ? '' : `${dir}/`;
-  const subs: string[] = [];
-  for (const key of byDir.keys()) {
-    if (key === dir || !key.startsWith(prefix)) continue;
-    const rest = key.slice(prefix.length);
-    if (rest !== '' && !rest.includes('/')) subs.push(`${prefix}${rest}`);
-  }
-  return subs.sort();
+
+  return [...byDir.keys()]
+    .filter(key => key !== dir && key.startsWith(prefix))
+    .map(key => key.slice(prefix.length))
+    .filter(rest => rest !== '' && !rest.includes('/'))
+    .map(rest => `${prefix}${rest}`)
+    .sort();
 }
 
 /** Children of one directory: file routes first (index route first, then
@@ -95,23 +95,26 @@ function buildChildren(byDir: Map<string, string[]>, dir: string): RouteSpec[] {
     ...fileRoutes.filter(name => name !== 'index.tsx'),
   ];
   const prefix = dir === '' ? '' : `${dir}/`;
-  for (const name of indexFirst) {
+
+  indexFirst.forEach(name => {
     const moduleName = name.replace(/\.tsx$/, '');
     children.push(
       moduleName === 'index'
         ? { index: true, importPath: `./routes/${prefix}index.js` }
         : { path: moduleName, importPath: `./routes/${prefix}${moduleName}.js` }
     );
-  }
+  });
 
-  for (const sub of directSubdirs(byDir, dir)) {
+  directSubdirs(byDir, dir).forEach(sub => {
     const segment = sub.slice(sub.lastIndexOf('/') + 1);
     const spec: RouteSpec = { path: segment, children: buildChildren(byDir, sub) };
+
     if ((byDir.get(sub) ?? []).includes('layout.tsx')) {
       spec.importPath = `./routes/${sub}/layout.js`;
     }
+
     children.push(spec);
-  }
+  });
 
   return children;
 }
@@ -121,9 +124,11 @@ function buildChildren(byDir: Map<string, string[]>, dir: string): RouteSpec[] {
 export function buildRouteTree(files: string[]): RouteSpec[] {
   const byDir = groupByDir(files);
   const children = buildChildren(byDir, '');
+
   if ((byDir.get('') ?? []).includes('layout.tsx')) {
     return [{ path: '/', importPath: './routes/layout.js', children }];
   }
+
   return children;
 }
 
@@ -137,10 +142,13 @@ function moduleVar(importPath: string): string {
 /** Unique import specifiers of every route module in the tree. */
 function collectImports(specs: RouteSpec[]): string[] {
   const paths: string[] = [];
-  for (const spec of specs) {
+
+  specs.forEach(spec => {
     if (spec.importPath !== undefined) paths.push(spec.importPath);
+
     if (spec.children !== undefined) paths.push(...collectImports(spec.children));
-  }
+  });
+
   return [...new Set(paths)].sort();
 }
 
@@ -150,9 +158,11 @@ function collectImports(specs: RouteSpec[]): string[] {
 function emitSpec(spec: RouteSpec, indent: string): string[] {
   const selector = spec.index ? 'index: true' : `path: '${spec.path}'`;
   const moduleRef = spec.importPath !== undefined ? moduleVar(spec.importPath) : undefined;
+
   if (spec.children === undefined) {
     return [`${indent}defineRoute({ ${selector}, module: ${moduleRef} }),`];
   }
+
   return [
     `${indent}defineRoute({`,
     `${indent}  ${selector},`,
@@ -174,13 +184,17 @@ function emitSpecs(specs: RouteSpec[], indent: string): string[] {
 function byEslintImportOrder(a: string, b: string): number {
   const segmentsA = a.split('/');
   const segmentsB = b.split('/');
-  for (let i = 0; i < Math.min(segmentsA.length, segmentsB.length); i++) {
-    const x = segmentsA[i]!;
-    const y = segmentsB[i]!;
+  const shared = Math.min(segmentsA.length, segmentsB.length);
+  const firstDiff = segmentsA.findIndex((x, i) => i < shared && x !== segmentsB[i]);
+
+  if (firstDiff >= 0) {
+    const x = segmentsA[firstDiff]!;
+    const y = segmentsB[firstDiff]!;
     const bothRelativeDots = (x === '.' || x === '..') && (y === '.' || y === '..');
-    if (bothRelativeDots && x !== y) break;
-    if (!bothRelativeDots && x !== y) return x < y ? -1 : 1;
+
+    if (!bothRelativeDots) return x < y ? -1 : 1;
   }
+
   return segmentsA.length - segmentsB.length;
 }
 

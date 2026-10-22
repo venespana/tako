@@ -16,6 +16,7 @@ import type { CommandExecution, ComposeCommand } from '../domain/types.js';
 export class ComposeCliAdapter implements ComposeRunner {
   async run(command: ComposeCommand): Promise<CommandExecution> {
     const [bin, ...args] = command.argv;
+
     if (bin === undefined) {
       throw new Error('compose command has an empty argv');
     }

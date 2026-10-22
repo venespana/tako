@@ -33,6 +33,7 @@ describe('ValidateSshConnection', () => {
     const uc = new ValidateSshConnection(tester);
     const result = await uc.validate(passwordConfig);
     expect(result.ok).toBe(true);
+
     if (result.ok) {
       expect(result.hostkeyFingerprint).toBe(fingerprint);
     }
@@ -47,6 +48,7 @@ describe('ValidateSshConnection', () => {
     const uc = new ValidateSshConnection(tester);
     const result = await uc.validate(passwordConfig);
     expect(result.ok).toBe(false);
+
     if (!result.ok) {
       expect(result.category).toBe('auth');
       expect(result.message).toBe('Authentication failed');
@@ -62,6 +64,7 @@ describe('ValidateSshConnection', () => {
     const uc = new ValidateSshConnection(tester);
     const result = await uc.validate(keyConfig);
     expect(result.ok).toBe(false);
+
     if (!result.ok) {
       expect(result.category).toBe('network');
     }
@@ -76,6 +79,7 @@ describe('ValidateSshConnection', () => {
     const uc = new ValidateSshConnection(tester);
     const result = await uc.validate(keyConfig);
     expect(result.ok).toBe(false);
+
     if (!result.ok) {
       expect(result.category).toBe('timeout');
     }
@@ -90,6 +94,7 @@ describe('ValidateSshConnection', () => {
     const uc = new ValidateSshConnection(tester);
     const result = await uc.validate(passwordConfig);
     expect(result.ok).toBe(false);
+
     if (!result.ok) {
       expect(result.category).toBe('hostkey');
     }
@@ -104,6 +109,7 @@ describe('ValidateSshConnection', () => {
     const uc = new ValidateSshConnection(tester);
     const result = await uc.validate(keyConfig);
     expect(result.ok).toBe(false);
+
     if (!result.ok) {
       expect(result.category).toBe('unknown');
     }
@@ -116,6 +122,7 @@ describe('ValidateSshConnection', () => {
     expect(tester.test).toHaveBeenCalledTimes(1);
     const passedConfig = (tester.test as ReturnType<typeof vi.fn>).mock.calls[0]![0] as SshTestConfig;
     expect(passedConfig.auth.type).toBe('key');
+
     if (passedConfig.auth.type === 'key') {
       expect(passedConfig.auth.keyPath).toBe('/home/user/.ssh/id_rsa');
     }

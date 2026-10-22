@@ -29,6 +29,7 @@ describe('cli program — agent family (task 6.2)', () => {
 
   it('6.2 RED: `agent --help` renders without invoking any action (lazy registration)', () => {
     const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true) as MockInstance;
+
     try {
       const program = buildProgram();
       const agent = program.commands.find(command => command.name() === 'agent');

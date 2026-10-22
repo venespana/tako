@@ -52,6 +52,7 @@ export function parseJobRow(row: JobRow): JobView | undefined {
  */
 export function runViewFromRow(row: RunRow): RunView {
   let result: unknown;
+
   if (row.result_json !== null) {
     try {
       result = JSON.parse(row.result_json) as unknown;
@@ -59,6 +60,7 @@ export function runViewFromRow(row: RunRow): RunView {
       result = { error: 'corrupted result record (unparseable result_json)' };
     }
   }
+
   return {
     seq: row.seq,
     id: row.id,

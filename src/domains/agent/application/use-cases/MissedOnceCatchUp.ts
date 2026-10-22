@@ -53,11 +53,13 @@ export function decideCatchUp(input: CatchUpInput): CatchUpDecision {
   }
 
   const watermark = new Date(input.watermark);
+
   if (Number.isNaN(watermark.getTime())) {
     throw new RangeError(`invalid catch-up watermark: ${input.watermark}`);
   }
 
   const firstMissed = nextAfter(expr, watermark);
+
   if (firstMissed === null || firstMissed.getTime() > now.getTime()) {
     return { action: 'none' };
   }

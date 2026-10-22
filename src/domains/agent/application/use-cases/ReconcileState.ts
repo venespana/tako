@@ -21,6 +21,7 @@ export class ReconcileState {
     if (!Number.isInteger(lastSeq) || lastSeq < 0) {
       throw new JobValidationError(`lastSeq must be a non-negative integer, got ${JSON.stringify(lastSeq)}`);
     }
+
     const [jobs, runs, head] = await Promise.all([
       this.store.listJobs(),
       this.store.listRuns({ sinceSeq: lastSeq }),

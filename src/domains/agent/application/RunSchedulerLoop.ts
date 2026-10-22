@@ -127,8 +127,10 @@ export class RunSchedulerLoop {
   /** Run the first (start-of-agent catch-up) tick, then arm the recurring timer. */
   async start(): Promise<void> {
     if (this.#started || this.#stopped) return;
+
     this.#started = true;
     this.#tickInFlight = this.#tick();
+
     try {
       await this.#tickInFlight;
     } finally {
@@ -142,13 +144,17 @@ export class RunSchedulerLoop {
    */
   async stop(): Promise<void> {
     this.#stopped = true;
+
     if (this.#timerHandle !== undefined) {
       this.#timer.clear(this.#timerHandle);
       this.#timerHandle = undefined;
     }
+
     await this.#tickInFlight;
     const inflight = this.#currentRun;
+
     if (inflight !== undefined) await inflight;
+
     await this.#restoreQueuedFires();
     this.#queue.length = 0;
   }
@@ -169,7 +175,9 @@ export class RunSchedulerLoop {
    */
   async enqueueTriggered(jobId: Slug, mode: RunMode): Promise<RunView> {
     const view = await this.#store.getJob(jobId);
+
     if (view === undefined) throw new JobNotFoundError(jobId);
+
     const run = await new TriggerJob(this.#store, this.#clock).execute(jobId, mode);
     this.#queue.push({ kind: 'triggered', job: view.job, mode, run });
     this.#log(`job ${jobId} triggered (${mode}) — queued serial run`);
@@ -179,6 +187,7 @@ export class RunSchedulerLoop {
 
   #armTimer(): void {
     if (this.#stopped) return;
+
     // Self-rearming: the next tick is scheduled only after the previous one's
     // decision phase completes — ticks never overlap themselves.
     this.#timerHandle = this.#timer.set(() => void this.#tickAndRearm(), this.#intervalMs);
@@ -187,6 +196,7 @@ export class RunSchedulerLoop {
   async #tickAndRearm(): Promise<void> {
     this.#timerHandle = undefined;
     this.#tickInFlight = this.#tick();
+
     try {
       await this.#tickInFlight;
     } finally {
@@ -196,28 +206,35 @@ export class RunSchedulerLoop {
 
   async #tick(): Promise<void> {
     let jobs;
+
     try {
       jobs = await this.#store.listJobs();
     } catch (error) {
       this.#report(`tick failed listing jobs: ${describeError(error)}`);
       return;
     }
+
     const now = this.#clock.now();
-    for (const view of jobs) {
-      if (!view.enabled) continue;
+
+    await jobs.reduce(async (chain, view) => {
+      await chain;
+
+      if (!view.enabled) return;
+
       // Per-job isolation: one broken job must not kill the tick for the rest.
       try {
         await this.#processJob(view.job, now);
       } catch (error) {
         this.#report(`tick: job ${view.job.id}: ${describeError(error)}`);
       }
-    }
+    }, Promise.resolve());
   }
 
   async #processJob(job: JobDefinition, now: Date): Promise<void> {
     if (this.hasQueuedFire(job.id)) return;
 
     const state = await this.#store.getScheduleState(job.id);
+
     if (state === undefined || state.lastScheduledFire === undefined) {
       // Fresh registration: the watermark starts at NOW — history before the
       // job existed is never caught up (decideCatchUp's fresh-job contract).
@@ -276,11 +293,15 @@ export class RunSchedulerLoop {
    */
   async #drain(): Promise<void> {
     if (this.#draining) return;
+
     this.#draining = true;
+
     try {
       while (this.#queue.length > 0 && !this.#stopped) {
         const fire = this.#queue.shift();
+
         if (fire === undefined) break;
+
         this.#currentFire = fire;
         this.#currentRun = this.#executeOne(fire);
         await this.#currentRun;
@@ -299,6 +320,7 @@ export class RunSchedulerLoop {
         await this.#executeRun.execute({ job: fire.job, mode: fire.mode, catchup: false, run: fire.run });
         return;
       }
+
       await this.#executeRun.execute({
         job: fire.job,
         mode: SCHEDULED_RUN_MODE,
@@ -313,10 +335,13 @@ export class RunSchedulerLoop {
   }
 
   async #restoreQueuedFires(): Promise<void> {
-    for (const fire of this.#queue) {
+    await this.#queue.reduce(async (chain, fire) => {
+      await chain;
+
       // Triggered fires carry no watermark — a clean stop leaves their runs
       // pending; the next start's crash recovery marks them failed.
-      if (fire.kind !== 'scheduled') continue;
+      if (fire.kind !== 'scheduled') return;
+
       try {
         await this.#store.saveScheduleState({
           jobId: fire.job.id,
@@ -326,7 +351,7 @@ export class RunSchedulerLoop {
       } catch (error) {
         this.#report(`stop: could not restore schedule state for job ${fire.job.id}: ${describeError(error)}`);
       }
-    }
+    }, Promise.resolve());
   }
 
   #report(line: string): void {

@@ -38,11 +38,11 @@ const STACK_DIR_FORBIDDEN = /[`$;&|<>(){}[\]*?!"'\\]/;
 const STACK_DIR_LEADING_DASH = /^-/;
 
 function hasControlChars(value: string): boolean {
-  for (const ch of value) {
+  return [...value].some(ch => {
     const code = ch.codePointAt(0) ?? 0;
-    if (code < 0x20 || code === 0x7f) return true;
-  }
-  return false;
+
+    return code < 0x20 || code === 0x7f;
+  });
 }
 
 /** True when `value` satisfies the shell-safe Slug charset. */
@@ -58,21 +58,28 @@ export function assertSlug(value: unknown): Slug {
   if (!isSlug(value)) {
     throw new JobValidationError(`job id ${JSON.stringify(value ?? null)} violates the Slug charset`);
   }
+
   return value;
 }
 
 /** True when `dir` is a stack path safe to assemble into commands. */
 export function isValidStackDir(dir: unknown): dir is string {
   if (typeof dir !== 'string' || dir.length === 0) return false;
+
   if (STACK_DIR_LEADING_DASH.test(dir)) return false;
+
   if (hasControlChars(dir)) return false;
+
   return !STACK_DIR_FORBIDDEN.test(dir);
 }
 
 function isSchedule(value: unknown): value is Schedule {
   if (typeof value !== 'object' || value === null) return false;
+
   const candidate = value as Record<string, unknown>;
+
   if (candidate['kind'] !== 'cron') return false; // v0 is cron-only; one-shot deferred
+
   return typeof candidate['expr'] === 'string' && isValidCronExpr(candidate['expr']);
 }
 
@@ -87,6 +94,7 @@ export function parseJobDefinition(value: unknown): JobDefinition {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new JobValidationError('definition must be a JSON object');
   }
+
   const candidate = value as Record<string, unknown>;
 
   if (!isSlug(candidate['id'])) {
@@ -113,20 +121,25 @@ export function parseJobDefinition(value: unknown): JobDefinition {
 
 function parseStackLifecycle(id: Slug, schedule: Schedule, candidate: Record<string, unknown>): JobDefinition {
   const op = candidate['op'];
+
   if (typeof op !== 'string' || !STACK_LIFECYCLE_OPS.includes(op as StackLifecycleOp)) {
     throw new JobValidationError(`op must be one of ${STACK_LIFECYCLE_OPS.join('|')}`);
   }
+
   const stackDir = candidate['stackDir'];
+
   if (!isValidStackDir(stackDir)) {
     throw new JobValidationError(
       `stackDir ${JSON.stringify(stackDir ?? null)} contains shell metacharacters or is not a usable path`
     );
   }
+
   return { id, type: 'stack-lifecycle', op: op as StackLifecycleOp, stackDir, schedule };
 }
 
 function parsePrune(id: Slug, schedule: Schedule, candidate: Record<string, unknown>): JobDefinition {
   const scopes = candidate['scopes'];
+
   if (
     !Array.isArray(scopes) ||
     scopes.length === 0 ||
@@ -134,6 +147,7 @@ function parsePrune(id: Slug, schedule: Schedule, candidate: Record<string, unkn
   ) {
     throw new JobValidationError(`scopes must be a non-empty subset of ${PRUNE_SCOPES.join('|')}`);
   }
+
   return { id, type: 'prune', scopes: [...scopes] as PruneScopes[], schedule };
 }
 

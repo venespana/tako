@@ -55,20 +55,27 @@ const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(r
 /** Boot a privileged systemd container and provision sshd + compose v2 + user. */
 async function setupSystemdSshEnvironment(): Promise<StartedTestContainer | undefined> {
   if (!(await probeHostDaemon())) return undefined;
+
   let container: StartedTestContainer;
+
   try {
     container = await new GenericContainer('jrei/systemd-ubuntu').withPrivilegedMode().withExposedPorts(22).start();
   } catch (error) {
     console.warn(`[skip] privileged systemd container could not start here: ${String(error)}`);
     return undefined;
   }
+
   try {
     // systemd as PID 1 needs a moment; accept degraded (uncontrollable units are fine).
     const bootDeadline = Date.now() + 45_000;
-    for (;;) {
+
+    while (true) {
       const state = await container.exec(['systemctl', 'is-system-running']);
+
       if (state.exitCode === 0 || state.output.includes('degraded')) break;
+
       if (Date.now() > bootDeadline) throw new Error(`systemd did not boot (state: ${state.output.trim()})`);
+
       await sleep(1_000);
     }
 
@@ -84,7 +91,9 @@ async function setupSystemdSshEnvironment(): Promise<StartedTestContainer | unde
       `loginctl enable-linger ${SSH_USER}`,
     ].join(' && ');
     const setup = await container.exec(['bash', '-lc', setupScript]);
+
     if (setup.exitCode !== 0) throw new Error(`container setup failed: ${setup.output.slice(-400)}`);
+
     return container;
   } catch (error) {
     console.warn(`[skip] systemd+sshd container unusable in this environment: ${String(error)}`);
@@ -139,6 +148,7 @@ describe.skipIf(!environment)('agent provisioning — systemd+sshd container (jr
 
   afterAll(async () => {
     if (workspace) rmSync(workspace, { recursive: true, force: true });
+
     await environment?.stop().catch(() => {});
   });
 

@@ -112,6 +112,7 @@ export function useRemotesSelection({ enabled, onActivate, onEmpty }: UseRemotes
   // Fetch once per activation.
   useEffect(() => {
     if (!enabled) return;
+
     return fetchList();
   }, [enabled, fetchList]);
 
@@ -134,10 +135,12 @@ export function useRemotesSelection({ enabled, onActivate, onEmpty }: UseRemotes
           fetchList();
           return;
         }
+
         if (!requiresConnectPrompt(remote)) {
           onActivate(name, undefined);
           return;
         }
+
         setGate({ remote, phase: 'prompt', error: null });
       });
     },
@@ -149,6 +152,7 @@ export function useRemotesSelection({ enabled, onActivate, onEmpty }: UseRemotes
   const submitPassword = useCallback(
     (password: string) => {
       if (gate === null || gate.phase !== 'prompt') return;
+
       const { remote } = gate;
       setGate({ remote, phase: 'validating', error: null });
       void testSshConnection({

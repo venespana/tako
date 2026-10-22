@@ -79,6 +79,7 @@ export function useAddRemoteWizard({ onComplete }: UseAddRemoteWizardOptions): A
   const handleValidationResult = useCallback(
     (result: AddRemoteResult) => {
       const store = useWizardStore.getState();
+
       if (result.saved) {
         store.validationSuccess(result.hostkeyFingerprint ?? 'unknown', true);
       } else if (result.reason === 'hostkey') {
@@ -102,6 +103,7 @@ export function useAddRemoteWizard({ onComplete }: UseAddRemoteWizardOptions): A
   // Execute SSH validation when entering validating step
   useEffect(() => {
     if (step !== 'validating') return;
+
     const draft = buildDraft();
     void addRemote({ draft, hostkeyAccepted: false }).then(handleValidationResult);
   }, [step, buildDraft, handleValidationResult]);
@@ -112,6 +114,7 @@ export function useAddRemoteWizard({ onComplete }: UseAddRemoteWizardOptions): A
   const savedRef = useRef(false);
   useEffect(() => {
     if (step !== 'done' || savedRef.current) return;
+
     savedRef.current = true;
     const draft = buildDraft();
     void confirmAddRemote(draft).then(onComplete);
@@ -120,6 +123,7 @@ export function useAddRemoteWizard({ onComplete }: UseAddRemoteWizardOptions): A
   // Abort — complete with an unsaved result as soon as the wizard aborts
   useEffect(() => {
     if (!aborted) return;
+
     onComplete({ saved: false, reason: 'abort' });
   }, [aborted, onComplete]);
 

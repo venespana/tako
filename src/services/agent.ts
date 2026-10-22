@@ -85,10 +85,13 @@ export function resolveAgentSocketPath(home: string): string {
 export async function assertAgentSocketPresent(runner: RemoteCommandRunner, remote: string): Promise<void> {
   const homeProbe = await runner.run('printf %s "$HOME"');
   const home = homeProbe.stdout.trim();
+
   if (homeProbe.exitCode !== 0 || home === '') {
     throw new Error('cannot resolve the remote home directory for the agent socket probe');
   }
+
   const probe = await runner.run(`test -S '${resolveAgentSocketPath(home)}'`);
+
   if (probe.exitCode !== 0) {
     throw new AgentNotInstalledError(remote);
   }
@@ -174,16 +177,20 @@ export type AgentStatusOutcome =
  */
 export async function connectAgentSession(request: AgentOperationRequest): Promise<AgentConnectResult> {
   const resolution = await resolveRemoteAuth(request.remote, request.sessionPassword);
+
   if (resolution.kind !== 'resolved') {
     return { kind: 'refused', reason: resolution.reason };
   }
+
   const stack = openSshToolstack(toConnectConfig(resolution.remote, resolution.auth));
+
   try {
     await assertAgentSocketPresent(stack.runner, request.remote);
   } catch (error) {
     await stack.manager.end();
     throw error;
   }
+
   const transport = new StreamLocalAgentTransport({ channel: stack.channel, clientVersion: VERSION });
   const session = await transport.connect();
   return { kind: 'connected', session };
@@ -201,9 +208,11 @@ export async function installAgent(
   request: AgentOperationRequest & { readonly onLine?: (line: string) => void }
 ): Promise<AgentInstallResult> {
   const resolution = await resolveRemoteAuth(request.remote, request.sessionPassword);
+
   if (resolution.kind !== 'resolved') {
     return { kind: 'refused', reason: resolution.reason };
   }
+
   const config = toConnectConfig(resolution.remote, resolution.auth);
   const installer = new SshConnectionManager(config);
   const runner = new SshRemoteCommandRunner(installer);
@@ -221,6 +230,7 @@ export async function installAgent(
     log: onLine ?? (line => console.log(line)),
     error: line => {
       failure = line;
+
       if (onLine === undefined) console.error(line);
       else onLine(line);
     },
@@ -242,9 +252,11 @@ export async function uninstallAgent(
   }
 ): Promise<AgentUninstallResult> {
   const resolution = await resolveRemoteAuth(request.remote, request.sessionPassword);
+
   if (resolution.kind !== 'resolved') {
     return { kind: 'refused', reason: resolution.reason };
   }
+
   const config = toConnectConfig(resolution.remote, resolution.auth);
   const teardown = new SshConnectionManager(config);
   const runner = new SshRemoteCommandRunner(teardown);
@@ -278,9 +290,11 @@ export async function uninstallAgent(
  */
 export async function fetchAgentStatus(request: AgentOperationRequest): Promise<AgentStatusOutcome> {
   const resolution = await resolveRemoteAuth(request.remote, request.sessionPassword);
+
   if (resolution.kind !== 'resolved') {
     return { kind: 'refused', reason: resolution.reason };
   }
+
   const stack = openSshToolstack(toConnectConfig(resolution.remote, resolution.auth));
   const transport = new StreamLocalAgentTransport({ channel: stack.channel, clientVersion: VERSION });
   return runAgentStatus({ transport });
@@ -297,6 +311,7 @@ export interface AgentStatusDeps {
 /** One agent session: connect → agent.status → close, as a typed outcome. */
 export async function runAgentStatus(deps: AgentStatusDeps): Promise<AgentStatusOutcome> {
   let session: AgentSession;
+
   try {
     session = await deps.transport.connect();
   } catch (connectError) {
@@ -355,6 +370,7 @@ export async function runAgentUninstall(deps: AgentUninstallDeps): Promise<numbe
   try {
     // Step 1 — read linger-by-tako over the agent transport (BEFORE teardown).
     const guard = await readLingerGuard(deps);
+
     if (guard.warning !== undefined) {
       error(`warning: ${guard.warning}`);
     }
@@ -377,6 +393,7 @@ export async function runAgentUninstall(deps: AgentUninstallDeps): Promise<numbe
     // Step 6 — remove the agent directory (binary, db, socket, records).
     const home = await records.home();
     const rmResult = await deps.runner.run(`rm -rf '${home}/.tako'`);
+
     if (rmResult.exitCode !== 0) {
       throw new Error(`could not remove ${home}/.tako: ${rmResult.stderr.trim() || `exit ${rmResult.exitCode}`}`);
     }
@@ -394,6 +411,7 @@ async function readLingerGuard(deps: AgentUninstallDeps) {
   try {
     const transport = new StreamLocalAgentTransport({ channel: deps.channel, clientVersion: deps.clientVersion });
     const session = await transport.connect();
+
     try {
       const status = await session.request('agent.status', {});
       return uninstallLingerGuard(status);
@@ -413,6 +431,7 @@ async function verifyResidue(
   error: (line: string) => void
 ): Promise<number> {
   let verifier: VerifierConnection | undefined;
+
   try {
     verifier = await deps.openVerifier();
   } catch (openError) {
@@ -431,6 +450,7 @@ async function verifyResidue(
       log('residue: unit file still present');
       residue = true;
     }
+
     if ((await absentCheck(verifier.runner, AGENT_DIR_TEST_ABSENT)) === false) {
       log('residue: ~/.tako still present');
       residue = true;
@@ -439,6 +459,7 @@ async function verifyResidue(
     if (lingerWasDisabled) {
       const lingerResult = await verifier.runner.run('loginctl show-user "$USER" --property=Linger');
       const lingerOff = lingerResult.exitCode === 0 && /^Linger=no$/m.test(lingerResult.stdout);
+
       if (!lingerOff) {
         log('residue: linger is still enabled after disable-linger');
         residue = true;
@@ -449,6 +470,7 @@ async function verifyResidue(
       error('uninstall finished WITH residue — inspect the server manually');
       return 1;
     }
+
     log('residue check on an independent connection: clean');
     return 0;
   } finally {

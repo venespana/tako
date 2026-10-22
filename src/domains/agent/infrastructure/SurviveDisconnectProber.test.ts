@@ -44,7 +44,7 @@ class FakeAgentChannel implements AgentChannel {
   }
 
   async close(): Promise<void> {
-    for (const stream of this.opened) stream.destroy();
+    this.opened.forEach(stream => stream.destroy());
   }
 }
 
@@ -126,10 +126,15 @@ describe('SurviveDisconnectProber — failure paths (never report success)', () 
       openVerifier: async () => ({
         runner: createRunner(command => {
           if (command.includes('is-active')) return ok('inactive\n');
+
           if (command.includes('journalctl')) return ok('journal-line-1\njournal-line-2');
+
           if (command.includes('--property=Linger')) return ok('Linger=no');
+
           if (command.includes('busctl')) return ok('b false');
+
           if (command.includes('status tako-agent')) return ok('unit status output');
+
           return ok('');
         }),
         channel: new FakeAgentChannel(AGENT_VERSION),
@@ -146,7 +151,9 @@ describe('SurviveDisconnectProber — failure paths (never report success)', () 
     const result = await prober.probe();
 
     expect(result.ok).toBe(false);
+
     if (result.ok) return;
+
     expect(result.attempts).toBe(3);
     expect(result.diagnostics).toContain('journal-line-1');
     expect(result.diagnostics).toContain('Linger=no');
@@ -172,7 +179,9 @@ describe('SurviveDisconnectProber — failure paths (never report success)', () 
     const result = await prober.probe();
 
     expect(result.ok).toBe(false);
+
     if (result.ok) return;
+
     expect(result.reason).toMatch(/version|handshake/i);
   });
 
@@ -198,7 +207,9 @@ describe('SurviveDisconnectProber — failure paths (never report success)', () 
     const result = await prober.probe();
 
     expect(result.ok).toBe(false);
+
     if (result.ok) return;
+
     expect(result.reason).toMatch(/handshake|connect/i);
   });
 
@@ -208,11 +219,13 @@ describe('SurviveDisconnectProber — failure paths (never report success)', () 
       openVerifier: async () => ({
         runner: createRunner(command => {
           if (command.includes('is-active')) return ok('active\n');
+
           if (command.startsWith('ls -la')) {
             return ok(
               'total 20\ndrwx------ 3 ops ops 4096 Sep 28 22:10 .\n-rw-r--r-- 1 ops ops 65 Sep 28 22:10 installed.sha256'
             );
           }
+
           return ok('');
         }),
         // The real-world failure shape: the unit is active but the channel
@@ -234,7 +247,9 @@ describe('SurviveDisconnectProber — failure paths (never report success)', () 
     const result = await prober.probe();
 
     expect(result.ok).toBe(false);
+
     if (result.ok) return;
+
     expect(result.reason).toMatch(/handshake|Channel open/i);
     // The listing command AND its output are in the report — the ABSENT
     // agent.sock is visible by comparison (the fake dir has no socket).

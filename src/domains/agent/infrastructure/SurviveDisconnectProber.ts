@@ -74,19 +74,31 @@ export class SurviveDisconnectProber {
 
     let lastReason = 'unknown failure';
     let connection: VerifierConnection | undefined;
+
     try {
       connection = await this.#options.openVerifier();
+      const verifier = connection;
 
-      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-        const verdict = await this.#verifyOnce(connection);
-        if (verdict === undefined) {
-          return { ok: true, attempts: attempt };
-        }
+      // Attempt 1..maxAttempts, strictly sequential; the first success wins
+      // and later attempts become no-ops (no extra polls, no extra sleeps).
+      const attempts = Array.from({ length: maxAttempts }, (_, index) => index + 1);
+      const success = await attempts.reduce(async (chain, attempt): Promise<ProbeResult | undefined> => {
+        const settled = await chain;
+
+        if (settled !== undefined) return settled;
+
+        const verdict = await this.#verifyOnce(verifier);
+
+        if (verdict === undefined) return { ok: true, attempts: attempt };
+
         lastReason = verdict;
-        if (attempt < maxAttempts) {
-          await sleep(pollIntervalMs);
-        }
-      }
+
+        if (attempt < maxAttempts) await sleep(pollIntervalMs);
+
+        return undefined;
+      }, Promise.resolve<ProbeResult | undefined>(undefined));
+
+      if (success !== undefined) return success;
 
       const diagnostics = await this.#collectDiagnostics(connection);
       return { ok: false, attempts: maxAttempts, reason: lastReason, diagnostics };
@@ -104,6 +116,7 @@ export class SurviveDisconnectProber {
   /** One poll: unit active AND handshake with the expected version. undefined = pass. */
   async #verifyOnce(connection: VerifierConnection): Promise<string | undefined> {
     const active = await isUnitActive(connection.runner);
+
     if (!active) {
       return 'unit is not active — the agent died with the installing session';
     }
@@ -113,17 +126,21 @@ export class SurviveDisconnectProber {
       clientVersion: this.#options.clientVersion,
       ...(this.#options.socketPath !== undefined && { socketPath: this.#options.socketPath }),
     });
+
     try {
       const session = await transport.connect();
       const versionMatches = session.handshake.ack.agentVersion === this.#options.clientVersion;
       const warning = session.handshake.warning;
       await session.close();
+
       if (!versionMatches) {
         return `handshake agentVersion mismatch (expected ${this.#options.clientVersion})`;
       }
+
       if (warning !== undefined) {
         return `handshake protocol warning: ${warning.detail}`;
       }
+
       return undefined;
     } catch (error) {
       return `handshake failed: ${error instanceof Error ? error.message : String(error)}`;
@@ -136,7 +153,10 @@ export class SurviveDisconnectProber {
    */
   async #collectDiagnostics(connection: VerifierConnection): Promise<string> {
     const sections: string[] = [];
-    for (const command of DIAGNOSTIC_COMMANDS) {
+
+    await DIAGNOSTIC_COMMANDS.reduce(async (chain, command) => {
+      await chain;
+
       try {
         const result = await connection.runner.run(command);
         const output = result.stdout.trim() || result.stderr.trim() || '(no output)';
@@ -144,7 +164,8 @@ export class SurviveDisconnectProber {
       } catch (error) {
         sections.push(`$ ${command}\n(transport failure: ${error instanceof Error ? error.message : String(error)})`);
       }
-    }
+    }, Promise.resolve());
+
     return sections.join('\n\n');
   }
 }
@@ -152,10 +173,12 @@ export class SurviveDisconnectProber {
 /** `systemctl --user is-active` → exit 0 AND stdout `active` (task 6.9 semantics). */
 export async function isUnitActive(runner: RemoteCommandRunner): Promise<boolean> {
   let result: RemoteCommandResult;
+
   try {
     result = await runner.run('systemctl --user is-active tako-agent.service');
   } catch {
     return false;
   }
+
   return result.exitCode === 0 && result.stdout.trim() === 'active';
 }

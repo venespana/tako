@@ -64,9 +64,10 @@ describe('codec roundtrip', () => {
       eventFrame('run.completed', { jobId: 'nas-prune', runId: 'run-1', status: 'succeeded', result: {} }),
       errorFrame('unknown_type', 'no such request', 'c9'),
     ];
-    for (const frame of frames) {
+
+    frames.forEach(frame => {
       expect(decodeFrame(encodeFrame(frame))).toEqual(frame);
-    }
+    });
   });
 
   it('3.5 RED: encoded frames are single-line JSON (no embedded raw newlines)', () => {
@@ -96,6 +97,7 @@ describe('oversized frame rejection', () => {
     } as JobDefinition;
     const frame = requestFrame('c1', 'jobs.upsert', hugeJob);
     expect(() => encodeFrame(frame)).toThrow(ProtocolFrameError);
+
     try {
       encodeFrame(frame);
       expect.unreachable('should have thrown');
@@ -114,6 +116,7 @@ describe('oversized frame rejection', () => {
         } catch (e) {
           return (e as ProtocolFrameError).code;
         }
+
         return '';
       })()
     ).toBe('too_large');
@@ -228,7 +231,9 @@ function errorCodeFor(line: string): string {
     decodeFrame(line);
   } catch (error) {
     if (error instanceof ProtocolFrameError) return error.code;
+
     throw error;
   }
+
   throw new Error('expected decodeFrame to throw');
 }

@@ -69,17 +69,19 @@ describe('KeyHints', () => {
     it('renders page hints left-to-right in declared order, before back/quit', () => {
       const output = renderToString(<KeyHints selectableItems={false} hints={TASKS_HINTS} />);
       const positions = labelPositions(output, ['new', 'dry-run', 'apply', 'edit', 'delete', 'back', 'quit']);
-      for (let i = 1; i < positions.length; i += 1) {
-        expect(positions[i]).toBeGreaterThan(positions[i - 1]!);
-      }
+
+      positions.slice(1).forEach((at, index) => {
+        expect(at).toBeGreaterThan(positions[index]!);
+      });
     });
 
     it('renders back/quit last even when the screen is a menu with page hints', () => {
       const output = renderToString(<KeyHints selectableItems={true} hints={TASKS_HINTS} />);
       const positions = labelPositions(output, ['new', 'delete', 'back', 'quit']);
-      for (let i = 1; i < positions.length; i += 1) {
-        expect(positions[i]).toBeGreaterThan(positions[i - 1]!);
-      }
+
+      positions.slice(1).forEach((at, index) => {
+        expect(at).toBeGreaterThan(positions[index]!);
+      });
     });
 
     it('does not render the movement hints once a page declares its own hints', () => {

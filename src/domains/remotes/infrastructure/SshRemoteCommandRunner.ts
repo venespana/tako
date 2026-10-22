@@ -47,6 +47,7 @@ function collectChannelResult(channel: ClientChannel, command: string): Promise<
         reject(new Error(`remote command channel closed without an exit status (transport failure): ${command}`));
         return;
       }
+
       resolve({
         stdout: stdout + stdoutDecoder.end(),
         stderr: stderr + stderrDecoder.end(),

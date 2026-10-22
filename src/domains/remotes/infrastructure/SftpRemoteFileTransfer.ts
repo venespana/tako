@@ -22,6 +22,7 @@ export class SftpRemoteFileTransfer implements RemoteFileTransfer {
 
   async upload(request: RemoteUploadRequest): Promise<RemoteTransferResult> {
     const sftp = await this.openSftp();
+
     try {
       const [localSha, size] = await Promise.all([sha256File(request.localPath), fileSize(request.localPath)]);
       await fastPut(sftp, request.localPath, request.remotePath);
@@ -35,6 +36,7 @@ export class SftpRemoteFileTransfer implements RemoteFileTransfer {
 
   async download(request: RemoteDownloadRequest): Promise<RemoteTransferResult> {
     const sftp = await this.openSftp();
+
     try {
       const remoteSha = await this.remoteSha256(request.remotePath);
       await fastGet(sftp, request.remotePath, request.localPath);
@@ -48,15 +50,19 @@ export class SftpRemoteFileTransfer implements RemoteFileTransfer {
 
   private async remoteSha256(remotePath: string): Promise<string> {
     const result = await this.runner.run(`sha256sum ${shellQuote(remotePath)}`);
+
     if (result.exitCode !== 0) {
       const detail = result.stderr.trim() || `exit code ${result.exitCode}`;
       throw new TransferIntegrityError(`Remote checksum verification failed for ${remotePath}: ${detail}`);
     }
+
     const match = /^([0-9a-f]{64})\b/.exec(result.stdout);
     const hash = match?.[1];
+
     if (!hash) {
       throw new TransferIntegrityError(`Unreadable sha256 output for ${remotePath}: ${result.stdout.trim()}`);
     }
+
     return hash;
   }
 }

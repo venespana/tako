@@ -188,14 +188,15 @@ describe('runRemoteAdd — flags/stdin contract (ADR-0020 §2-3)', () => {
   });
 
   it('an invalid --port is refused with the expected shape (never silently defaulted)', async () => {
-    for (const bad of ['abc', '0', '-22', '22.5', '99999']) {
+    await ['abc', '0', '-22', '22.5', '99999'].reduce(async (chain, bad) => {
+      await chain;
       const h = harness();
 
       await expect(h.flags({ name: 'nas', user: 'ops', host: 'h', port: bad })).resolves.toBe(1);
       expect(h.errs.join('\n')).toContain(`invalid --port "${bad}"`);
       expect(h.errs.join('\n')).toContain('1 and 65535');
       expect(vi.mocked(addRemote)).not.toHaveBeenCalled();
-    }
+    }, Promise.resolve());
   });
 
   it('an absent --port defaults to 22; a valid --port passes through', async () => {

@@ -66,6 +66,7 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
   try {
     // 1. Preflight — arch probe is fatal-first; refusals leave zero mutations.
     let preflight: InstallPreflight;
+
     try {
       preflight = await new InstallAgent(deps.runner).checkPreflight();
     } catch (probeError) {
@@ -74,6 +75,7 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
       } else {
         error(`install preflight failed: ${probeError instanceof Error ? probeError.message : String(probeError)}`);
       }
+
       return 1;
     }
 
@@ -81,7 +83,9 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
     log(`systemd --user: ${preflight.systemd ? 'available' : 'missing'}`);
     log(`docker compose v2: ${preflight.composeV2 ? 'available' : 'missing'}`);
     log(`linger: ${preflight.linger === 'unknown' ? 'unknown' : preflight.linger ? 'enabled' : 'disabled'}`);
+
     if (preflight.killUserProcesses === true) log(`warning: ${KUP_TRUE_WARNING}`);
+
     if (preflight.killUserProcesses === 'unknown') log(`warning: ${KUP_UNKNOWN_WARNING}`);
 
     if (!preflight.ok) {
@@ -123,7 +127,9 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
     // still BEFORE any unit/linger mutation.
     const probeRunnability = async (): Promise<string> => {
       const runProbe = await deps.runner.run(`'${provision.remotePath}' --version`);
+
       if (runProbe.exitCode === 0) return '';
+
       const glibc = /GLIBC_[0-9.]+['`]? not found/.exec(runProbe.stderr)?.[0]?.replace(/['`]/g, '');
       return glibc !== undefined
         ? `${glibc}: the server's glibc is older than the build machine's. Build Tako in an older-glibc environment (see docs/distribution.md) or upgrade the server`
@@ -131,10 +137,12 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
     };
 
     const copyPathFailure = await probeRunnability();
+
     if (copyPathFailure !== '') {
       const asset = preflight.arch === 'arm64' ? 'tako-linux-arm64' : 'tako-linux-x64';
       log(`the placed binary does not run on the target — attempting the Releases fallback (${asset})`);
       let downloadFailure: string | undefined;
+
       try {
         provision = await provisioner.provision({
           source: { kind: 'download-release-asset', asset },
@@ -147,12 +155,14 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
         await records.writeInstalledSha256(provision.sha256);
         log(`fallback binary placed at ${provision.remotePath} (sha256 ${provision.sha256.slice(0, 12)}…)`);
         const reProbeFailure = await probeRunnability();
+
         if (reProbeFailure !== '') {
           downloadFailure = `the downloaded binary also failed the runnability probe — ${reProbeFailure}`;
         }
       } catch (fallbackError) {
         downloadFailure = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
       }
+
       if (downloadFailure !== undefined) {
         throw new Error(
           `the agent binary does not run on the target (arch ${preflight.arch}) — both distribution paths failed. ` +
@@ -179,8 +189,10 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
     //    enabled-but-unrecorded linger would make every future uninstall
     //    keep a linger Tako turned on (D8 fidelity over convenience).
     const linger = decideLingerOnInstall(preflight.linger);
+
     if (linger.action === 'enable-linger' && linger.lingerEnabledByTako) {
       await controller.enableLinger();
+
       try {
         await records.writeLingerByTako();
       } catch (markerError) {
@@ -190,6 +202,7 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
           { cause: markerError }
         );
       }
+
       log('linger enabled by Tako');
     } else if (linger.action === 'enable-linger') {
       // 'unknown' pre-state: enable (the agent needs it) but do NOT record —
@@ -228,6 +241,7 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
       ...(deps.proberOptions?.sleep !== undefined && { sleep: deps.proberOptions.sleep }),
     });
     const probe = await prober.probe();
+
     if (!probe.ok) {
       error(`probe FAILED after ${probe.attempts} attempt(s): ${probe.reason}`);
       error('diagnostics from the verification connection:');
@@ -235,6 +249,7 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
       error('the install did NOT verify — the agent may not survive disconnects; nothing is reported as installed');
       return 1;
     }
+
     log(`probe passed on an independent connection (${probe.attempts} attempt(s)) — the agent survives disconnects`);
     return 0;
   } catch (flowError) {

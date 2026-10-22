@@ -62,12 +62,14 @@ describe.skipIf(!daemonAvailable)('docker jobs — docker:dind sidecar', () => {
 
     // The inner dockerd needs a moment to bind 2375.
     const deadline = Date.now() + 30_000;
-    for (;;) {
+
+    while (true) {
       try {
         await dindClient.ping();
         break;
       } catch (error) {
         if (Date.now() > deadline) throw error;
+
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
@@ -95,7 +97,9 @@ describe.skipIf(!daemonAvailable)('docker jobs — docker:dind sidecar', () => {
   afterAll(async () => {
     if (previousDockerHost === undefined) delete process.env['DOCKER_HOST'];
     else process.env['DOCKER_HOST'] = previousDockerHost;
+
     if (stackDir) rmSync(stackDir, { recursive: true, force: true });
+
     if (dind) await dind.stop();
   }, 60_000);
 

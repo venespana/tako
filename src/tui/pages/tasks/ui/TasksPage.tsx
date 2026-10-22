@@ -64,6 +64,7 @@ export function TasksPage({ remote, sessionPassword, onAgentVersion }: TasksPage
   // Connect on mount, disconnect on unmount (session lifetime == page life).
   useEffect(() => {
     if (remote === null) return;
+
     void connect({ remote, sessionPassword });
     return () => {
       void disconnect();
@@ -114,7 +115,9 @@ export function TasksPage({ remote, sessionPassword, onAgentVersion }: TasksPage
   const install = useCallback<InstallRunner>(
     async (onLine): Promise<InstallOutcome> => {
       if (remote === null) return { ok: false, error: 'no remote selected' };
+
       const result = await installAgent({ remote, sessionPassword, onLine });
+
       switch (result.kind) {
         case 'installed':
           return { ok: true };

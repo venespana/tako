@@ -27,13 +27,14 @@ describe('run state machine (pending → running → succeeded|failed|unsupporte
 
   it('3.4 RED: terminal statuses are absorbing — no exit transitions', () => {
     const terminals: RunStatus[] = ['succeeded', 'failed', 'unsupported'];
-    for (const from of terminals) {
+
+    terminals.forEach(from => {
       expect(canTransitionRun(from, 'pending')).toBe(false);
       expect(canTransitionRun(from, 'running')).toBe(false);
       expect(canTransitionRun(from, 'succeeded')).toBe(false);
       expect(canTransitionRun(from, 'failed')).toBe(false);
       expect(canTransitionRun(from, 'unsupported')).toBe(false);
-    }
+    });
   });
 
   it('3.4 RED: transitionRun returns the target status on a legal move', () => {

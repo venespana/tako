@@ -310,6 +310,7 @@ describe('fetchAgentStatus — service entry mapping', () => {
       handshake,
       request: async (type: AgentRequestType, _payload: unknown) => {
         if (type !== 'agent.status') throw new Error(`unexpected ${String(type)}`);
+
         return structuredClone(status);
       },
       onEvent: () => () => {},

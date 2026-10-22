@@ -48,6 +48,7 @@ class HandshakeChannel extends Duplex implements AgentChannel {
 
   override _write(frame: unknown, _encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
     const parsed = JSON.parse(String(frame)) as { kind: string; id?: string; type?: string };
+
     if (parsed.kind === 'hello') {
       this.push(JSON.stringify(helloAckFrame(this.#version, 'start-1')));
     } else if (parsed.kind === 'request' && parsed.id !== undefined) {
@@ -65,6 +66,7 @@ class HandshakeChannel extends Duplex implements AgentChannel {
         )
       );
     }
+
     callback();
   }
 
@@ -111,13 +113,11 @@ function happyResponses(command: string, overrides: Record<string, RemoteCommand
     "sha256sum '/home/ops/.tako/tako'": FAIL('No such file or directory'),
     "cat '/home/ops/.tako/installed.sha256'": FAIL('No such file or directory'),
   };
-  for (const [needle, result] of Object.entries(overrides)) {
-    if (command.includes(needle)) return result;
-  }
-  for (const [needle, result] of Object.entries(table)) {
-    if (command.includes(needle)) return result;
-  }
-  return OK();
+
+  // Overrides take priority over the happy-path table; first matching entry wins.
+  const hit = [...Object.entries(overrides), ...Object.entries(table)].find(([needle]) => command.includes(needle));
+
+  return hit === undefined ? OK() : hit[1];
 }
 
 function createHarness(overrides: Record<string, RemoteCommandResult> = {}): Harness {
@@ -136,7 +136,9 @@ function createHarness(overrides: Record<string, RemoteCommandResult> = {}): Har
     openVerifier: async (): Promise<VerifierConnection> => {
       const verifierRunner = new ScriptedRunner(command => {
         verifierCommands.push(command);
+
         if (command.includes('systemctl --user is-active')) return OK('active\n');
+
         return OK();
       });
       return {
@@ -368,7 +370,9 @@ describe('runAgentInstall — 9.12 Releases fallback + 9.13 stale-unit restart',
     let probes = 0;
     const stateful = new ScriptedRunner(command => {
       const isProbe = command === "'/home/ops/.tako/tako' --version";
+
       if (isProbe) probes += 1;
+
       const fallbackPhase = probes >= 1;
       const fallbackPlaced = probes >= 2;
       return happyResponses(command, {
@@ -414,7 +418,9 @@ describe('runAgentInstall — 9.12 Releases fallback + 9.13 stale-unit restart',
     let probes = 0;
     const stateful = new ScriptedRunner(command => {
       const isProbe = command === "'/home/ops/.tako/tako' --version";
+
       if (isProbe) probes += 1;
+
       const fallbackPhase = probes >= 1;
       const fallbackPlaced = probes >= 2;
       return happyResponses(command, {

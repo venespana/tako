@@ -33,7 +33,9 @@ export class UnsupportedArchitectureError extends Error {
 /** Map `uname -m` output to the release arch; anything else fails explicitly. */
 export function mapUnameArchToAsset(unameMachine: string): AgentArch {
   if (unameMachine === 'x86_64') return 'x64';
+
   if (unameMachine === 'aarch64') return 'arm64';
+
   throw new UnsupportedArchitectureError(unameMachine);
 }
 
@@ -62,6 +64,7 @@ export function decideClientInstallSource(
     const mismatchedClientArch: AgentArch = serverArch === 'arm64' ? 'x64' : 'arm64';
     return decideBinarySource(mismatchedClientArch, serverArch);
   }
+
   const client = clientArch === 'arm64' ? 'arm64' : 'x64';
   return decideBinarySource(client, serverArch);
 }
@@ -82,22 +85,29 @@ export interface LingerInstallDecision {
  */
 export function decideLingerOnInstall(preExistingLinger: boolean | 'unknown'): LingerInstallDecision {
   if (preExistingLinger === false) return { action: 'enable-linger', lingerEnabledByTako: true };
+
   if (preExistingLinger === true) return { action: 'keep-linger', lingerEnabledByTako: false };
+
   return { action: 'enable-linger', lingerEnabledByTako: false };
 }
 
 /** Parse `loginctl show-user … --property=Linger` output. */
 export function parseLingerShowUserOutput(stdout: string): boolean | undefined {
   if (/^Linger=yes$/m.test(stdout)) return true;
+
   if (/^Linger=no$/m.test(stdout)) return false;
+
   return undefined;
 }
 
 /** Parse `busctl get-property … KillUserProcesses` output (`b true|false`). */
 export function parseKillUserProcessesOutput(stdout: string): boolean | undefined {
   const trimmed = stdout.trim();
+
   if (trimmed === 'b true') return true;
+
   if (trimmed === 'b false') return false;
+
   return undefined;
 }
 
@@ -105,8 +115,11 @@ export function parseKillUserProcessesOutput(stdout: string): boolean | undefine
 export function parseKillUserProcessesConf(conf: string): boolean | undefined {
   const line = conf.split('\n').find(candidate => candidate.startsWith('KillUserProcesses='));
   const value = line?.split('=')[1]?.trim();
+
   if (value === 'yes' || value === 'true' || value === '1') return true;
+
   if (value === 'no' || value === 'false' || value === '0') return false;
+
   return undefined;
 }
 
@@ -144,9 +157,11 @@ export class InstallAgent {
    */
   async checkPreflight(): Promise<InstallPreflight> {
     const unameResult = await this.tryRun(PROBE_ARCH);
+
     if (unameResult === undefined) {
       throw new Error('architecture probe failed: could not run "uname -m" on the target');
     }
+
     // Throws UnsupportedArchitectureError, naming the arch, for anything
     // outside x86_64/aarch64 — the install stops here, nothing else runs.
     const arch = mapUnameArchToAsset(unameResult.stdout.trim());
@@ -171,6 +186,7 @@ export class InstallAgent {
       busctlResult !== undefined && busctlResult.exitCode === 0
         ? parseKillUserProcessesOutput(busctlResult.stdout)
         : undefined;
+
     if (killUserProcesses === undefined) {
       const confResult = await this.tryRun(PROBE_LOGIND_CONF);
       killUserProcesses =
@@ -180,6 +196,7 @@ export class InstallAgent {
     }
 
     let refusalReason: string | undefined;
+
     if (!systemd) {
       refusalReason = 'target is not a systemd host — the agent requires systemd --user; nothing was modified';
     } else if (!composeV2) {

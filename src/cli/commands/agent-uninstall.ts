@@ -11,10 +11,12 @@ import { SESSION_PASSWORD_ENV } from '../../shared/lib/session-password.js';
 /** Default entry: uninstall the agent from the configured remote through the services layer. */
 export async function runAgentUninstallDefault(remoteName: string): Promise<number> {
   const result = await uninstallAgent({ remote: remoteName, sessionPassword: process.env[SESSION_PASSWORD_ENV] });
+
   if (result.kind === 'refused') {
     console.error(result.reason);
     return 1;
   }
+
   // The flow already printed its progress and residue lines to the console.
   return result.exitCode;
 }

@@ -150,6 +150,7 @@ describe('SshConnectionManager', () => {
       const { manager, clients } = createManager(() => {
         const client = createFakeClient();
         connections += 1;
+
         if (connections === 1) {
           client.connect.mockImplementation(() => {
             setImmediate(() =>
@@ -161,6 +162,7 @@ describe('SshConnectionManager', () => {
             return client;
           });
         }
+
         clients.push(client);
         return client;
       });

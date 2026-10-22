@@ -50,6 +50,7 @@ function assertExecutionMode(value: unknown): ExecutionMode {
   if (typeof value !== 'string' || !(EXECUTION_MODES as readonly string[]).includes(value)) {
     throw new PruneValidationError('mode', `must be one of ${EXECUTION_MODES.join('|')}`);
   }
+
   return value as ExecutionMode;
 }
 

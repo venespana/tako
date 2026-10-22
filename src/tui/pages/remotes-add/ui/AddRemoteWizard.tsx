@@ -35,7 +35,9 @@ const FIELD_ORDER: FieldId[] = ['name', 'username', 'host', 'port', 'type', 'key
 function getNavFields(credentialType: SshCredentialType): FieldId[] {
   return FIELD_ORDER.filter(f => {
     if (f === 'keyPath') return credentialType === 'ssh-key';
+
     if (f === 'password') return credentialType === 'store' || credentialType === 'interactive';
+
     return true;
   });
 }
@@ -115,8 +117,11 @@ export function AddRemoteWizard({ onComplete }: AddRemoteWizardProps) {
 
   const isFieldVisible = (field: FieldId): boolean => {
     if (FIELD_ORDER.indexOf(field) > revealed) return false;
+
     if (field === 'keyPath' && data.credentialType !== 'ssh-key') return false;
+
     if (field === 'password' && data.credentialType !== 'store' && data.credentialType !== 'interactive') return false;
+
     return true;
   };
 
@@ -144,8 +149,11 @@ export function AddRemoteWizard({ onComplete }: AddRemoteWizardProps) {
   // the store's step, which is what actually moves the form forward.
   const submitField = useCallback(() => {
     setBackField(null);
+
     if (activeField === null) return;
+
     const value = draft[activeField] ?? '';
+
     switch (activeField) {
       case 'name':
         wizard.setName(value);
@@ -163,6 +171,7 @@ export function AddRemoteWizard({ onComplete }: AddRemoteWizardProps) {
       // empty draft when the user just Tabs through the field.
       case 'type':
         if (value) wizard.setType(value as SshCredentialType);
+
         break;
       case 'keyPath':
         wizard.setKeyPath(value);
@@ -188,7 +197,9 @@ export function AddRemoteWizard({ onComplete }: AddRemoteWizardProps) {
   // are simply replaced on resubmit.
   const goBack = useCallback(() => {
     if (activeField === null) return;
+
     setDraft(v => ({ ...v, [activeField]: '' }));
+
     switch (activeField) {
       case 'username':
         wizard.setUser('');
@@ -205,8 +216,10 @@ export function AddRemoteWizard({ onComplete }: AddRemoteWizardProps) {
       case 'password':
         break;
     }
+
     const nav = getNavFields(data.credentialType);
     const idx = nav.indexOf(activeField);
+
     if (idx > 0) setBackField(nav[idx - 1]!);
   }, [activeField, data.credentialType, wizard]);
 

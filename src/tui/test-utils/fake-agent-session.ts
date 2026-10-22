@@ -31,7 +31,9 @@ export class FakeAgentSession implements AgentSession {
     payload: AgentRequestMap[K]['request']
   ): Promise<AgentRequestMap[K]['response']> {
     this.requests.push({ type, payload });
+
     if (this.failNext !== null) throw this.failNext;
+
     return structuredClone(this.responses.get(type)) as AgentRequestMap[K]['response'];
   }
 
@@ -39,6 +41,7 @@ export class FakeAgentSession implements AgentSession {
     this.listeners.push(listener);
     return () => {
       const index = this.listeners.indexOf(listener);
+
       if (index >= 0) this.listeners.splice(index, 1);
     };
   }
@@ -49,7 +52,7 @@ export class FakeAgentSession implements AgentSession {
 
   /** Simulate an agent push event arriving over the socket. */
   emit(frame: AgentFrame): void {
-    for (const listener of [...this.listeners]) listener(frame);
+    [...this.listeners].forEach(listener => listener(frame));
   }
 
   /** Seed agent.status + reconcile.sync with the given jobs/runs. */

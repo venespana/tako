@@ -45,11 +45,13 @@ class FakeTimer implements SchedulerTimer {
 
   clear(handle: unknown): void {
     const index = Number(handle) - 1;
+
     if (index >= 0 && index < this.pending.length) this.pending.splice(index, 1);
   }
 
   fireNext(): void {
     const next = this.pending.shift();
+
     if (next) next.fn();
   }
 }
@@ -82,6 +84,7 @@ class GatedJobHandler implements JobHandler {
 
   releaseNext(): void {
     const release = this.#releases.shift();
+
     if (release) release();
   }
 }
@@ -139,9 +142,10 @@ function buildLoop(
 
 /** Drain the microtask queue so in-memory store + drain-loop chains settle. */
 async function settle(times = 5): Promise<void> {
-  for (let i = 0; i < times; i++) {
+  await Array.from({ length: times }, () => undefined).reduce(async chain => {
+    await chain;
     await new Promise<void>(resolve => setImmediate(resolve));
-  }
+  }, Promise.resolve());
 }
 
 describe('RunSchedulerLoop — missed-once catch-up tick (7.1/7.4)', () => {

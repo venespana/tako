@@ -40,5 +40,6 @@ export function uninstallLingerGuard(
         'agent transport unreachable — could not read linger_by_tako; keeping linger ENABLED (only-by-tako rule is never guessed)',
     };
   }
+
   return { disableLinger: shouldDisableLinger(status.lingerByTako) };
 }

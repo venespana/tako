@@ -13,12 +13,14 @@ export class CheckDuplicateRemote {
    */
   async check(draft: RemoteDraft): Promise<DuplicateResult> {
     const nameExists = await this.repo.existsByName(draft.name);
+
     if (nameExists) {
       return { isDuplicate: true, kind: 'name' };
     }
 
     const endpoint = toEndpoint(draft);
     const endpointExists = await this.repo.existsByEndpoint(endpoint);
+
     if (endpointExists) {
       return { isDuplicate: true, kind: 'endpoint' };
     }

@@ -31,11 +31,15 @@ export class TriggerJob {
   /** Validate id and mode, require the job to exist, persist a pending run. */
   async execute(jobId: string, mode: RunMode): Promise<RunView> {
     const id: Slug = assertSlug(jobId);
+
     if (!isRunMode(mode)) {
       throw new JobValidationError(`mode must be 'dry-run' or 'apply', got ${JSON.stringify(mode)}`);
     }
+
     const job = await this.store.getJob(id);
+
     if (!job) throw new JobNotFoundError(id);
+
     return this.store.createRun({ jobId: id, mode, catchup: false, startedAt: this.clock.now().toISOString() });
   }
 }

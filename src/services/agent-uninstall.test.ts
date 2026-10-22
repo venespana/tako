@@ -56,6 +56,7 @@ class ScriptedAgentChannel extends Duplex implements AgentChannel {
 
   override _write(frame: unknown, _encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
     const parsed = JSON.parse(String(frame)) as { kind: string; id?: string; type?: string };
+
     if (parsed.kind === 'hello') {
       this.#events?.push('channel:hello');
       this.push(JSON.stringify(helloAckFrame(this.#version, 'start-1')));
@@ -64,6 +65,7 @@ class ScriptedAgentChannel extends Duplex implements AgentChannel {
       const payload = this.#status?.() ?? {};
       this.push(JSON.stringify(responseFrame(parsed.id, 'agent.status', payload)));
     }
+
     callback();
   }
 
@@ -107,18 +109,23 @@ function createHarness(
   const events: string[] = [];
   const runner = new ScriptedRunner(command => {
     if (command === 'printf %s "$HOME"') return OK('/home/ops');
-    for (const [needle, result] of Object.entries(teardownFailures)) {
-      if (command.includes(needle)) return result;
-    }
+
+    const hit = Object.entries(teardownFailures).find(([needle]) => command.includes(needle));
+
+    if (hit !== undefined) return hit[1];
+
     return OK();
   }, events);
 
   const verifierRunner = new ScriptedRunner(command => {
-    for (const [needle, result] of Object.entries(residue)) {
-      if (command.includes(needle)) return result;
-    }
+    const hit = Object.entries(residue).find(([needle]) => command.includes(needle));
+
+    if (hit !== undefined) return hit[1];
+
     if (command.includes('test -e')) return FAIL('exists', 1); // absent = no residue
+
     if (command.includes('loginctl show-user')) return OK('Linger=no\n');
+
     return OK();
   });
   let verifierCloseCount = 0;

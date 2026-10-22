@@ -64,14 +64,17 @@ export function summarizeRunResult(result: unknown): string {
   if (!isRecord(result)) return '—';
 
   const error = result['error'];
+
   if (typeof error === 'string') return error;
 
   const command = result['command'];
+
   if (isRecord(command) && Array.isArray(command['argv'])) {
     return command['argv'].filter(part => typeof part === 'string').join(' ');
   }
 
   const entries = result['entries'];
+
   if (Array.isArray(entries)) {
     const count = entries.reduce((total, entry) => {
       return isRecord(entry) && typeof entry['count'] === 'number' ? total + entry['count'] : total;

@@ -123,6 +123,7 @@ export function withWatchdogTimeout(handler: JobHandler, timeoutMs: number): Job
   return {
     async execute(job: JobDefinition, mode: RunMode): Promise<JobExecutionOutcome> {
       let timer: ReturnType<typeof setTimeout> | undefined;
+
       try {
         return await Promise.race([
           handler.execute(job, mode),
@@ -280,6 +281,7 @@ export async function runAgentRun(options: AgentRunOptions = {}): Promise<number
     await shutdown();
     return 0;
   }
+
   // The listening socket keeps the event loop alive; shutdown happens via
   // the signal handlers above.
   await new Promise<never>(() => {});

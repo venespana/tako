@@ -9,14 +9,9 @@ import type { ActionGroup, ActionItem, GatedActionGroup } from './menu-items.js'
  * because selecting them triggers router navigation to the submenu root.
  * Disabled items (enabledWhen: 'hasActiveRemote' with hasActiveRemote=false) are excluded. */
 export function getSelectable(groups: ActionGroup[], hasActiveRemote: boolean): ActionItem[] {
-  const selectable: ActionItem[] = [];
-  for (const group of groups) {
-    for (const item of group.items) {
-      if (item.enabledWhen === 'hasActiveRemote' && !hasActiveRemote) continue;
-      selectable.push(item);
-    }
-  }
-  return selectable;
+  return groups.flatMap(group =>
+    group.items.filter(item => !(item.enabledWhen === 'hasActiveRemote' && !hasActiveRemote))
+  );
 }
 
 /** Map groups + their gated selectable list to gated groups where each item
@@ -37,8 +32,12 @@ export function withEnablement(groups: ActionGroup[], selectable: ActionItem[]):
  * Returns the new cursor index into the selectable array. */
 export function moveCursor(selectable: ActionItem[], cursor: number, dir: 1 | -1): number {
   if (selectable.length === 0) return 0;
+
   const next = cursor + dir;
+
   if (next < 0) return selectable.length - 1;
+
   if (next >= selectable.length) return 0;
+
   return next;
 }

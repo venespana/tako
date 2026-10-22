@@ -103,6 +103,7 @@ describeGated('agent arm64 e2e — install, schedule, disconnect, fire, reconcil
 
   it('schedules a prune job, disconnects, lets the agent fire alone, and reconciles the run', async () => {
     const scratch = mkdtempSync(join(tmpdir(), 'tako-arm64-e2e-'));
+
     try {
       const first = await openAgentSession(endpoint);
       await first.request('jobs.upsert', {
@@ -116,16 +117,22 @@ describeGated('agent arm64 e2e — install, schedule, disconnect, fire, reconcil
 
       // Wait for at least one cron firing (per-minute schedule, ≤90s).
       let fired = before.lastSeq;
-      for (let waited = 0; waited < 90_000; waited += 5_000) {
+      let waited = 0;
+
+      while (waited < 90_000) {
         await new Promise(resolve => setTimeout(resolve, 5_000));
         const probe = await openAgentSession(endpoint);
         const history = await probe.request('jobs.history', { jobId: 'e2e-prune' });
         await probe.close();
+
         if (history.lastSeq > fired) {
           fired = history.lastSeq;
           break;
         }
+
+        waited += 5_000;
       }
+
       expect(fired).toBeGreaterThan(before.lastSeq); // the job fired while disconnected
 
       // Reconnect + reconcile: the run executed while away is delivered.

@@ -13,29 +13,35 @@ function createMockConf(initialStore: Record<string, unknown> = {}) {
     get: vi.fn((key: string) => {
       const keys = key.split('.');
       let val: unknown = store;
-      for (const k of keys) {
+
+      keys.forEach(k => {
         val = (val as Record<string, unknown>)?.[k];
-      }
+      });
+
       return val;
     }),
     set: vi.fn((key: string, value: unknown) => {
       const keys = key.split('.');
       const lastKey = keys.pop()!;
       let obj: Record<string, unknown> = store;
-      for (const k of keys) {
+
+      keys.forEach(k => {
         if (!(k in obj)) obj[k] = {};
+
         obj = obj[k] as Record<string, unknown>;
-      }
+      });
+
       obj[lastKey] = value;
     }),
     has: vi.fn((key: string) => {
       const keys = key.split('.');
       let val: unknown = store;
-      for (const k of keys) {
+
+      return keys.every(k => {
         val = (val as Record<string, unknown>)?.[k];
-        if (val === undefined) return false;
-      }
-      return val !== undefined;
+
+        return val !== undefined;
+      });
     }),
     _getStore: () => store,
     _reset: (newStore: Record<string, unknown> = {}) => {

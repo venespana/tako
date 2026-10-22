@@ -26,6 +26,7 @@ import { SESSION_PASSWORD_ENV } from '../../shared/lib/session-password.js';
  */
 export async function runAgentInstallDefault(remoteName: string): Promise<number> {
   const result = await installAgent({ remote: remoteName, sessionPassword: process.env[SESSION_PASSWORD_ENV] });
+
   switch (result.kind) {
     case 'refused':
       console.error(result.reason);

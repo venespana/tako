@@ -30,9 +30,7 @@ export class StreamLocalAgentChannel implements AgentChannel {
   }
 
   async close(): Promise<void> {
-    for (const stream of this.streams) {
-      stream.destroy();
-    }
+    this.streams.forEach(stream => stream.destroy());
   }
 
   private async resolveSocketPath(socketPath: string): Promise<string> {
@@ -41,6 +39,7 @@ export class StreamLocalAgentChannel implements AgentChannel {
     if (socketPath !== '~' && !socketPath.startsWith('~/')) {
       return socketPath;
     }
+
     const home = await this.remoteHome();
     return join(home, socketPath.slice(1));
   }
@@ -48,10 +47,12 @@ export class StreamLocalAgentChannel implements AgentChannel {
   private async remoteHome(): Promise<string> {
     const result = await this.runner.run('printf %s "$HOME"');
     const home = result.stdout.trim();
+
     if (result.exitCode !== 0 || home === '') {
       const detail = result.stderr.trim() || `exit code ${result.exitCode}`;
       throw new Error(`Cannot resolve remote home directory: ${detail}`);
     }
+
     return home;
   }
 }
@@ -89,19 +90,23 @@ class FramedChannelStream extends Duplex {
    */
   private flushBufferedLines(): void {
     let newlineIndex = this.buffer.indexOf('\n');
+
     while (newlineIndex !== -1) {
       const line = this.buffer.slice(0, newlineIndex);
       this.buffer = this.buffer.slice(newlineIndex + 1);
+
       if (!this.push(line)) {
         this.channel.pause();
         return;
       }
+
       newlineIndex = this.buffer.indexOf('\n');
     }
   }
 
   override _read(): void {
     this.flushBufferedLines();
+
     if (!this.buffer.includes('\n') && this.channel.isPaused()) {
       this.channel.resume();
     }
@@ -112,12 +117,15 @@ class FramedChannelStream extends Duplex {
       callback(new TypeError('AgentChannel frames must be strings (one newline-delimited JSON frame per write)'));
       return;
     }
+
     if (this.channel.write(frame + '\n')) {
       callback();
       return;
     }
+
     const onDrain = () => {
       this.channel.removeListener('drain', onDrain);
+
       if (this.pendingWriteCallback === callback) {
         this.pendingWriteCallback = undefined;
         callback();
@@ -137,14 +145,17 @@ class FramedChannelStream extends Duplex {
     if (this.destroyed) {
       return;
     }
+
     const pending = this.pendingWriteCallback;
     this.pendingWriteCallback = undefined;
     pending?.(new Error('Agent channel closed before a written frame could drain'));
     const remainder = this.decoder.end() + this.buffer;
     this.buffer = '';
+
     if (remainder.length > 0) {
       this.push(remainder);
     }
+
     this.push(null);
   }
 

@@ -73,6 +73,7 @@ describeGated('agent releases-fallback e2e — arch mismatch downloads the publi
 
   it('installs by downloading the published arm64 asset (checksum verified, probe passes)', async () => {
     const scratch = mkdtempSync(join(tmpdir(), 'tako-releases-e2e-'));
+
     try {
       const exit = await runAgentInstall(installDeps(endpoint, log));
       expect(exit).toBe(0);

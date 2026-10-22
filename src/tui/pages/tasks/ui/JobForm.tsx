@@ -125,7 +125,9 @@ export function JobForm({ initial, onCancel, onSubmit }: JobFormProps): React.Re
 
   const submit = useCallback((): void => {
     const job = buildJobDefinition(values);
+
     if (job === null) return; // unreachable: every step gates its own error
+
     onSubmit(job);
   }, [values, onSubmit]);
 

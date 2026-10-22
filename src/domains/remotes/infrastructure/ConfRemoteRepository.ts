@@ -28,15 +28,13 @@ export class ConfRemoteRepository implements RemoteRepository {
     const conf = this.getConf();
     // Scan all remotes and check if any has the same endpoint
     const remotes = conf.get(NAMESPACE) as Record<string, Remote> | undefined;
+
     if (!remotes) return false;
 
-    for (const remote of Object.values(remotes)) {
+    return Object.values(remotes).some(remote => {
       const remoteEndpoint = `${remote.username}@${remote.host}:${remote.port}`;
-      if (remoteEndpoint === endpoint) {
-        return true;
-      }
-    }
-    return false;
+      return remoteEndpoint === endpoint;
+    });
   }
 
   async save(remote: Remote): Promise<void> {
@@ -58,6 +56,7 @@ export class ConfRemoteRepository implements RemoteRepository {
   async list(): Promise<RemoteSummary[]> {
     const conf = this.getConf();
     const remotes = conf.get(NAMESPACE) as Record<string, Remote> | undefined;
+
     if (!remotes) return [];
 
     // Sorted by name so the selection list is stable across sessions.

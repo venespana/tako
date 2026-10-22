@@ -101,15 +101,18 @@ export class UnixSocketAgentServer {
           reject(error);
           return;
         }
+
         if (await this.#isSocketLive()) {
           reject(new Error(`another agent is already listening on ${this.#options.socketPath}`));
           return;
         }
+
         try {
           unlinkSync(this.#options.socketPath);
         } catch {
           // Nothing to clean — the bind error is about to resurface.
         }
+
         this.#server.once('error', reject);
         this.#listen(resolve);
       };
@@ -125,6 +128,7 @@ export class UnixSocketAgentServer {
     // chmod as belt-and-braces. A chmod failure is fatal — running with a
     // permissive socket would silently defeat SSH-identity authentication.
     const previousUmask = process.umask(0o077);
+
     try {
       chmodSync(this.#options.socketPath, 0o600);
     } catch (error) {
@@ -140,13 +144,13 @@ export class UnixSocketAgentServer {
 
   /** Stop serving, drop every client, and unlink the socket file. */
   async stop(): Promise<void> {
-    for (const context of this.#connections) {
-      context.socket.destroy();
-    }
+    this.#connections.forEach(context => context.socket.destroy());
+
     this.#connections.clear();
     await new Promise<void>(resolve => {
       this.#server.close(() => resolve());
     });
+
     try {
       statSync(this.#options.socketPath);
       unlinkSync(this.#options.socketPath);
@@ -157,20 +161,21 @@ export class UnixSocketAgentServer {
 
   /** Push an event frame (job.state_changed / run.completed) to every client. WU7 calls this. */
   broadcastEvent(frame: AgentFrame): void {
-    for (const context of this.#connections) {
-      this.#write(context, frame);
-    }
+    this.#connections.forEach(context => this.#write(context, frame));
   }
 
   async #recoverStaleRuns(): Promise<void> {
     const { store, clock } = this.#options;
     const runs = await store.listRuns({});
     const finishedAt = clock.now().toISOString();
-    for (const run of runs) {
+
+    await runs.reduce(async (chain, run) => {
+      await chain;
+
       if (run.status === 'pending' || run.status === 'running') {
         await store.updateRun(run.id, { status: 'failed', finishedAt, result: STALE_RUN_RESULT });
       }
-    }
+    }, Promise.resolve());
   }
 
   #listen(onListening: () => void): void {
@@ -203,11 +208,13 @@ export class UnixSocketAgentServer {
 
   #drop(context: ConnectionContext): void {
     this.#connections.delete(context);
+
     if (!context.socket.destroyed) context.socket.destroy();
   }
 
   #ingest(context: ConnectionContext, chunk: Buffer): void {
     context.buffer += context.decoder.write(chunk);
+
     // Cap the pre-newline tail: a client that never sends a newline must not
     // grow memory without bound (decodeFrame's per-line cap can't see it yet).
     if (context.buffer.length > MAX_FRAME_BYTES) {
@@ -225,12 +232,14 @@ export class UnixSocketAgentServer {
       context.socket.end();
       return;
     }
+
     this.#flushFrames(context);
   }
 
   /** Push every complete buffered frame; the tail stays buffered until more bytes arrive. */
   #flushFrames(context: ConnectionContext): void {
     let newlineIndex = context.buffer.indexOf('\n');
+
     while (newlineIndex !== -1) {
       const line = context.buffer.slice(0, newlineIndex);
       context.buffer = context.buffer.slice(newlineIndex + 1);
@@ -243,6 +252,7 @@ export class UnixSocketAgentServer {
     if (line.length === 0) return;
 
     let frame: AgentFrame;
+
     try {
       frame = decodeFrame(line);
     } catch (error) {
@@ -259,6 +269,7 @@ export class UnixSocketAgentServer {
       this.#handleHandshake(context, frame);
       return;
     }
+
     this.#handlePostHandshake(context, frame);
   }
 
@@ -267,6 +278,7 @@ export class UnixSocketAgentServer {
       this.#write(context, errorFrame('invalid_payload', 'handshake: expected hello first'));
       return;
     }
+
     context.handshakeDone = true;
     const payload = (frame.payload ?? {}) as { clientVersion?: string; protocol?: number };
     this.#write(context, helloAckFrame(this.#options.agentVersion, this.#agentStartId));
@@ -275,6 +287,7 @@ export class UnixSocketAgentServer {
     const clientVersion = payload.clientVersion ?? 'unknown';
     const protocolMismatch = payload.protocol !== undefined && payload.protocol !== PROTOCOL_VERSION;
     const versionMismatch = clientVersion !== this.#options.agentVersion;
+
     if (protocolMismatch || versionMismatch) {
       const detail = protocolMismatch
         ? `protocol version mismatch: client=${String(payload.protocol)} agent=${PROTOCOL_VERSION}`
@@ -288,10 +301,12 @@ export class UnixSocketAgentServer {
       void this.#handleRequest(context, frame);
       return;
     }
+
     if (frame.kind === 'hello') {
       this.#write(context, errorFrame('invalid_payload', 'duplicate hello on an established session'));
       return;
     }
+
     // Events/responses/hello_ack FROM a client are protocol violations server-side.
     this.#write(context, errorFrame('invalid_payload', `unexpected ${frame.kind} frame to the agent`));
   }
@@ -325,9 +340,11 @@ export class UnixSocketAgentServer {
       }
       case 'jobs.trigger': {
         const mode = readField(payload, 'mode');
+
         if (mode !== 'dry-run' && mode !== 'apply') {
           throw new JobValidationError(`mode must be 'dry-run' or 'apply', got ${JSON.stringify(mode)}`);
         }
+
         // Task 8.0: the trigger callback IS the engine's serial queue — the
         // response returns the queued (pending) run view.
         const run = await this.#options.trigger(readField(payload, 'jobId'), mode);
@@ -374,6 +391,7 @@ export class UnixSocketAgentServer {
 
   #write(context: ConnectionContext, frame: AgentFrame): void {
     if (context.socket.destroyed) return;
+
     try {
       context.socket.write(encodeFrame(frame) + '\n');
     } catch {
@@ -391,33 +409,42 @@ class UnknownRequestTypeError extends Error {
 
 function readField(payload: unknown, field: string): string {
   const value = readOptionalField(payload, field);
+
   if (value === undefined) {
     throw new JobValidationError(`payload field "${field}" is required`);
   }
+
   return value;
 }
 
 function readNumber(payload: unknown, field: string): number {
   const value = readOptionalNumber(payload, field);
+
   if (value === undefined) {
     throw new JobValidationError(`payload field "${field}" is required`);
   }
+
   return value;
 }
 
 function readOptionalField(payload: unknown, field: string): string | undefined {
   if (typeof payload !== 'object' || payload === null) return undefined;
+
   const value = (payload as Record<string, unknown>)[field];
   return value === undefined || value === null ? undefined : String(value);
 }
 
 function readOptionalNumber(payload: unknown, field: string): number | undefined {
   if (typeof payload !== 'object' || payload === null) return undefined;
+
   const value = (payload as Record<string, unknown>)[field];
+
   if (value === undefined || value === null) return undefined;
+
   if (typeof value !== 'number') {
     throw new JobValidationError(`payload field "${field}" must be a number`);
   }
+
   return value;
 }
 
@@ -425,9 +452,11 @@ function toProtocolErrorCode(error: unknown): ProtocolErrorCode {
   if (error instanceof JobValidationError || error instanceof JobNotFoundError) {
     return 'invalid_payload';
   }
+
   if (error instanceof UnknownRequestTypeError) {
     return 'unknown_type';
   }
+
   return 'internal';
 }
 
@@ -439,12 +468,15 @@ function describeError(error: unknown): string {
 function salvageCorrelationId(line: string): string | undefined {
   try {
     const raw: unknown = JSON.parse(line);
+
     if (typeof raw === 'object' && raw !== null) {
       const id = (raw as Record<string, unknown>)['id'];
+
       if (typeof id === 'string') return id;
     }
   } catch {
     // Not JSON at all — no correlation id to salvage.
   }
+
   return undefined;
 }

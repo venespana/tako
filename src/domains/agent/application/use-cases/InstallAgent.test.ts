@@ -27,7 +27,9 @@ class FakeRunner implements RemoteCommandRunner {
   async run(command: string): Promise<RemoteCommandResult> {
     this.calls.push(command);
     const result = this.script[command];
+
     if (!result) throw new Error(`unexpected command: ${command}`);
+
     return result;
   }
 }

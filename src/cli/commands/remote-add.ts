@@ -70,10 +70,12 @@ const FIELD_SPECS: readonly FieldSpec[] = [
 /** The plain field list (name + expected shape) printed when input is missing. */
 export function formatFieldList(missingFlags: readonly string[]): string {
   const lines = ['tako remote add: missing required fields:'];
-  for (const flag of missingFlags) {
+
+  missingFlags.forEach(flag => {
     const spec = FIELD_SPECS.find(field => field.flag === flag);
     lines.push(`  --${flag}  ${spec?.shape ?? ''}`);
-  }
+  });
+
   lines.push('supply them as flags, or pipe one stdin line per missing field (in this order)');
   return lines.join('\n');
 }
@@ -98,7 +100,9 @@ type ParsedFlag<T> =
  * outside CREDENTIAL_TYPES is an explicit refusal, never a silent default. */
 function parseType(raw: string | undefined): ParsedFlag<SshCredentialType> {
   if (raw === undefined || raw === '') return { kind: 'absent' };
+
   if ((CREDENTIAL_TYPES as readonly string[]).includes(raw)) return { kind: 'ok', value: raw as SshCredentialType };
+
   return { kind: 'invalid', value: raw };
 }
 
@@ -107,8 +111,11 @@ function parseType(raw: string | undefined): ParsedFlag<SshCredentialType> {
  * silent coercion to the default, which would save a wrong-endpoint remote). */
 function parsePort(raw: string | undefined): ParsedFlag<number> {
   if (raw === undefined || raw === '') return { kind: 'absent' };
+
   const parsed = /^\d+$/.test(raw) ? Number.parseInt(raw, 10) : Number.NaN;
+
   if (!Number.isInteger(parsed) || parsed <= 0 || parsed > 65535) return { kind: 'invalid', value: raw };
+
   return { kind: 'ok', value: parsed };
 }
 
@@ -121,11 +128,14 @@ export async function runRemoteAdd(flags: RemoteAddFlags, io: RemoteAddIo): Prom
     // Loud refusals first (ADR-0020 §3): a bad flag value prints and exits —
     // it is never silently coerced to its default.
     const type = parseType(flags.type);
+
     if (type.kind === 'invalid') {
       io.error(`tako remote add: invalid --type "${type.value}" (expected one of: ${CREDENTIAL_TYPES.join(', ')})`);
       return 1;
     }
+
     const port = parsePort(flags.port);
+
     if (port.kind === 'invalid') {
       io.error(`tako remote add: invalid --port "${port.value}" (expected an integer between 1 and 65535)`);
       return 1;
@@ -150,24 +160,29 @@ export async function runRemoteAdd(flags: RemoteAddFlags, io: RemoteAddIo): Prom
     // sink reads to EOF, so touching it when every field arrives via flags
     // would block a non-TTY stdin indefinitely.
     let pendingLines: string[] = [];
+
     if (missingRequired().length > 0) {
       const lines = await io.readLines();
+
       // xargs-style fill: one piped line per missing REQUIRED field, in field
       // order. Optional fields (port, type, key-path) never consume lines —
       // they keep their flag value or default, so a piped y/n hostkey answer
       // always lands in the answer queue, not in an optional slot.
-      for (const spec of FIELD_SPECS) {
-        if (!spec.required(values)) continue;
+      FIELD_SPECS.filter(spec => spec.required(values)).forEach(spec => {
         const current = values[spec.flag];
+
         if ((current === undefined || current === '') && lines.length > 0) {
           values[spec.flag] = lines.shift();
         }
-      }
+      });
+
       const stillMissing = missingRequired();
+
       if (stillMissing.length > 0) {
         io.error(formatFieldList(stillMissing));
         return 1;
       }
+
       // Leftover lines stay queued for the hostkey y/n round.
       pendingLines = lines;
     }
@@ -206,9 +221,11 @@ async function finishRemoteAdd(
     io.log(`remote "${draft.name}" saved`);
     return 0;
   }
+
   if (result.reason === 'hostkey') {
     return confirmHostkey(draft, result, pendingLines, io);
   }
+
   if (result.reason === 'duplicate') {
     io.error(
       result.duplicateKind === 'endpoint'
@@ -217,6 +234,7 @@ async function finishRemoteAdd(
     );
     return 1;
   }
+
   io.error(`remote not saved: ${result.message ?? result.reason ?? 'unknown failure'}`);
   return 1;
 }
@@ -230,19 +248,24 @@ async function confirmHostkey(
 ): Promise<number> {
   const fingerprint = result.hostkeyFingerprint ?? 'unknown';
   const answer = pendingLines.shift()?.trim().toLowerCase();
+
   if (answer === 'y' || answer === 'yes') {
     const confirmed = await confirmAddRemote(draft);
+
     if (confirmed.saved) {
       io.log(`remote "${draft.name}" saved`);
       return 0;
     }
+
     io.error(`remote not saved: ${confirmed.message ?? confirmed.reason ?? 'unknown failure'}`);
     return 1;
   }
+
   if (answer !== undefined) {
     io.error('remote not saved: hostkey declined');
     return 1;
   }
+
   io.error(formatHostkeyList(fingerprint));
   return 1;
 }
@@ -256,6 +279,7 @@ export async function runRemoteAddDefault(flags: RemoteAddFlags): Promise<number
   return runRemoteAdd(flags, {
     readLines: async () => {
       if (process.stdin.isTTY) return [];
+
       const text = await new Promise<string>((resolve, reject) => {
         let data = '';
         process.stdin.setEncoding('utf8');

@@ -26,6 +26,7 @@ function nodeSpawn(args: readonly string[]): SpawnedLike {
         resolve('');
         return;
       }
+
       let out = '';
       stream.setEncoding('utf8');
       stream.on('data', (chunk: string) => {

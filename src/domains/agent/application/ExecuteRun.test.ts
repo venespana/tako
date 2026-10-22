@@ -47,7 +47,9 @@ class FakeJobHandler implements JobHandler {
 
   async execute(job: JobDefinition, mode: RunMode): Promise<JobExecutionOutcome> {
     this.calls.push({ job, mode });
+
     if (this.outcome instanceof Error) throw this.outcome;
+
     return this.outcome;
   }
 }

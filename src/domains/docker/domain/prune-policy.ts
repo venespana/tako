@@ -41,20 +41,25 @@ export function parsePruneScopes(value: unknown): PruneScope[] {
   if (!Array.isArray(value)) {
     throw new PruneScopeValidationError(`expected a non-empty array of scopes, got ${typeof value}`);
   }
+
   if (value.length === 0) {
     throw new PruneScopeValidationError('scope set is empty');
   }
+
   const parsed: PruneScope[] = [];
-  for (const element of value) {
+
+  value.forEach(element => {
     if (!isValidPruneScope(element)) {
       throw new PruneScopeValidationError(
         `scope ${JSON.stringify(element ?? null)} is outside the closed union (${PRUNE_SCOPES.join('|')})`
       );
     }
+
     if (!parsed.includes(element)) {
       parsed.push(element);
     }
-  }
+  });
+
   return parsed;
 }
 

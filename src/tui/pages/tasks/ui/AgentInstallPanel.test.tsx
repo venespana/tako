@@ -9,8 +9,11 @@ import { AgentInstallPanel } from './AgentInstallPanel.js';
 import type { InstallOutcome, InstallRunner } from '../model/use-agent-install.js';
 
 async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
-  for (let waited = 0; !predicate() && waited < timeoutMs; waited += 10) {
+  let waited = 0;
+
+  while (!predicate() && waited < timeoutMs) {
     await new Promise(resolve => setTimeout(resolve, 10));
+    waited += 10;
   }
 }
 

@@ -26,6 +26,7 @@ export class AddRemote {
   async execute(draft: RemoteDraft, opts: { hostkeyAccepted: boolean }): Promise<AddRemoteResult> {
     // Step 1: duplicate check
     const dupResult: DuplicateResult = await this.duplicateChecker.check(draft);
+
     if (dupResult.isDuplicate) {
       return { saved: false, reason: 'duplicate', duplicateKind: dupResult.kind };
     }
@@ -52,6 +53,7 @@ export class AddRemote {
 
     // Step 4: build persisted remote (obfuscate for store only — interactive never persists a secret)
     let obfuscatedPassword: string | undefined;
+
     if (draft.credentialType === 'store' && draft.password !== undefined) {
       obfuscatedPassword = this.vault.obfuscate(draft.password);
     }
@@ -88,12 +90,14 @@ export class AddRemote {
   async save(draft: RemoteDraft): Promise<AddRemoteResult> {
     // Re-check duplicate (cheap, guards against races)
     const dupResult: DuplicateResult = await this.duplicateChecker.check(draft);
+
     if (dupResult.isDuplicate) {
       return { saved: false, reason: 'duplicate', duplicateKind: dupResult.kind };
     }
 
     // Obfuscate password for store only (interactive never persists a secret)
     let obfuscatedPassword: string | undefined;
+
     if (draft.credentialType === 'store' && draft.password !== undefined) {
       obfuscatedPassword = this.vault.obfuscate(draft.password);
     }

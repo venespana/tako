@@ -66,16 +66,28 @@ async function typePassword(
   submitAck: (frame: string) => boolean
 ): Promise<void> {
   const stars = (frame: string): number => frame.split('*').length - 1;
-  for (let index = 0; index < password.length; index++) {
+
+  // Char-by-char typing with bounded re-send retries; index-critical (each
+  // keystroke waits for its echo), so the sequencing must stay strictly serial.
+  await Array.from({ length: password.length }, (_, index) => index).reduce(async (chain, index) => {
+    await chain;
     const echoed = (): boolean => stars(lastFrame() ?? '') > index;
-    for (let attempt = 0; attempt < 2 && !echoed(); attempt++) {
+
+    let attempt = 0;
+
+    while (attempt < 2 && !echoed()) {
       stdin.write(password[index]!);
       await settle(lastFrame, echoed, KEY_FLUSH_MS);
+      attempt++;
     }
-  }
-  for (let attempt = 0; attempt < 2 && !submitAck(lastFrame() ?? ''); attempt++) {
+  }, Promise.resolve());
+
+  let submitAttempt = 0;
+
+  while (submitAttempt < 2 && !submitAck(lastFrame() ?? '')) {
     stdin.write('\r');
     await settle(lastFrame, submitAck, KEY_FLUSH_MS);
+    submitAttempt++;
   }
 }
 

@@ -71,8 +71,11 @@ export function openAgentMeta(dataPath: string): AgentMetaStore {
     },
     getLingerEnabledByTako(): boolean | undefined {
       const value = read(LINGER_ENABLED_BY_TAKO_KEY);
+
       if (value === '1') return true;
+
       if (value === '0') return false;
+
       return undefined;
     },
     setLingerEnabledByTako(value: boolean): void {

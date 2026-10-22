@@ -38,9 +38,13 @@ export class StackDirValidationError extends Error {
 /** True when `dir` is a stack path safe to assemble into commands. */
 export function isValidStackDir(dir: unknown): dir is string {
   if (typeof dir !== 'string' || dir.length === 0) return false;
+
   if (STACK_DIR_LEADING_DASH.test(dir)) return false;
+
   if (hasControlChars(dir)) return false;
+
   if (hasTraversalSegment(dir)) return false;
+
   return !STACK_DIR_FORBIDDEN.test(dir);
 }
 
@@ -58,19 +62,24 @@ export function assertValidStackDir(dir: unknown): string {
   if (typeof dir !== 'string' || dir.length === 0) {
     throw new StackDirValidationError(`expected a non-empty path string, got ${typeof dir}`);
   }
+
   if (STACK_DIR_LEADING_DASH.test(dir)) {
     throw new StackDirValidationError(`${JSON.stringify(dir)} starts with a dash (would parse as an argv flag)`);
   }
+
   if (hasControlChars(dir)) {
     throw new StackDirValidationError(`${JSON.stringify(dir)} contains control characters`);
   }
+
   if (hasTraversalSegment(dir)) {
     throw new StackDirValidationError(`${JSON.stringify(dir)} contains a ".." path segment (path traversal)`);
   }
+
   if (STACK_DIR_FORBIDDEN.test(dir)) {
     throw new StackDirValidationError(
       `${JSON.stringify(dir)} contains shell metacharacters (paths are argv-passed, never shell-interpolated)`
     );
   }
+
   return dir;
 }

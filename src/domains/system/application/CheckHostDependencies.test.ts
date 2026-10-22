@@ -13,7 +13,9 @@ describe('CheckHostDependencies', () => {
     return {
       check: vi.fn(async (tool: HostTool) => {
         const result = results.find(r => r.tool === tool);
+
         if (!result) throw new Error(`Unexpected tool: ${tool}`);
+
         return result;
       }),
     };
