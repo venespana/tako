@@ -8,6 +8,17 @@ import type { ClientChannel, SFTPWrapper } from 'ssh2';
 
 const READY_TIMEOUT_MS = 10_000;
 
+/**
+ * Keepalive ping interval. ssh2 defaults keepaliveInterval to 0 (disabled):
+ * without pings a silently dead connection (laptop sleep, NAT timeout) never
+ * raises an error, so a followed log stream can zombie as 'streaming'
+ * forever. With pings on, a dead connection surfaces in ~45s worst case
+ * (3 missed pings × 15s — keepaliveCountMax deliberately stays at its
+ * default of 3) and the channel closes, so the screen leaves streaming and
+ * can offer a reconnect.
+ */
+const SSH_KEEPALIVE_INTERVAL_MS = 15_000;
+
 /** Connection material for one managed host. */
 export interface SshConnectConfig {
   readonly host: string;
@@ -182,6 +193,7 @@ export class SshConnectionManager implements SshChannelSource {
     port: number;
     username: string;
     readyTimeout: number;
+    keepaliveInterval: number;
     password?: string;
     privateKey?: string;
   } {
@@ -190,6 +202,7 @@ export class SshConnectionManager implements SshChannelSource {
       port: number;
       username: string;
       readyTimeout: number;
+      keepaliveInterval: number;
       password?: string;
       privateKey?: string;
     } = {
@@ -197,6 +210,7 @@ export class SshConnectionManager implements SshChannelSource {
       port: this.config.port,
       username: this.config.username,
       readyTimeout: READY_TIMEOUT_MS,
+      keepaliveInterval: SSH_KEEPALIVE_INTERVAL_MS,
     };
 
     if (this.config.auth.type === 'password') {
