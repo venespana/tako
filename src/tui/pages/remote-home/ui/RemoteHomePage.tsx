@@ -4,12 +4,15 @@
 // cursor-owned composition — the cursor walks the containers of expanded
 // groups PLUS collapsed group rows via the shared menu list (↑↓), space
 // collapses a focused container's group / expands a focused collapsed
-// group, and the detail panel tracks the cursor. Logo, active-remote
-// header and footer are app-shell chrome; tab switching and container
+// group, `l` on a focused CONTAINER opens its live logs (tui-live-logs),
+// and the detail panel tracks the cursor. Logo, active-remote header and
+// footer are app-shell chrome; tab switching and the remaining container
 // actions are later iterations.
 import { useMemo, useState } from 'react';
 
 import { Box, Text } from 'ink';
+
+import { useNavigate } from 'react-router';
 
 import { Divider } from './Divider.js';
 import { RemoteHomeDashboard } from './RemoteHomeDashboard.js';
@@ -26,8 +29,13 @@ import type { InventoryRow } from '../model/remote-home.js';
 import { useRemoteHome } from '../model/use-remote-home.js';
 
 // Identity-stable hint constants (usePageHints effect dep) — a fresh literal
-// per render would re-publish on every render (9.10 lesson).
-const OK_HINTS: readonly KeyHint[] = [{ key: 'space', label: 'collapse/expand' }];
+// per render would re-publish on every render (9.10 lesson). Container rows
+// advertise logs; group rows (and every non-ok phase) advertise space only.
+const CONTAINER_HINTS: readonly KeyHint[] = [
+  { key: 'space', label: 'collapse/expand' },
+  { key: 'l', label: 'logs' },
+];
+const GROUP_HINTS: readonly KeyHint[] = [{ key: 'space', label: 'collapse/expand' }];
 const NO_HINTS: readonly KeyHint[] = [];
 
 /** Collapsed-group menu items are prefixed so they can never collide with
@@ -97,13 +105,27 @@ export function RemoteHomePage({ remote, sessionPassword }: RemoteHomePageProps)
 
   const { cursor } = useMenuList({ selectable: items, onSelect: selectRow }, state.phase === 'ok');
 
-  // The page's SINGLE hints writer: the ok dashboard advertises space.
-  usePageHints(state.phase === 'ok' ? OK_HINTS : NO_HINTS);
+  // The page's SINGLE hints writer, driven by the focused row's kind: a
+  // container row advertises logs, a collapsed group row space only.
+  const focusedRow = walk[cursor];
+  const hints = useMemo<readonly KeyHint[]>(() => {
+    if (state.phase !== 'ok') return NO_HINTS;
+
+    return focusedRow?.kind === 'container' ? CONTAINER_HINTS : GROUP_HINTS;
+  }, [state.phase, focusedRow]);
+  usePageHints(hints);
+
+  const navigate = useNavigate();
 
   // space: a focused container collapses its owning group; a focused
   // collapsed group row expands it — both are the toggle of the focused
   // row's group. No sticky state, no refs: the collapsed row itself is
   // navigable, so reopening is always one cursor move away.
+  // l: a focused CONTAINER navigates to its live logs. Ink broadcasts each
+  // key to ALL useInput hooks — useMenuList's own `l`-select ALSO fires: on
+  // container rows that select is an intentional no-op, on collapsed group
+  // rows it expands the group. This handler must therefore stay a no-op
+  // unless a container row holds the cursor.
   useKeyBindings(
     {
       chars: {
@@ -111,6 +133,13 @@ export function RemoteHomePage({ remote, sessionPassword }: RemoteHomePageProps)
           const focused = walk[cursor];
 
           if (focused !== undefined) toggleGroup(focused.group.id);
+        },
+        l: () => {
+          const focused = walk[cursor];
+
+          if (focused?.kind !== 'container') return;
+
+          navigate(`/logs?container=${encodeURIComponent(focused.container.name)}`);
         },
       },
     },

@@ -1,18 +1,21 @@
 // RemoteHomePage.test.tsx — Unit tests for the Home/Remote hub screen
-// (iteration 3, final contract): the page renders the ACTIVE remote's REAL
+// (iteration 3 + tui-live-logs T3): the page renders the ACTIVE remote's REAL
 // containers through the mocked services/docker (getContainers) — the
 // English tab strip, the grouped Services list (Others last, ▼/▶ per
 // effective expanded state, pen-mock expanded rows with NO cursor column
 // and NO exited suffix), a cursor that walks the containers of expanded
 // groups PLUS collapsed group rows (the reopen handles), space collapsing
-// a focused container's group / expanding a focused collapsed group, the
-// cursor-driven detail panel in its container and collapsed-group variants,
-// the published footer hints, and the loading/empty/error states. Logo,
-// active-remote header and footer are app-shell chrome and NOT part of this
-// page; the page uses no router this iteration.
+// a focused container's group / expanding a focused collapsed group, `l`
+// navigating to /logs ONLY on container rows (collapsed group rows keep the
+// expand-on-select), the cursor-driven detail panel in its container and
+// collapsed-group variants, the focus-driven footer hints, and the
+// loading/empty/error states. Logo, active-remote header and footer are
+// app-shell chrome and NOT part of this page; the page sits in a
+// MemoryRouter so useNavigate is real and navigation is observable.
 import { Text } from 'ink';
 
 import { render } from 'ink-testing-library';
+import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RemoteHomePage } from './RemoteHomePage.js';
@@ -44,7 +47,27 @@ function stubContainers(outcome: { result?: ContainersOutcome }): void {
   vi.mocked(getContainers).mockResolvedValue(outcome.result ?? { kind: 'ok', containers: [] });
 }
 
-const renderPage = () => render(<RemoteHomePage remote='nas' sessionPassword={undefined} />);
+/** The /logs stand-in: renders the query the navigation landed with. */
+function LogsMarker(): React.ReactElement {
+  const [searchParams] = useSearchParams();
+
+  return <Text>{`logs-route:${searchParams.get('container') ?? ''}`}</Text>;
+}
+
+/** The page inside a MemoryRouter, so `l`-navigation is observable; the
+ * optional extra renders beside the routes (the footer spy). */
+const renderHub = (extra?: React.ReactElement) =>
+  render(
+    <MemoryRouter initialEntries={['/remote-home']}>
+      <Routes>
+        <Route path='/remote-home' element={<RemoteHomePage remote='nas' sessionPassword={undefined} />} />
+        <Route path='/logs' element={<LogsMarker />} />
+      </Routes>
+      {extra}
+    </MemoryRouter>
+  );
+
+const renderPage = () => renderHub();
 
 /** Toggle-safe key press: a landed space/l-toggle ALWAYS changes the frame
  * (glyph flip or cursor move), so wait for any change as proof of
@@ -299,7 +322,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
     expect(second).not.toContain('❯ ▶');
   });
 
-  it('l on a focused collapsed group row expands it', async () => {
+  it('l on a focused collapsed group row expands it and never navigates', async () => {
     const { lastFrame, stdin } = renderPage();
     await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
 
@@ -310,17 +333,33 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
     expect(frame).toContain('▼ monitoring');
     expect(frame).toContain('grafana');
     expect(frame).not.toContain('▶');
+    // The group row's `l` is the menu select (expand) — the page-level `l`
+    // stayed a no-op (Ink broadcasts to both handlers).
+    expect(frame).not.toContain('logs-route:');
   });
 
-  it('l on a focused container stays a no-op select', async () => {
+  it('l on a focused container navigates to /logs?container=<name>', async () => {
     const { lastFrame, stdin } = renderPage();
     await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
 
-    const frame = await pressAndSettle(stdin, lastFrame, 'l', f => f.includes('❯ ● grafana'));
+    const frame = await pressAndSettle(stdin, lastFrame, 'l', f => f.includes('logs-route:grafana'));
 
-    expect(frame).toContain('▼ monitoring');
-    expect(frame).toContain('grafana');
-    expect(frame).toContain('ACTIONS');
+    expect(frame).toContain('logs-route:grafana');
+  });
+
+  it('l navigates with a URL-encoded container name', async () => {
+    stubContainers({
+      result: {
+        kind: 'ok',
+        containers: [{ id: 'odd-1', name: 'app_2.cache-1', state: 'running', composeProject: 'proxy' }],
+      },
+    });
+    const { lastFrame, stdin } = renderPage();
+    await settle(lastFrame, f => f.includes('❯ ● app_2.cache-1'), 1000);
+
+    const frame = await pressAndSettle(stdin, lastFrame, 'l', f => f.includes('logs-route:app_2.cache-1'));
+
+    expect(frame).toContain('logs-route:app_2.cache-1');
   });
 
   it('shows the focused COLLAPSED group in the detail panel (summary, no ACTIONS)', async () => {
@@ -428,34 +467,42 @@ describe('RemoteHomePage — footer hints', () => {
     stubContainers({ result: { kind: 'ok', containers: CONTAINERS } });
   });
 
-  it('publishes space collapse/expand while the dashboard is ok', async () => {
-    const { lastFrame, unmount } = render(
-      <>
-        <RemoteHomePage remote='nas' sessionPassword={undefined} />
-        <FooterSpy />
-      </>
-    );
+  it('publishes space + logs hints while a container row is focused', async () => {
+    const { lastFrame, unmount } = renderHub(<FooterSpy />);
 
     // Compound predicate with the FULL hint string — `footer:[` alone also
     // matches the pre-publication empty footer.
     const frame = await settle(
       lastFrame,
-      f => f.includes('❯ ● grafana') && f.includes('footer:[space collapse/expand]'),
+      f => f.includes('❯ ● grafana') && f.includes('footer:[space collapse/expand · l logs]'),
       1000
     );
 
-    expect(frame).toContain('footer:[space collapse/expand]');
+    expect(frame).toContain('footer:[space collapse/expand · l logs]');
+    unmount();
+  });
+
+  it('switches hints with the focused row kind: container → collapsed group → container', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await settle(lastFrame, f => f.includes('footer:[space collapse/expand · l logs]'), 1000);
+
+    // Collapsing the focused container's group leaves the cursor on the
+    // collapsed group row → space only.
+    await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
+    const groupHints = await settle(lastFrame, f => f.includes('footer:[space collapse/expand]'), 1000);
+    expect(groupHints).toContain('footer:[space collapse/expand]');
+    expect(groupHints).not.toContain('l logs');
+
+    // Reopening returns the cursor to the container → the logs hint is back.
+    await pressToggle(stdin, lastFrame, ' ', f => f.includes('▼ monitoring') && f.includes('grafana'));
+    const restored = await settle(lastFrame, f => f.includes('footer:[space collapse/expand · l logs]'), 1000);
+    expect(restored).toContain('footer:[space collapse/expand · l logs]');
     unmount();
   });
 
   it('publishes no hints while loading', async () => {
     vi.mocked(getContainers).mockImplementation(() => new Promise<ContainersOutcome>(() => undefined));
-    const { lastFrame, unmount } = render(
-      <>
-        <RemoteHomePage remote='nas' sessionPassword={undefined} />
-        <FooterSpy />
-      </>
-    );
+    const { lastFrame, unmount } = renderHub(<FooterSpy />);
 
     const frame = await settle(lastFrame, f => f.includes('Connecting to nas…'), 1000);
 
