@@ -216,3 +216,6 @@ package.json version bump (repo rule 5).
       chrome change silently breaks the no-overflow guarantee.
 - [ ] FU9 (SUGGESTION reliability): route test leaks a rendered instance across store
       resets — unmount in the test harness.
+- [ ] FU10 (flake class): fixed settle budgets (1000–2000ms) across ink tests are too tight
+      for loaded CI — RemotesMenuPage 4.8 failed in CI and LogsPage r-reconnect flaked once
+      locally; sweep all test files to condition-based budgets with CI-load headroom.
