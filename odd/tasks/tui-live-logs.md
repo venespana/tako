@@ -105,6 +105,7 @@ keyboard is the TUI's core interaction model.
       floor 10 / ceiling 60, rows via useStdout (fallback 30). firstLineIndex and the ring's
       .first offset removed (no consumer left). T6's StaticLogStream.tsx deleted. Still
       UNCOMMITTED per deferral.
+
 - [x] T8 `review-comments` — user review comments before committing: (a) the hook's
       render-phase `attempt !== pass` ring reset is replaced by a keyed remount
       (`LogsPage` renders its session body with `key={attempt}` — fresh state in the same
@@ -122,8 +123,8 @@ keyboard is the TUI's core interaction model.
       per file, `react/no-multi-comp: 'error'` in production). WHY documented in-code:
       keyed remount over effect-body reset (which paints one commit of the superseded
       pass's stale ring and adds a render). Commits approved by the user for the whole
-      branch after this lands (work-unit split, then RDD assess per commit). Still
-      UNCOMMITTED per the user's deferral.
+      branch after this landed (work-unit split, then RDD assess per commit) — commits
+      recorded in Review outcome below.
 
 ## Authorized edit surfaces
 
@@ -174,3 +175,44 @@ user approval with proposed Conventional Commit messages.
   RDD review: pending — runs per work-unit commit once commits are approved. Commits:
   user deferred (2026-10-22) — work stays UNCOMMITTED on `feature/tui-live-logs` for the
   user's own review; do not commit until they say so.
+- 2026-10-26: T8 (user review comments) landed; user approved commits — six work-unit
+  commits recorded below; RDD review ran with consent and ended in an operator abandon
+  (details in Review outcome); delivery follows ordinary repository policy.
+
+## Review outcome (2026-10-26)
+
+Commits (work-unit split on `feature/tui-live-logs`):
+- 82fb315 docs(odd): plan tui-live-logs feature
+- 5bd03cd chore(build): sync generated version file with package.json
+- a528102 feat(docker): stream container logs over SSH with stoppable handle
+- cae188a feat(tui): live logs screen behind /logs with container guard
+- 2ff0aeb feat(tui): activate hub view-logs action with the l key
+- 0cf4c81 fix(remotes): detect dead SSH connections via keepalive
+
+RDD review: consent granted (risk high, 2386 lines / 22 paths) → lineage
+`review-46855ae58f53ee0b`; risk/resilience/reliability lenses admitted; readability relay
+refused 4× (`output_refused` — this runtime's review transport, not a lens verdict) →
+abandoned by operator disposition; lineage reclaimed and quarantined. The three admitted
+lenses' findings survive as quarantined artifacts and are recorded as follow-up
+candidates below. Delivery follows ordinary repository policy; any PR needs the
+package.json version bump (repo rule 5).
+
+## Follow-ups (quarantined review findings — candidates, need user authorization)
+
+- [ ] FU1 (WARNING risk): validate+bound `tail` before it interpolates into the remote
+      command (`StreamContainerLogs`/`RemoteDockerLogsAdapter`).
+- [ ] FU2 (WARNING resilience/reliability): stop() teardown is fire-and-forget and
+      `ManagedLogStream.stop()` can rethrow — await/catch at both call sites.
+- [ ] FU3 (SUGGESTION resilience): on phase `ended` the handle is never stopped — the SSH
+      connection idles open until unmount/`r`; stop it when the remote process exits.
+- [ ] FU4 (SUGGESTION reliability): shim fires a real acquisition with empty remote before
+      the redirect effect; gate the hook on remote !== ''.
+- [ ] FU5 (SUGGESTION reliability): reject zero/negative/non-integer tail at the boundary.
+- [ ] FU6 (SUGGESTION reliability): \r-only sources never emit lines and grow the partial
+      buffer unbounded — flush on \r or cap the buffer.
+- [ ] FU7 (SUGGESTION reliability): keepalive disconnect → hook-exit path has no end-to-end
+      test (only config plumbing asserted).
+- [ ] FU8 (SUGGESTION resilience): CHROME_ROWS=14 invariant is unchecked at runtime; a
+      chrome change silently breaks the no-overflow guarantee.
+- [ ] FU9 (SUGGESTION reliability): route test leaks a rendered instance across store
+      resets — unmount in the test harness.
