@@ -11,6 +11,8 @@ import { GetContainers } from '../domains/docker/application/GetContainers.js';
 import { GetStackStatus } from '../domains/docker/application/GetStackStatus.js';
 import { RunPrune } from '../domains/docker/application/RunPrune.js';
 import { RunStackLifecycle } from '../domains/docker/application/RunStackLifecycle.js';
+import { StreamContainerLogs } from '../domains/docker/application/StreamContainerLogs.js';
+import type { ContainerLogStreamHandle } from '../domains/docker/application/StreamContainerLogs.js';
 import type { ContainerSnapshot } from '../domains/docker/domain/container-status.js';
 import type { StackStatusEntry } from '../domains/docker/domain/stack-status.js';
 import type {
@@ -32,6 +34,7 @@ export type {
 } from '../domains/docker/domain/types.js';
 export type { ContainerSnapshot } from '../domains/docker/domain/container-status.js';
 export type { StackStatusEntry } from '../domains/docker/domain/stack-status.js';
+export type { ContainerLogStreamHandle } from '../domains/docker/application/StreamContainerLogs.js';
 
 /** One compose stack lifecycle operation (validated in-domain before anything runs). */
 export function runStackLifecycle(request: {
@@ -142,4 +145,84 @@ export async function getContainers(request: {
   } finally {
     await manager.end();
   }
+}
+
+// ---------------------------------------------------------------------------
+// Live container log streaming over SSH (tui-live-logs T1)
+// ---------------------------------------------------------------------------
+
+/** Outcome of one log-stream acquisition (refusal-object style: expected outcomes never throw). */
+export type StreamContainerLogsOutcome =
+  | { readonly kind: 'ok'; readonly stream: ContainerLogStreamHandle }
+  | { readonly kind: 'unknown-remote'; readonly reason: string }
+  | { readonly kind: 'refusal'; readonly reason: string };
+
+/** Default `--tail` for a fresh stream: one screen of recent output. */
+const DEFAULT_LOG_TAIL = 200;
+
+/**
+ * Handle wrapper that owns the CONNECTION lifecycle on top of the domain
+ * handle: the domain handle ends only its channel, while this service owns
+ * the manager it exec'd through. This is the deliberate deviation from the
+ * one-shot reads' `finally { manager.end() }` — a live stream must outlive
+ * this function call, so the connection closes exactly when the caller
+ * stops the handle.
+ */
+class ManagedLogStream implements ContainerLogStreamHandle {
+  constructor(
+    private readonly inner: ContainerLogStreamHandle,
+    private readonly connection: { end(): Promise<void> }
+  ) {}
+
+  get lines(): AsyncIterable<string> {
+    return this.inner.lines;
+  }
+
+  get done(): Promise<'stopped' | 'ended'> {
+    return this.inner.done;
+  }
+
+  async stop(): Promise<void> {
+    try {
+      await this.inner.stop();
+    } finally {
+      await this.connection.end();
+    }
+  }
+}
+
+/**
+ * Follow one container's logs on a configured remote, over SSH. The remote
+ * resolves FRESH per call and the SSH wiring stays private and LAZY, but —
+ * unlike {@link getContainers} — the connection is deliberately NOT ended
+ * here: the returned handle owns it, and `stop()` ends channel AND
+ * connection (unmount therefore always cleans up both).
+ */
+export async function streamContainerLogs(request: {
+  readonly remote: string;
+  readonly sessionPassword?: string;
+  readonly container: string;
+  readonly tail?: number;
+}): Promise<StreamContainerLogsOutcome> {
+  const resolution = await resolveRemoteAuth(request.remote, request.sessionPassword);
+
+  if (resolution.kind === 'unknown-remote') return { kind: 'unknown-remote', reason: resolution.reason };
+
+  if (resolution.kind === 'refusal') return { kind: 'refusal', reason: resolution.reason };
+
+  const { RemoteDockerLogsAdapter } = await import('../domains/docker/infrastructure/RemoteDockerLogsAdapter.js');
+  const { SshConnectionManager } = await import('../domains/remotes/infrastructure/SshConnectionManager.js');
+
+  const manager = new SshConnectionManager(toConnectConfig(resolution.remote, resolution.auth));
+  const result = await new StreamContainerLogs(new RemoteDockerLogsAdapter(manager)).execute({
+    container: request.container,
+    tail: request.tail ?? DEFAULT_LOG_TAIL,
+  });
+
+  if (result.kind !== 'ok') {
+    await manager.end();
+    return result;
+  }
+
+  return { kind: 'ok', stream: new ManagedLogStream(result.stream, manager) };
 }

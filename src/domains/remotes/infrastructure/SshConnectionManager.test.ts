@@ -265,4 +265,14 @@ describe('SshConnectionManager', () => {
       );
     });
   });
+
+  describe('connect configuration', () => {
+    it('T4: the connect config carries keepaliveInterval 15000 so dead connections surface', async () => {
+      const { manager, clients } = createManager();
+
+      await manager.exec('echo hi');
+
+      expect(clients[0]?.connect).toHaveBeenCalledWith(expect.objectContaining({ keepaliveInterval: 15_000 }));
+    });
+  });
 });

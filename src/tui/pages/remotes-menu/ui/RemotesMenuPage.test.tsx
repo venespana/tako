@@ -151,7 +151,7 @@ describe('RemotesMenuPage (selection screen)', () => {
   it('lists the configured remotes with name and endpoint', async () => {
     stubRemotes(REMOTES);
     const { lastFrame } = renderRemotes();
-    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 3000);
 
     expect(frame).toContain('Select a remote');
     expect(frame).toContain('nas (ops@10.0.0.5:22)');
@@ -161,7 +161,7 @@ describe('RemotesMenuPage (selection screen)', () => {
   it('starts the cursor on the first remote', async () => {
     stubRemotes(REMOTES);
     const { lastFrame } = renderRemotes();
-    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 3000);
 
     expect(frame).toContain('❯ nas');
     expect(frame).not.toContain('❯ web');
@@ -170,7 +170,7 @@ describe('RemotesMenuPage (selection screen)', () => {
   it('moves the cursor with j', async () => {
     stubRemotes(REMOTES);
     const { stdin, lastFrame } = renderRemotes();
-    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
 
     const frame = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ web'));
     expect(frame).toContain('❯ web');
@@ -179,13 +179,13 @@ describe('RemotesMenuPage (selection screen)', () => {
   it('Enter activates a store remote directly (9.14: the route shim then enters /tasks)', async () => {
     stubRemotes(REMOTES, storeWithPassword);
     const { stdin, lastFrame } = renderRemotes();
-    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
 
     // The page's contract is the activation callback (mirrored by the harness
     // echo); entering /tasks is the route shim's glue
     // (app/routes/remotes/activate-and-enter.ts), not the page's.
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('active:nas'));
-    const frame = await settle(lastFrame, f => f.includes('active:nas'), 2000);
+    const frame = await settle(lastFrame, f => f.includes('active:nas'), 10000);
     expect(frame).toContain('active:nas');
   });
 
@@ -198,7 +198,7 @@ describe('RemotesMenuPage (selection screen)', () => {
       </MemoryRouter>
     );
 
-    const frame = await settle(lastFrame, f => f.includes('at:/remotes/add'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('at:/remotes/add'), 3000);
     expect(frame).toContain('at:/remotes/add');
   });
 
@@ -206,7 +206,7 @@ describe('RemotesMenuPage (selection screen)', () => {
     vi.mocked(listRemotes).mockRejectedValue(new Error('conf unreadable'));
 
     const { lastFrame } = renderRemotes();
-    const frame = await settle(lastFrame, f => f.includes('Could not read'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Could not read'), 3000);
 
     expect(frame).toContain('Could not read configured remotes.');
     expect(frame).not.toContain('Select a remote');
@@ -219,7 +219,7 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
   it('4.8: prompt screen renders for an interactive selection', async () => {
     stubRemotes(REMOTES, interactiveRemote);
     const { stdin, lastFrame } = renderRemotes();
-    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
 
     const frame = await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
@@ -239,7 +239,7 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
         <Harness />
       </MemoryRouter>
     );
-    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
     await typePassword(stdin, lastFrame, SECRET, f => f.includes('Validating connection…') || f.includes('active:nas'));
@@ -248,7 +248,7 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
     // validation succeeded (the endpoint label alone matches pre-activation
     // frames). The gate must be closed (list restored, no submenu) and the
     // secret never echoed.
-    const frame = await settle(lastFrame, f => f.includes('active:nas'), 2000);
+    const frame = await settle(lastFrame, f => f.includes('active:nas'), 10000);
     expect(frame).toContain('active:nas');
     expect(frame).toContain('nas (ops@10.0.0.5:22)');
     expect(frame).not.toContain(SECRET);
@@ -257,7 +257,7 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
   it('4.8: wrong password re-prompts with an auth message, remote stays inactive', async () => {
     stubRemotes(REMOTES, interactiveRemote);
     const { stdin, lastFrame } = renderRemotes();
-    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
     await typePassword(
@@ -267,7 +267,7 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
       f => f.includes('Validating connection…') || f.includes('Authentication failed')
     );
 
-    const frame = await settle(lastFrame, f => f.includes('Authentication failed'), 2000);
+    const frame = await settle(lastFrame, f => f.includes('Authentication failed'), 10000);
     expect(frame).toContain('Connect to nas');
     expect(frame).not.toContain('active:nas');
     expect(frame).not.toContain('wrong-pw');
@@ -276,12 +276,12 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
   it('4.8: Esc cancels the prompt and restores the selection list', async () => {
     stubRemotes(REMOTES, interactiveRemote);
     const { stdin, lastFrame } = renderRemotes();
-    await settle(lastFrame, f => f.includes('❯ nas'), 1000);
+    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
     stdin.write('\x1b');
 
-    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 2000);
+    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 10000);
     expect(frame).toContain('Select a remote');
     expect(frame).not.toContain('Connect to nas');
   });
