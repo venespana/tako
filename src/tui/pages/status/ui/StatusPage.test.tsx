@@ -89,7 +89,7 @@ beforeEach(() => {
 describe('StatusPage (dashboard)', () => {
   it('renders heading, meta line and the stat strip numbers', async () => {
     const { lastFrame, unmount } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('STACKS'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('STACKS'));
 
     expect(frame).toContain('Status');
     expect(frame).toContain('6 stacks');
@@ -107,7 +107,7 @@ describe('StatusPage (dashboard)', () => {
 
   it('renders every stack row with name, status and config', async () => {
     const { lastFrame, unmount } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('CONFIG FILES'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('CONFIG FILES'));
 
     expect(frame).toContain('NAME');
     expect(frame).toContain('STATUS');
@@ -128,7 +128,7 @@ describe('StatusPage (dashboard)', () => {
 
   it('starts the cursor on the first row and mirrors it in the detail column', async () => {
     const { lastFrame, unmount } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('CONFIG FILES'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('CONFIG FILES'));
 
     expect(frame).toContain(`❯ media`);
     expect(frame).not.toContain(`❯ proxy`);
@@ -139,7 +139,7 @@ describe('StatusPage (dashboard)', () => {
 
   it('moves the cursor with j — the detail column follows', async () => {
     const { stdin, lastFrame, unmount } = renderPage();
-    await settle(lastFrame, f => f.includes('CONFIG FILES'), 1000);
+    await settle(lastFrame, f => f.includes('CONFIG FILES'));
 
     const frame = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ proxy'));
 
@@ -153,14 +153,14 @@ describe('StatusPage (dashboard)', () => {
 describe('StatusPage (r key)', () => {
   it('r refreshes: back through loading, then renders the new outcome', async () => {
     const { stdin, lastFrame, unmount } = renderPage();
-    await settle(lastFrame, f => f.includes('STACKS'), 1000);
+    await settle(lastFrame, f => f.includes('STACKS'));
     expect(vi.mocked(getStackStatus)).toHaveBeenCalledTimes(1);
 
     const resolveSecond = stubDeferred();
     await pressAndSettle(stdin, lastFrame, 'r', f => f.includes('Connecting to nas…'));
     resolveSecond({ kind: 'ok', entries: [] });
 
-    const frame = await settle(lastFrame, f => f.includes('no compose stacks found'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('no compose stacks found'));
     expect(vi.mocked(getStackStatus)).toHaveBeenCalledTimes(2);
     expect(frame).toContain('no compose stacks found');
     unmount();
@@ -171,7 +171,7 @@ describe('StatusPage (loading / empty / error states)', () => {
   it('loading: heading, remote meta, connecting line and spinner label', async () => {
     stubDeferred();
     const { lastFrame, unmount } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('Fetching stack status…'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Fetching stack status…'));
 
     expect(frame).toContain('Status');
     expect(frame).toContain('nas');
@@ -184,7 +184,7 @@ describe('StatusPage (loading / empty / error states)', () => {
   it('empty: the three designed lines', async () => {
     stubStatus({ result: { kind: 'ok', entries: [] } });
     const { lastFrame, unmount } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('no compose stacks found'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('no compose stacks found'));
 
     expect(frame).toContain('Status');
     expect(frame).toContain('nas · 0 stacks');
@@ -196,7 +196,7 @@ describe('StatusPage (loading / empty / error states)', () => {
   it('error: refusal headline, the reason verbatim and the retry line', async () => {
     stubStatus({ result: { kind: 'refusal', reason: 'compose ls output is not a JSON array' } });
     const { lastFrame, unmount } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('Unable to fetch stack status'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Unable to fetch stack status'));
 
     expect(frame).toContain('✖ Unable to fetch stack status');
     expect(frame).toContain('compose ls output is not a JSON array');
@@ -220,11 +220,11 @@ describe('StatusPage footer hint publication (9.15a: single writer per page)', (
     const { lastFrame, unmount } = renderPage();
 
     // Loading first: no hints.
-    const loading = await settle(lastFrame, f => f.includes('footer:['), 1000);
+    const loading = await settle(lastFrame, f => f.includes('footer:['));
     expect(loading).toContain('footer:[]');
 
     // Dashboard: refresh.
-    const dashboard = await settle(lastFrame, f => f.includes('footer:[r refresh]'), 1000);
+    const dashboard = await settle(lastFrame, f => f.includes('footer:[r refresh]'));
     expect(dashboard).toContain('footer:[r refresh]');
     unmount();
 
@@ -232,7 +232,7 @@ describe('StatusPage footer hint publication (9.15a: single writer per page)', (
     stubStatus({ result: { kind: 'refusal', reason: 'boom' } });
     const failed = renderPage();
 
-    const errorFrame = await settle(failed.lastFrame, f => f.includes('footer:[r retry]'), 1000);
+    const errorFrame = await settle(failed.lastFrame, f => f.includes('footer:[r retry]'));
     expect(errorFrame).toContain('footer:[r retry]');
     failed.unmount();
   });

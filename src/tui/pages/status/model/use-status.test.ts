@@ -97,7 +97,7 @@ describe('useStatusPage', () => {
     const loading = await settle(lastFrame, frame => frame.includes('phase:loading'), 200);
     expect(loading).toContain('phase:loading');
 
-    const ok = await settle(lastFrame, frame => frame.includes('phase:ok'), 1000);
+    const ok = await settle(lastFrame, frame => frame.includes('phase:ok'));
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith({ remote: 'nas', sessionPassword: undefined });
     expect(ok).toContain('entries:media,proxy');
@@ -109,7 +109,7 @@ describe('useStatusPage', () => {
     stubStatus({ result: { kind: 'ok', entries: [] } });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const empty = await settle(lastFrame, frame => frame.includes('phase:empty'), 1000);
+    const empty = await settle(lastFrame, frame => frame.includes('phase:empty'));
     expect(empty).toContain('phase:empty');
     expect(empty).toContain('at:true');
     unmount();
@@ -119,7 +119,7 @@ describe('useStatusPage', () => {
     stubStatus({ result: { kind: 'refusal', reason: 'compose ls output is not a JSON array' } });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const error = await settle(lastFrame, frame => frame.includes('phase:error'), 1000);
+    const error = await settle(lastFrame, frame => frame.includes('phase:error'));
     expect(error).toContain('phase:error');
     expect(error).toContain('reason:compose ls output is not a JSON array');
     unmount();
@@ -129,7 +129,7 @@ describe('useStatusPage', () => {
     stubStatus({ result: { kind: 'unknown-remote', reason: 'no remote named ghost' } });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const error = await settle(lastFrame, frame => frame.includes('phase:error'), 1000);
+    const error = await settle(lastFrame, frame => frame.includes('phase:error'));
     expect(error).toContain('phase:error');
     expect(error).toContain('reason:no remote named ghost');
     unmount();
@@ -139,7 +139,7 @@ describe('useStatusPage', () => {
     stubStatus({ error: new Error('ssh channel open failed') });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const error = await settle(lastFrame, frame => frame.includes('phase:error'), 1000);
+    const error = await settle(lastFrame, frame => frame.includes('phase:error'));
     expect(error).toContain('reason:ssh channel open failed');
     unmount();
   });
@@ -158,7 +158,7 @@ describe('useStatusPage', () => {
     stubStatus({ result: { kind: 'ok', entries: ENTRIES } });
     const apiRef: { current: ProbeApi | null } = { current: null };
     const { lastFrame, unmount } = render(createElement(Probe, { apiRef }));
-    await settle(lastFrame, frame => frame.includes('phase:ok'), 1000);
+    await settle(lastFrame, frame => frame.includes('phase:ok'));
     expect(vi.mocked(getStackStatus)).toHaveBeenCalledTimes(1);
 
     // Second fetch: deferred so the loading window is observable.
@@ -177,11 +177,11 @@ describe('useStatusPage', () => {
     // unassigned (observed as a load-order flake under parallel vitest).
     await vi.waitFor(() => expect(vi.mocked(getStackStatus)).toHaveBeenCalledTimes(2));
 
-    const loading = await settle(lastFrame, frame => frame.includes('phase:loading'), 1000);
+    const loading = await settle(lastFrame, frame => frame.includes('phase:loading'));
     expect(loading).toContain('phase:loading');
 
     resolveSecond({ kind: 'ok', entries: [] });
-    const empty = await settle(lastFrame, frame => frame.includes('phase:empty'), 1000);
+    const empty = await settle(lastFrame, frame => frame.includes('phase:empty'));
     expect(empty).toContain('phase:empty');
     expect(vi.mocked(getStackStatus)).toHaveBeenCalledTimes(2);
     unmount();

@@ -24,7 +24,7 @@ import { getContainers, runContainerLifecycle } from '../../../../services/docke
 import { usePageHintsStore } from '../../../shared/lib/page-hints-store.js';
 import { usePaneLockStore } from '../../../shared/lib/pane-lock-store.js';
 import { useGlobalKeys } from '../../../shared/lib/use-global-keys.js';
-import { KEY_FLUSH_MS, pressAndSettle, settle, wait } from '../../../test-utils/ink-interactions.js';
+import { KEY_FLUSH_MS, pressAndSettle, pressToggle, settle, wait } from '../../../test-utils/ink-interactions.js';
 
 vi.mock('../../../../services/docker.js', async importOriginal => {
   // Spread the REAL module so the re-exported contract types keep working;
@@ -76,50 +76,6 @@ const renderHub = (extra?: React.ReactElement) =>
 
 const renderPage = () => renderHub();
 
-/** Toggle-safe key press: a landed space/l-toggle ALWAYS changes the frame
- * (glyph flip or cursor move), so wait for any change as proof of
- * processing and settle on the expected state without writing again —
- * while a frame that never changed proves the key was dropped, making a
- * retry safe. Raw single writes and blind retries (pressAndSettle) are
- * both wrong for toggles: the former flakes on drops, the latter undoes a
- * landed press. */
-async function pressToggle(
-  stdin: ReturnType<typeof render>['stdin'],
-  lastFrame: ReturnType<typeof render>['lastFrame'],
-  key: string,
-  expectFrame: (frame: string) => boolean
-): Promise<string> {
-  /** Polls until the frame moves off `before` (processed key) or the
-   * flush window elapses (dropped key). */
-  const waitChange = async (before: string, tries: number): Promise<string> => {
-    if (tries === 0) return lastFrame() ?? '';
-
-    await wait(10);
-
-    const current = lastFrame() ?? '';
-
-    return current === before ? waitChange(before, tries - 1) : current;
-  };
-
-  const attempt = async (round: number): Promise<string> => {
-    const before = lastFrame() ?? '';
-
-    if (expectFrame(before)) return before;
-
-    stdin.write(key);
-
-    const current = await waitChange(before, KEY_FLUSH_MS / 10);
-
-    // Processed — settle on the expected state; another write would undo
-    // the toggle. Unchanged after the window means dropped: safe to retry.
-    if (current !== before) return settle(lastFrame, expectFrame, KEY_FLUSH_MS);
-
-    return round < 2 ? attempt(round + 1) : settle(lastFrame, expectFrame, KEY_FLUSH_MS);
-  };
-
-  return attempt(0);
-}
-
 /** Renders the hints the page currently publishes (stands in for the footer). */
 function FooterSpy(): React.ReactElement {
   const hints = usePageHintsStore(state => state.hints);
@@ -142,7 +98,7 @@ const ACTIONS_HINTS = 'footer:[arrows pick · enter run · esc back]';
  * so key presses land on subscribed handlers instead of the documented
  * pre-subscription window (React 19 delays passive effects under load). */
 const awaitHubReady = (lastFrame: ReturnType<typeof render>['lastFrame']) =>
-  settle(lastFrame, f => f.includes('❯ ● grafana') && f.includes(LIST_CONTAINER_HINTS), 1000);
+  settle(lastFrame, f => f.includes('❯ ● grafana') && f.includes(LIST_CONTAINER_HINTS));
 
 describe('RemoteHomePage — tab strip', () => {
   beforeEach(() => {
@@ -153,7 +109,7 @@ describe('RemoteHomePage — tab strip', () => {
 
   it('renders the English tab strip (Services active, Global actions inert)', async () => {
     const { lastFrame } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('Services'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Services'));
 
     expect(frame).toContain('Services');
     expect(frame).toContain('Global actions');
@@ -171,7 +127,7 @@ describe('RemoteHomePage — ok state (real containers)', () => {
 
   it('renders the Services heading with computed totals', async () => {
     const { lastFrame } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('containers ·'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('containers ·'));
 
     expect(frame).toContain('Services');
     expect(frame).toContain('5 containers · 3 running');
@@ -179,7 +135,7 @@ describe('RemoteHomePage — ok state (real containers)', () => {
 
   it('renders every group expanded, in order, with Others LAST', async () => {
     const { lastFrame } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('▼ monitoring'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('▼ monitoring'));
 
     expect(frame).toContain('▼ monitoring');
     expect(frame).toContain('▼ proxy');
@@ -198,7 +154,7 @@ describe('RemoteHomePage — ok state (real containers)', () => {
 
   it('renders all container rows with per-group summaries', async () => {
     const { lastFrame } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('grafana'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('grafana'));
 
     expect(frame).toContain('grafana');
     expect(frame).toContain('prometheus');
@@ -213,7 +169,7 @@ describe('RemoteHomePage — ok state (real containers)', () => {
 
   it('pins the cursor to the FIRST container; expanded group rows never take it', async () => {
     const { lastFrame } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('❯ ● grafana'));
 
     expect(frame).toContain('❯ ● grafana');
     expect(frame).not.toContain('❯ ● prometheus');
@@ -224,7 +180,7 @@ describe('RemoteHomePage — ok state (real containers)', () => {
 
   it('shows the SELECTED container in the detail panel with compose context', async () => {
     const { lastFrame } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('ACTIONS'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('ACTIONS'));
 
     expect(frame).toContain('❯ ● grafana');
     expect(frame).toContain('grafana');
@@ -382,7 +338,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
       },
     });
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● app_2.cache-1'), 1000);
+    await settle(lastFrame, f => f.includes('❯ ● app_2.cache-1'));
 
     const frame = await pressAndSettle(stdin, lastFrame, 'l', f => f.includes('logs-route:app_2.cache-1'));
 
@@ -420,7 +376,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
   it('renders the yellow paused suffix for uniformly-paused groups (pen: downloads row)', async () => {
     const { lastFrame } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('▼ Others'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('▼ Others'));
 
     // Others = portainer running + restic paused → the approved uniform-
     // paused suffix stays.
@@ -440,7 +396,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
       },
     });
     const { lastFrame } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('▼ backup'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('▼ backup'));
 
     // The all-exited group shows name + summary ONLY — no suffix.
     expect(frame).toContain('▼ backup 0/2');
@@ -499,7 +455,7 @@ describe('RemoteHomePage — footer hints', () => {
 
     // Compound predicate with the FULL hint string — `footer:[` alone also
     // matches the pre-publication empty footer.
-    const frame = await settle(lastFrame, f => f.includes('❯ ● grafana') && f.includes(LIST_CONTAINER_HINTS), 1000);
+    const frame = await settle(lastFrame, f => f.includes('❯ ● grafana') && f.includes(LIST_CONTAINER_HINTS));
 
     expect(frame).toContain(LIST_CONTAINER_HINTS);
     unmount();
@@ -507,18 +463,18 @@ describe('RemoteHomePage — footer hints', () => {
 
   it('switches hints with the focused row kind: container → collapsed group → container', async () => {
     const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
-    await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS), 1000);
+    await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS));
 
     // Collapsing the focused container's group leaves the cursor on the
     // collapsed group row → space only.
     await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
-    const groupHints = await settle(lastFrame, f => f.includes('footer:[space collapse/expand]'), 1000);
+    const groupHints = await settle(lastFrame, f => f.includes('footer:[space collapse/expand]'));
     expect(groupHints).toContain('footer:[space collapse/expand]');
     expect(groupHints).not.toContain('l logs');
 
     // Reopening returns the cursor to the container → the logs hint is back.
     await pressToggle(stdin, lastFrame, ' ', f => f.includes('▼ monitoring') && f.includes('grafana'));
-    const restored = await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS), 1000);
+    const restored = await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS));
     expect(restored).toContain(LIST_CONTAINER_HINTS);
     unmount();
   });
@@ -527,7 +483,7 @@ describe('RemoteHomePage — footer hints', () => {
     vi.mocked(getContainers).mockImplementation(() => new Promise<ContainersOutcome>(() => undefined));
     const { lastFrame, unmount } = renderHub(<FooterSpy />);
 
-    const frame = await settle(lastFrame, f => f.includes('Connecting to nas…'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Connecting to nas…'));
 
     expect(frame).toContain('footer:[]');
     unmount();
@@ -550,7 +506,7 @@ describe('RemoteHomePage — states', () => {
     );
     const { lastFrame, unmount } = renderPage();
 
-    const loading = await settle(lastFrame, f => f.includes('Connecting to nas…'), 1000);
+    const loading = await settle(lastFrame, f => f.includes('Connecting to nas…'));
     expect(loading).toContain('Connecting to nas…');
     expect(loading).toContain('Fetching containers…');
     expect(loading).not.toContain('grafana');
@@ -564,7 +520,7 @@ describe('RemoteHomePage — states', () => {
     stubContainers({ result: { kind: 'ok', containers: [] } });
     const { lastFrame } = renderPage();
 
-    const empty = await settle(lastFrame, f => f.includes('no containers found'), 1000);
+    const empty = await settle(lastFrame, f => f.includes('no containers found'));
     expect(empty).toContain('no containers found on nas.');
   });
 
@@ -572,7 +528,7 @@ describe('RemoteHomePage — states', () => {
     stubContainers({ result: { kind: 'refusal', reason: 'docker ps line 1 is not valid JSON' } });
     const { lastFrame } = renderPage();
 
-    const error = await settle(lastFrame, f => f.includes('Unable to fetch containers'), 1000);
+    const error = await settle(lastFrame, f => f.includes('Unable to fetch containers'));
     expect(error).toContain('✖ Unable to fetch containers');
     expect(error).toContain('docker ps line 1 is not valid JSON');
     expect(error).toContain('Check that the host is reachable.');
@@ -757,7 +713,7 @@ describe('RemoteHomePage — action execution (iteration 3)', () => {
     // Success: the list refreshes (a second fetch) and the pane returns to
     // the list — the loading phase deactivated the keys in between.
     resolveLifecycle({ kind: 'ok' });
-    const refreshed = await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS), 2000);
+    const refreshed = await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS));
 
     expect(refreshed).toContain('❯ ● grafana');
     expect(refreshed).not.toContain('Starting…');
@@ -789,7 +745,7 @@ describe('RemoteHomePage — action execution (iteration 3)', () => {
       op: 'restart',
     });
     resolveLifecycle({ kind: 'ok' });
-    await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS), 2000);
+    await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS));
     unmount();
   });
 
@@ -831,7 +787,7 @@ describe('RemoteHomePage — action execution (iteration 3)', () => {
 
     expect(vi.mocked(runContainerLifecycle)).toHaveBeenCalledTimes(1);
     resolveLifecycle({ kind: 'ok' });
-    await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS), 2000);
+    await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS));
     unmount();
   });
 

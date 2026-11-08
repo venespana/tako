@@ -25,7 +25,7 @@ const ITEMS = [fakeItem('a'), fakeItem('b'), fakeItem('c')];
 describe('useMenuList', () => {
   it('starts the cursor at 0', async () => {
     const { lastFrame, unmount } = render(<Probe selectable={ITEMS} onSelect={vi.fn()} />);
-    const frame = await settle(lastFrame, f => f.includes('cursor='), 1000);
+    const frame = await settle(lastFrame, f => f.includes('cursor='));
 
     expect(frame).toContain('cursor=0');
     unmount();
@@ -33,7 +33,7 @@ describe('useMenuList', () => {
 
   it('moves the cursor down with j and the down arrow', async () => {
     const { stdin, lastFrame, unmount } = render(<Probe selectable={ITEMS} onSelect={vi.fn()} />);
-    await settle(lastFrame, f => f.includes('cursor=0'), 1000);
+    await settle(lastFrame, f => f.includes('cursor=0'));
 
     await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('cursor=1'));
     const frame = await pressAndSettle(stdin, lastFrame, '\x1b[B', f => f.includes('cursor=2'));
@@ -43,7 +43,7 @@ describe('useMenuList', () => {
 
   it('moves the cursor up with k and the up arrow', async () => {
     const { stdin, lastFrame, unmount } = render(<Probe selectable={ITEMS} onSelect={vi.fn()} />);
-    await settle(lastFrame, f => f.includes('cursor=0'), 1000);
+    await settle(lastFrame, f => f.includes('cursor=0'));
 
     await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('cursor=1'));
     await pressAndSettle(stdin, lastFrame, 'k', f => f.includes('cursor=0'));
@@ -55,7 +55,7 @@ describe('useMenuList', () => {
 
   it('wraps from the last item to the first on down', async () => {
     const { stdin, lastFrame, unmount } = render(<Probe selectable={ITEMS} onSelect={vi.fn()} />);
-    await settle(lastFrame, f => f.includes('cursor=0'), 1000);
+    await settle(lastFrame, f => f.includes('cursor=0'));
 
     await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('cursor=1'));
     await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('cursor=2'));
@@ -67,7 +67,7 @@ describe('useMenuList', () => {
   it('selects the focused item on Enter and l', async () => {
     const onSelect = vi.fn();
     const { stdin, lastFrame, unmount } = render(<Probe selectable={ITEMS} onSelect={onSelect} />);
-    await settle(lastFrame, f => f.includes('cursor=0'), 1000);
+    await settle(lastFrame, f => f.includes('cursor=0'));
 
     stdin.write('\r');
     await wait(50);
@@ -86,7 +86,7 @@ describe('useMenuList', () => {
   it('ignores movement and selection on an empty list', async () => {
     const onSelect = vi.fn();
     const { stdin, lastFrame, unmount } = render(<Probe selectable={[]} onSelect={onSelect} />);
-    await settle(lastFrame, f => f.includes('cursor=0'), 1000);
+    await settle(lastFrame, f => f.includes('cursor=0'));
 
     stdin.write('j');
     stdin.write('k');

@@ -17,7 +17,13 @@ import { RemotesMenuPage } from './RemotesMenuPage.js';
 import type { Remote, RemoteSummary, SshValidationOutcome } from '../../../../services/remotes.js';
 import { getRemote, listRemotes, testSshConnection } from '../../../../services/remotes.js';
 import { useEditingStore } from '../../../shared/lib/editing-store.js';
-import { KEY_FLUSH_MS, pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
+import {
+  CONNECT_TIMEOUT_MS,
+  KEY_FLUSH_MS,
+  LOAD_TIMEOUT_MS,
+  pressAndSettle,
+  settle,
+} from '../../../test-utils/ink-interactions.js';
 
 vi.mock('../../../../services/remotes.js', async importOriginal => {
   // Spread the REAL module so the re-exported contract types and pure
@@ -151,7 +157,7 @@ describe('RemotesMenuPage (selection screen)', () => {
   it('lists the configured remotes with name and endpoint', async () => {
     stubRemotes(REMOTES);
     const { lastFrame } = renderRemotes();
-    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 3000);
+    const frame = await settle(lastFrame, f => f.includes('Select a remote'));
 
     expect(frame).toContain('Select a remote');
     expect(frame).toContain('nas (ops@10.0.0.5:22)');
@@ -161,7 +167,7 @@ describe('RemotesMenuPage (selection screen)', () => {
   it('starts the cursor on the first remote', async () => {
     stubRemotes(REMOTES);
     const { lastFrame } = renderRemotes();
-    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 3000);
+    const frame = await settle(lastFrame, f => f.includes('Select a remote'));
 
     expect(frame).toContain('❯ nas');
     expect(frame).not.toContain('❯ web');
@@ -170,24 +176,30 @@ describe('RemotesMenuPage (selection screen)', () => {
   it('moves the cursor with j', async () => {
     stubRemotes(REMOTES);
     const { stdin, lastFrame } = renderRemotes();
-    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
+    await settle(lastFrame, f => f.includes('❯ nas'));
 
     const frame = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ web'));
     expect(frame).toContain('❯ web');
   });
 
-  it('Enter activates a store remote directly (9.14: the route shim then enters /tasks)', async () => {
-    stubRemotes(REMOTES, storeWithPassword);
-    const { stdin, lastFrame } = renderRemotes();
-    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
+  // Direct activation's internal waits sum past the 5s default (a
+  // CONNECT_TIMEOUT_MS settle below) — same ceiling policy as 4.8 above.
+  it(
+    'Enter activates a store remote directly (9.14: the route shim then enters /tasks)',
+    { timeout: LOAD_TIMEOUT_MS },
+    async () => {
+      stubRemotes(REMOTES, storeWithPassword);
+      const { stdin, lastFrame } = renderRemotes();
+      await settle(lastFrame, f => f.includes('❯ nas'));
 
-    // The page's contract is the activation callback (mirrored by the harness
-    // echo); entering /tasks is the route shim's glue
-    // (app/routes/remotes/activate-and-enter.ts), not the page's.
-    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('active:nas'));
-    const frame = await settle(lastFrame, f => f.includes('active:nas'), 10000);
-    expect(frame).toContain('active:nas');
-  });
+      // The page's contract is the activation callback (mirrored by the harness
+      // echo); entering /tasks is the route shim's glue
+      // (app/routes/remotes/activate-and-enter.ts), not the page's.
+      await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('active:nas'));
+      const frame = await settle(lastFrame, f => f.includes('active:nas'), CONNECT_TIMEOUT_MS);
+      expect(frame).toContain('active:nas');
+    }
+  );
 
   it('redirects to /remotes/add when no remotes are configured', async () => {
     stubRemotes([]);
@@ -198,7 +210,7 @@ describe('RemotesMenuPage (selection screen)', () => {
       </MemoryRouter>
     );
 
-    const frame = await settle(lastFrame, f => f.includes('at:/remotes/add'), 3000);
+    const frame = await settle(lastFrame, f => f.includes('at:/remotes/add'));
     expect(frame).toContain('at:/remotes/add');
   });
 
@@ -206,7 +218,7 @@ describe('RemotesMenuPage (selection screen)', () => {
     vi.mocked(listRemotes).mockRejectedValue(new Error('conf unreadable'));
 
     const { lastFrame } = renderRemotes();
-    const frame = await settle(lastFrame, f => f.includes('Could not read'), 3000);
+    const frame = await settle(lastFrame, f => f.includes('Could not read'));
 
     expect(frame).toContain('Could not read configured remotes.');
     expect(frame).not.toContain('Select a remote');
@@ -216,10 +228,10 @@ describe('RemotesMenuPage (selection screen)', () => {
 describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => {
   const SECRET = 'S3cret!pw-xyz';
 
-  it('4.8: prompt screen renders for an interactive selection', async () => {
+  it('4.8: prompt screen renders for an interactive selection', { timeout: LOAD_TIMEOUT_MS }, async () => {
     stubRemotes(REMOTES, interactiveRemote);
     const { stdin, lastFrame } = renderRemotes();
-    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
+    await settle(lastFrame, f => f.includes('❯ nas'));
 
     const frame = await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
@@ -228,60 +240,77 @@ describe('RemotesMenuPage (connect-time prompt for interactive remotes)', () => 
     expect(frame).not.toContain('Select a remote');
   });
 
-  // Timeout above the 5s default: the password is ACK-per-char (each char up
-  // to 2 × KEY_FLUSH_MS of settle) and React 19 delays passive effects under
-  // full-suite parallel load — this test once exceeded 5s that way.
-  it('4.8: correct password activates the remote, selection list remains visible', { timeout: 15_000 }, async () => {
-    stubRemotes(REMOTES, interactiveRemote);
-    stubValidator(SECRET);
-    const { lastFrame, stdin } = render(
-      <MemoryRouter initialEntries={['/remotes']}>
-        <Harness />
-      </MemoryRouter>
-    );
-    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
-    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
+  // Per-test ceiling: the password is ACK-per-char (each char up to
+  // 2 × KEY_FLUSH_MS of settle) and React 19 delays passive effects under
+  // full-suite parallel load — this suite legitimately outgrew vitest's 5s
+  // default (4.8 exceeded a 15s ceiling by 6ms on a 2-vCPU CI runner). The
+  // ceiling must stay above the sum of the test's internal wait ceilings
+  // (CONNECT_TIMEOUT_MS settles) so an exhausted wait reports its own stale
+  // frame, not vitest's timeout.
+  it(
+    '4.8: correct password activates the remote, selection list remains visible',
+    { timeout: LOAD_TIMEOUT_MS },
+    async () => {
+      stubRemotes(REMOTES, interactiveRemote);
+      stubValidator(SECRET);
+      const { lastFrame, stdin } = render(
+        <MemoryRouter initialEntries={['/remotes']}>
+          <Harness />
+        </MemoryRouter>
+      );
+      await settle(lastFrame, f => f.includes('❯ nas'));
+      await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
-    await typePassword(stdin, lastFrame, SECRET, f => f.includes('Validating connection…') || f.includes('active:nas'));
+      await typePassword(
+        stdin,
+        lastFrame,
+        SECRET,
+        f => f.includes('Validating connection…') || f.includes('active:nas')
+      );
 
-    // Deterministic activation signal: the harness echo appears only after
-    // validation succeeded (the endpoint label alone matches pre-activation
-    // frames). The gate must be closed (list restored, no submenu) and the
-    // secret never echoed.
-    const frame = await settle(lastFrame, f => f.includes('active:nas'), 10000);
-    expect(frame).toContain('active:nas');
-    expect(frame).toContain('nas (ops@10.0.0.5:22)');
-    expect(frame).not.toContain(SECRET);
-  });
+      // Deterministic activation signal: the harness echo appears only after
+      // validation succeeded (the endpoint label alone matches pre-activation
+      // frames). The gate must be closed (list restored, no submenu) and the
+      // secret never echoed.
+      const frame = await settle(lastFrame, f => f.includes('active:nas'), CONNECT_TIMEOUT_MS);
+      expect(frame).toContain('active:nas');
+      expect(frame).toContain('nas (ops@10.0.0.5:22)');
+      expect(frame).not.toContain(SECRET);
+    }
+  );
 
-  it('4.8: wrong password re-prompts with an auth message, remote stays inactive', async () => {
+  it(
+    '4.8: wrong password re-prompts with an auth message, remote stays inactive',
+    { timeout: LOAD_TIMEOUT_MS },
+    async () => {
+      stubRemotes(REMOTES, interactiveRemote);
+      const { stdin, lastFrame } = renderRemotes();
+      await settle(lastFrame, f => f.includes('❯ nas'));
+      await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
+
+      await typePassword(
+        stdin,
+        lastFrame,
+        'wrong-pw',
+        f => f.includes('Validating connection…') || f.includes('Authentication failed')
+      );
+
+      const frame = await settle(lastFrame, f => f.includes('Authentication failed'), CONNECT_TIMEOUT_MS);
+      expect(frame).toContain('Connect to nas');
+      expect(frame).not.toContain('active:nas');
+      expect(frame).not.toContain('wrong-pw');
+    }
+  );
+
+  it('4.8: Esc cancels the prompt and restores the selection list', { timeout: LOAD_TIMEOUT_MS }, async () => {
     stubRemotes(REMOTES, interactiveRemote);
     const { stdin, lastFrame } = renderRemotes();
-    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
-    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
-
-    await typePassword(
-      stdin,
-      lastFrame,
-      'wrong-pw',
-      f => f.includes('Validating connection…') || f.includes('Authentication failed')
-    );
-
-    const frame = await settle(lastFrame, f => f.includes('Authentication failed'), 10000);
-    expect(frame).toContain('Connect to nas');
-    expect(frame).not.toContain('active:nas');
-    expect(frame).not.toContain('wrong-pw');
-  });
-
-  it('4.8: Esc cancels the prompt and restores the selection list', async () => {
-    stubRemotes(REMOTES, interactiveRemote);
-    const { stdin, lastFrame } = renderRemotes();
-    await settle(lastFrame, f => f.includes('❯ nas'), 3000);
+    await settle(lastFrame, f => f.includes('❯ nas'));
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('Connect to nas'));
 
     stdin.write('\x1b');
 
-    const frame = await settle(lastFrame, f => f.includes('Select a remote'), 10000);
+    const frame = await settle(lastFrame, f => f.includes('Select a remote'), CONNECT_TIMEOUT_MS);
     expect(frame).toContain('Select a remote');
     expect(frame).not.toContain('Connect to nas');
   });

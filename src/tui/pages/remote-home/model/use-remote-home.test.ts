@@ -96,7 +96,7 @@ describe('useRemoteHome', () => {
     const loading = await settle(lastFrame, frame => frame.includes('phase:loading'), 200);
     expect(loading).toContain('phase:loading');
 
-    const ok = await settle(lastFrame, frame => frame.includes('phase:ok'), 1000);
+    const ok = await settle(lastFrame, frame => frame.includes('phase:ok'));
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(fetch).toHaveBeenCalledWith({ remote: 'nas', sessionPassword: undefined });
     // Others last, compose groups alphabetical.
@@ -109,7 +109,7 @@ describe('useRemoteHome', () => {
     stubContainers({ result: { kind: 'ok', containers: [] } });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const empty = await settle(lastFrame, frame => frame.includes('phase:empty'), 1000);
+    const empty = await settle(lastFrame, frame => frame.includes('phase:empty'));
     expect(empty).toContain('phase:empty');
     unmount();
   });
@@ -118,7 +118,7 @@ describe('useRemoteHome', () => {
     stubContainers({ result: { kind: 'refusal', reason: 'docker ps line 1 is not valid JSON' } });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const error = await settle(lastFrame, frame => frame.includes('phase:error'), 1000);
+    const error = await settle(lastFrame, frame => frame.includes('phase:error'));
     expect(error).toContain('phase:error');
     expect(error).toContain('reason:docker ps line 1 is not valid JSON');
     unmount();
@@ -128,7 +128,7 @@ describe('useRemoteHome', () => {
     stubContainers({ result: { kind: 'unknown-remote', reason: 'no remote named ghost' } });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const error = await settle(lastFrame, frame => frame.includes('phase:error'), 1000);
+    const error = await settle(lastFrame, frame => frame.includes('phase:error'));
     expect(error).toContain('phase:error');
     expect(error).toContain('reason:no remote named ghost');
     unmount();
@@ -138,7 +138,7 @@ describe('useRemoteHome', () => {
     stubContainers({ error: new Error('ssh channel open failed') });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const error = await settle(lastFrame, frame => frame.includes('phase:error'), 1000);
+    const error = await settle(lastFrame, frame => frame.includes('phase:error'));
     expect(error).toContain('reason:ssh channel open failed');
     unmount();
   });
@@ -157,7 +157,7 @@ describe('useRemoteHome', () => {
     stubContainers({ result: { kind: 'ok', containers: CONTAINERS } });
     const apiRef: { current: ProbeApi | null } = { current: null };
     const { lastFrame, unmount } = render(createElement(Probe, { apiRef }));
-    await settle(lastFrame, frame => frame.includes('phase:ok'), 1000);
+    await settle(lastFrame, frame => frame.includes('phase:ok'));
     expect(vi.mocked(getContainers)).toHaveBeenCalledTimes(1);
 
     // Second fetch: deferred so the loading window is observable.
@@ -171,7 +171,7 @@ describe('useRemoteHome', () => {
 
     apiRef.current!.refresh();
 
-    const loading = await settle(lastFrame, frame => frame.includes('phase:loading'), 1000);
+    const loading = await settle(lastFrame, frame => frame.includes('phase:loading'));
     expect(loading).toContain('phase:loading');
 
     // refresh() paints loading synchronously; the effect's fetch pass lands
@@ -181,7 +181,7 @@ describe('useRemoteHome', () => {
     });
 
     resolveSecond({ kind: 'ok', containers: [] });
-    const empty = await settle(lastFrame, frame => frame.includes('phase:empty'), 1000);
+    const empty = await settle(lastFrame, frame => frame.includes('phase:empty'));
     expect(empty).toContain('phase:empty');
     expect(vi.mocked(getContainers)).toHaveBeenCalledTimes(2);
     unmount();

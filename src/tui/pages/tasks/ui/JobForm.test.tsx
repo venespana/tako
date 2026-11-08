@@ -8,10 +8,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { JobForm } from './JobForm.js';
 import type { JobDefinition, PruneScopes } from '../../../../services/agent.js';
+import { DEFAULT_SETTLE_MS } from '../../../test-utils/ink-interactions.js';
 import { EMPTY_JOB_FORM, type JobFormValues } from '../model/job-form.js';
 
 /** Poll until predicate() holds (Ink stdin flush + re-render settle). */
-async function until(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
+async function until(predicate: () => boolean, timeoutMs = DEFAULT_SETTLE_MS): Promise<void> {
   let waited = 0;
 
   while (!predicate() && waited < timeoutMs) {

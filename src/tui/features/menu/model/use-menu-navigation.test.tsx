@@ -40,7 +40,7 @@ const renderNav = (initialPath: string, selectable: ActionItem[]) =>
 describe('useMenuNavigation', () => {
   it("navigates to the focused item's route on select", async () => {
     const { stdin, lastFrame, unmount } = renderNav('/doctor', [routedItem('logs', '/logs')]);
-    await settle(lastFrame, f => f.includes('path=/doctor'), 1000);
+    await settle(lastFrame, f => f.includes('path=/doctor'));
 
     const frame = await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('path=/logs'));
     expect(frame).toContain('path=/logs');
@@ -49,7 +49,7 @@ describe('useMenuNavigation', () => {
 
   it('dedupes selection of the current path (no navigation)', async () => {
     const { stdin, lastFrame, unmount } = renderNav('/doctor', [routedItem('doctor', '/doctor')]);
-    const before = await settle(lastFrame, f => f.includes('path=/doctor'), 1000);
+    const before = await settle(lastFrame, f => f.includes('path=/doctor'));
 
     stdin.write('\r');
     await wait(80);
@@ -59,7 +59,7 @@ describe('useMenuNavigation', () => {
 
   it('ignores items without a route', async () => {
     const { stdin, lastFrame, unmount } = renderNav('/doctor', [routedItem('noop')]);
-    const before = await settle(lastFrame, f => f.includes('path=/doctor'), 1000);
+    const before = await settle(lastFrame, f => f.includes('path=/doctor'));
 
     stdin.write('\r');
     await wait(80);

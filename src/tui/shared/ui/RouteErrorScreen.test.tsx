@@ -33,7 +33,7 @@ describe('RouteErrorScreen', () => {
   it('renders the error message inside the screen and logs the error', async () => {
     const { lastFrame } = render(<RouteErrorScreen />);
 
-    const frame = await settle(lastFrame, f => f.includes('loader exploded'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('loader exploded'));
 
     expect(frame).toContain('route error: loader exploded');
     expect(frame).toContain('the full stack is on stderr');
@@ -45,7 +45,7 @@ describe('RouteErrorScreen', () => {
     stub.error = 'gateway timed out';
     const { lastFrame } = render(<RouteErrorScreen />);
 
-    const frame = await settle(lastFrame, f => f.includes('gateway timed out'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('gateway timed out'));
 
     expect(frame).toContain('route error: gateway timed out');
     await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith('[tako] route error:', 'gateway timed out'));

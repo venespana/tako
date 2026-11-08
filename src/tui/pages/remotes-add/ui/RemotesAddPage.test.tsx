@@ -45,7 +45,7 @@ describe('RemotesAddPage', () => {
 
   it('renders the embedded wizard (first step prompt)', async () => {
     const { lastFrame, unmount } = renderAdd();
-    const frame = await settle(lastFrame, f => f.includes('Connection name:'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Connection name:'));
 
     expect(frame).toContain('Add Remote');
     expect(frame).toContain('Connection name:');
@@ -58,7 +58,7 @@ describe('RemotesAddPage', () => {
 
     const { lastFrame, unmount } = renderAdd();
     // The mount effect resets the store, so the wizard starts at the name step
-    const frame = await settle(lastFrame, f => f.includes('Connection name:'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Connection name:'));
 
     expect(frame).not.toContain('saved successfully');
     unmount();
@@ -66,7 +66,7 @@ describe('RemotesAddPage', () => {
 
   it('leaves the wizard store clean after unmount', async () => {
     const { lastFrame, unmount } = renderAdd();
-    await settle(lastFrame, f => f.includes('Connection name:'), 1000);
+    await settle(lastFrame, f => f.includes('Connection name:'));
     unmount();
 
     expect(useWizardStore.getState().step).toBe('name');
@@ -75,12 +75,12 @@ describe('RemotesAddPage', () => {
 
   it('navigates to the main menu (/) when the wizard completes', async () => {
     const { lastFrame, unmount } = renderAdd();
-    await settle(lastFrame, f => f.includes('Connection name:'), 1000);
+    await settle(lastFrame, f => f.includes('Connection name:'));
 
     // Complete the wizard: done step fires the confirm save, then onComplete
     // navigates to the main menu.
     useWizardStore.getState().validationSuccess('AA:BB:CC', true);
-    const frame = await settle(lastFrame, f => f.includes('at:/'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('at:/'));
 
     expect(frame).toContain('at:/');
     unmount();
