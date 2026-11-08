@@ -4,14 +4,23 @@
 // pass the validated request through to the use cases untouched.
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { runPrune, runStackLifecycle, getStackStatus, getContainers, streamContainerLogs } from './docker.js';
+import {
+  runPrune,
+  runStackLifecycle,
+  getStackStatus,
+  getContainers,
+  streamContainerLogs,
+  runContainerLifecycle,
+} from './docker.js';
 import { GetContainers } from '../domains/docker/application/GetContainers.js';
 import { GetStackStatus } from '../domains/docker/application/GetStackStatus.js';
+import { RunContainerLifecycle } from '../domains/docker/application/RunContainerLifecycle.js';
 import type { ContainerLogStreamHandle } from '../domains/docker/application/StreamContainerLogs.js';
 import { StreamContainerLogs } from '../domains/docker/application/StreamContainerLogs.js';
 import { ComposeCliAdapter } from '../domains/docker/infrastructure/ComposeCliAdapter.js';
 import { DockerodePruneAdapter } from '../domains/docker/infrastructure/DockerodePruneAdapter.js';
 import { RemoteComposeCliAdapter } from '../domains/docker/infrastructure/RemoteComposeCliAdapter.js';
+import { RemoteDockerLifecycleAdapter } from '../domains/docker/infrastructure/RemoteDockerLifecycleAdapter.js';
 import { RemoteDockerLogsAdapter } from '../domains/docker/infrastructure/RemoteDockerLogsAdapter.js';
 import { RemoteDockerPsAdapter } from '../domains/docker/infrastructure/RemoteDockerPsAdapter.js';
 import { SshConnectionManager } from '../domains/remotes/infrastructure/SshConnectionManager.js';
@@ -21,6 +30,7 @@ const executeLifecycle = vi.hoisted(() => vi.fn());
 const executePrune = vi.hoisted(() => vi.fn());
 const executeGetStackStatus = vi.hoisted(() => vi.fn());
 const executeGetContainers = vi.hoisted(() => vi.fn());
+const executeRunContainerLifecycle = vi.hoisted(() => vi.fn());
 const executeStreamLogs = vi.hoisted(() => vi.fn());
 const resolveRemoteAuthMock = vi.hoisted(() => vi.fn());
 const managerEnd = vi.hoisted(() => vi.fn(async () => {}));
@@ -51,6 +61,11 @@ vi.mock('../domains/docker/application/GetContainers.js', () => ({
     return { execute: executeGetContainers };
   }),
 }));
+vi.mock('../domains/docker/application/RunContainerLifecycle.js', () => ({
+  RunContainerLifecycle: vi.fn(function () {
+    return { execute: executeRunContainerLifecycle };
+  }),
+}));
 vi.mock('../domains/docker/application/StreamContainerLogs.js', () => ({
   StreamContainerLogs: vi.fn(function () {
     return { execute: executeStreamLogs };
@@ -58,6 +73,9 @@ vi.mock('../domains/docker/application/StreamContainerLogs.js', () => ({
 }));
 vi.mock('../domains/docker/infrastructure/RemoteDockerPsAdapter.js', () => ({
   RemoteDockerPsAdapter: vi.fn(),
+}));
+vi.mock('../domains/docker/infrastructure/RemoteDockerLifecycleAdapter.js', () => ({
+  RemoteDockerLifecycleAdapter: vi.fn(),
 }));
 vi.mock('../domains/docker/infrastructure/RemoteDockerLogsAdapter.js', () => ({
   RemoteDockerLogsAdapter: vi.fn(),
@@ -232,6 +250,80 @@ describe('services/docker — getContainers', () => {
     await getContainers({ remote: 'nope' });
 
     expect(GetContainers).not.toHaveBeenCalled();
+  });
+});
+
+describe('services/docker — runContainerLifecycle (iteration 3)', () => {
+  const RESOLVED = {
+    kind: 'resolved',
+    remote: { host: '10.0.0.5', port: 22, username: 'ops' },
+    auth: { type: 'password', password: 'secret' },
+  } as const;
+
+  it('wires manager → runner → adapter → use case, returns the outcome, ends the connection', async () => {
+    const outcome = { kind: 'ok' } as const;
+    resolveRemoteAuthMock.mockResolvedValue(RESOLVED);
+    executeRunContainerLifecycle.mockResolvedValue(outcome);
+
+    await expect(runContainerLifecycle({ remote: 'nas', container: 'web-1', op: 'start' })).resolves.toBe(outcome);
+
+    expect(resolveRemoteAuthMock).toHaveBeenCalledWith('nas', undefined);
+    expect(executeRunContainerLifecycle).toHaveBeenCalledWith({ op: 'start', container: 'web-1' });
+    expect(SshRemoteCommandRunner).toHaveBeenCalledTimes(1);
+    expect(RemoteDockerLifecycleAdapter).toHaveBeenCalledTimes(1);
+    expect(managerEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes the session password through to the fresh resolution', async () => {
+    resolveRemoteAuthMock.mockResolvedValue(RESOLVED);
+    executeRunContainerLifecycle.mockResolvedValue({ kind: 'ok' });
+
+    await runContainerLifecycle({ remote: 'nas', sessionPassword: 'pw', container: 'grafana', op: 'restart' });
+
+    expect(resolveRemoteAuthMock).toHaveBeenCalledWith('nas', 'pw');
+    expect(executeRunContainerLifecycle).toHaveBeenCalledWith({ op: 'restart', container: 'grafana' });
+  });
+
+  it('maps unknown-remote without opening any connection', async () => {
+    resolveRemoteAuthMock.mockResolvedValue({ kind: 'unknown-remote', reason: 'unknown remote "nope"' });
+
+    await expect(runContainerLifecycle({ remote: 'nope', container: 'web-1', op: 'start' })).resolves.toEqual({
+      kind: 'unknown-remote',
+      reason: 'unknown remote "nope"',
+    });
+
+    expect(SshConnectionManager).not.toHaveBeenCalled();
+    expect(managerEnd).not.toHaveBeenCalled();
+  });
+
+  it('maps an auth refusal without opening any connection', async () => {
+    resolveRemoteAuthMock.mockResolvedValue({ kind: 'refusal', reason: 'no session password' });
+
+    await expect(runContainerLifecycle({ remote: 'nas', container: 'web-1', op: 'restart' })).resolves.toEqual({
+      kind: 'refusal',
+      reason: 'no session password',
+    });
+
+    expect(SshConnectionManager).not.toHaveBeenCalled();
+  });
+
+  it('ends the connection even when the use case throws unexpectedly', async () => {
+    resolveRemoteAuthMock.mockResolvedValue(RESOLVED);
+    executeRunContainerLifecycle.mockRejectedValue(new Error('transport exploded'));
+
+    await expect(
+      runContainerLifecycle({ remote: 'nas', sessionPassword: 'pw', container: 'web-1', op: 'start' })
+    ).rejects.toThrow('transport exploded');
+
+    expect(managerEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it('laziness: an unknown remote never constructs the lifecycle use case', async () => {
+    resolveRemoteAuthMock.mockResolvedValue({ kind: 'unknown-remote', reason: 'x' });
+
+    await runContainerLifecycle({ remote: 'nope', container: 'web-1', op: 'start' });
+
+    expect(RunContainerLifecycle).not.toHaveBeenCalled();
   });
 });
 

@@ -108,6 +108,49 @@ the static fixture. Texts in ENGLISH (user decision — overrides the pen's
       container rows; group-focused detail shows name + summary; hint
       `space collapse/expand` in the ok phase; pure row-builder + tests.
 
+## Iteration 3 — container selection lock + start/restart (2026-10-26, user request)
+
+Enter/→ on a focused CONTAINER row locks navigation into the right action
+menu (up/down move the action cursor; ←/Esc returns to the list). The
+selected container's name renders in the accent color (cyan) while locked.
+The start/restart command ships: a stopped container STARTS, a running one
+RESTARTS (`docker start` / `docker restart` over SSH, one command, key r).
+Stop/Inspect stay visible but inert (later iterations).
+
+- [x] S12 — Shared keys: `moveLeft`/`moveRight` bindings (ArrowLeft/Right)
+      in `use-key-bindings.ts` + tests.
+- [x] S13 — Docker domain: `ContainerLifecycleOp` ('start'|'restart'),
+      container-name validation (`[a-zA-Z0-9][a-zA-Z0-9_.-]*`, refuses
+      anything else — the shell surface stays closed),
+      `RunContainerLifecycle` use case + `RemoteDockerLifecycleAdapter`
+      (`docker start/restart <name>`) + tests (TDD).
+- [x] S14 — Service: `runContainerLifecycle({ remote, sessionPassword,
+      container, op })` in `services/docker.ts`, refusal-object outcome,
+      same fresh-resolve + always-end discipline + tests.
+- [x] S15 — Hub model: per-status action label (exited → 'Start', else
+      'Restart') as a pure helper + tests.
+- [x] S16 — Hub UI: `pane: 'list' | 'actions'` state; Enter/→ on a
+      container locks (useMenuList deactivates), ←/Esc unlocks; ↑↓ walks
+      the action menu; Enter runs the focused action (view-logs navigates,
+      start/restart executes with in-panel running/error feedback and list
+      refresh); selected container name in `theme.cursorColor`; hints
+      reflect both panes; tests (TDD).
+- [x] S17 — Full checks: `bun run test && bun run typecheck && bun run
+      lint` (scoped), parent spot check.
+
+### Correction round 1 (2026-10-27, user feedback): Esc must return to the services list
+
+Diagnosed by the parent: `useGlobalKeys` (AppShell) owns
+`cancel: goBack` / `chars.h` / `backspace` — Ink broadcasts every key to
+ALL active useInput hooks, so Esc while the actions pane is locked BOTH
+unlocked the pane AND navigated back off `/remote-home` (same for h/⌫).
+
+- [x] S18 — Shared `pane-lock-store` (shared/lib, editing-store pattern):
+      the page sets it in lock()/unlock() (+ unmount cleanup); while set,
+      `useGlobalKeys` suppresses ONLY the back bindings (Esc/h/⌫ → no-op)
+      keeping q/Ctrl-C quit intact; the page owns Esc and h as unlock.
+      Tests: global suppression + page unlock without navigation.
+
 ## Technical debt (deferred 2026-10-21, user decision)
 
 - steiger `fsd/insignificant-slice` ×2: `features/doctor` (solo lo usa
@@ -236,3 +279,117 @@ the static fixture. Texts in ENGLISH (user decision — overrides the pen's
   gap is covered for the next review boundary. Chain outcome: A approved
   (acknowledged), B escalated (closed by status-shim tests), C escalated
   (closed by this fix).
+
+## Iteration 3 route + delivery (2026-10-26)
+
+Route: delegated direct — one writer (general agent). Trigger evidence:
+2+ non-trivial files across three slices (shared hook, docker domain +
+service, hub UI). Parent owns this doc; writer owns the listed source
+files only. Forecast ≈ 600–700 authored lines (over the ~400 advisory →
+delivery strategy ask-on-risk: ask once before the delivery commit if
+chaining is wanted). Branch `feature/remote-home-container-actions` from
+`main` (the old `feature/tui-remote-home-screen` branch is stale — its
+commits landed via squash PRs #11/#12). TDD applies: RED observed before
+each behavior slice, GREEN, then refactor; runner `bun run test`.
+
+## Iteration 3 verification evidence (2026-10-26)
+
+- Writer (delegated, foreground): `bun run test` → 116 files / 1085
+  tests passing (4 green full-suite runs); `bun run typecheck` → exit 0;
+  scoped eslint over all touched/new files → exit 0, zero findings.
+  TDD: RED observed per slice (S12 keys, S13 domain ×3, S15 helpers,
+  S16 page).
+- Parent spot check: full suite re-run twice → 1084/1085 with a
+  DIFFERENT flaking file each run (LogsPage r-reconnect, then
+  RemotesMenuPage 4.8 timeout under parallel load — the documented
+  pre-existing load-flake class; the writer reproduced the same profile
+  on a stashed baseline). Focused: remotes-menu 22/22, all touched
+  areas 24 files / 326 tests green; typecheck exit 0; scoped eslint
+  clean after the parent's inline fix.
+- Parent inline correction (1 mechanical file + 1 test assertion): the
+  DetailPanel static line `↑↓ pick a container on the left` was stale
+  while locked — removed (footer hints carry per-pane guidance:
+  arrows pick / enter run / esc back).
+- Diff: 12 tracked files + 6 new files, 1015+/75− (~1012 authored
+  insertions, over the ~400 advisory — kept as one work unit; chaining
+  to revisit at delivery per ask-on-risk).
+- Commit pending user confirmation (repo rule). After the commit:
+  RDD assess with `--base-ref main --committed-only` (RDD on, decided
+  by global; boundary still `main` per the 2026-10-21 stop decision).
+- 2026-10-27 (S18, user feedback): Esc/h/⌫ while locked ALSO fired the
+  AppShell-global goBack (Ink broadcasts to every active useInput
+  hook) — navigate(-1) threw the user off /remote-home instead of
+  returning to the services list. Fix: shared `pane-lock-store`
+  (editing-store pattern); `useGlobalKeys` suppresses only the back
+  bindings while locked (q/Ctrl-C still quit); the page owns Esc/h as
+  unlock plus unmount cleanup; backspace suppressed-only. NEW
+  pane-lock-store(.test).ts + use-global-keys.test.tsx; page tests
+  assert unlock WITHOUT navigation. Writer: focused 8 files / 126
+  tests stable, full suite 118 files / 1100 tests green ×2 (other
+  runs flaked only in the documented pre-existing class, each green
+  in isolation), typecheck exit 0, scoped eslint exit 0. Parent spot
+  check: focused 8/126 + typecheck OK. Delegation note: one attempt
+  lost to a runtime restart (aborted; tree verified untouched before
+  relaunch), the relaunch completed clean. Branch diff vs main: 13
+  files changed, ~1186 insertions. Commit still pending user
+  confirmation.
+
+## Correction round 1 evidence (2026-10-27, S18)
+
+- Root cause (parent): `useGlobalKeys` binds `cancel/h/backspace →
+  goBack`; Ink broadcasts every key to all active useInput hooks, so
+  Esc while locked unlocked AND navigated off `/remote-home`.
+- Fix by the delegated writer (same session, TDD RED first): shared
+  `pane-lock-store` (editing-store pattern); page sets it in
+  lock()/unlock()/lifecycle-success + unmount cleanup; `useGlobalKeys`
+  suppresses ONLY back keys while locked (q/Ctrl-C quit untouched);
+  page binds h → unlock in the actions pane.
+- New tests: pane-lock-store (3), use-global-keys (8, partial ink mock
+  spying useApp().exit + memory router), page describe with a
+  GlobalKeysProbe (AppShell never renders in a page harness — the probe
+  mounts the global hook). One test hardened with vi.waitFor (React 19
+  flushes unmount cleanup after paint).
+- Verification: focused `test src/tui/shared/lib
+  src/tui/pages/remote-home` → 8 files / 126 tests green (writer stable
+  ×repeated; parent spot check re-ran it green); full suite 118 files /
+  1100 tests green ×2 (other runs flaked ONLY in the documented
+  LogsPage/RemotesMenuPage class, green in isolation); typecheck exit 0;
+  scoped eslint exit 0.
+- Delegation incident note: the server restarted mid-delegation (first
+  attempt aborted with zero tree changes — verified by grep before
+  relaunch); the relaunched same-session writer completed the fix.
+
+## Commits + review-comment refactor (2026-11-08, user request)
+
+User review comment on RemoteHomePage.tsx: move the actions into a hook
+(cleanest code). Delivered in the same writer session:
+
+- `refactor(tui): extract hub action keyboard into useRemoteHomeActions`
+  (95fc743): NEW `model/use-remote-home-actions.ts` owns pane/
+  actionCursor/command state, pane-lock sync + cleanup, the full
+  useKeyBindings block (comments moved verbatim), per-pane hints and
+  selectedContainerId; the page keeps composition/rendering
+  (358 → 176 lines). Two flagged deviations, parent-verified: (1)
+  `onToggleGroup` option (collapse state stays page-owned; space and →
+  reach it through the hook); (2) useMenuList gates on the pane-lock
+  STORE (`!locked ⟺ pane === 'list'`, committed together in
+  lock/unlock/success) to avoid a render-order cycle between the menu
+  cursor and the hook. Tests UNMODIFIED — zero behavior change proven.
+- Writer: focused 4 files / 91 tests, full suite 118 / 1100 (no flakes
+  that run), typecheck 0, scoped eslint 0. Parent spot check: focused
+  91/91 re-run green + store-equivalence verified in source.
+- Writer debugging lesson kept for future extractions: vitest/esbuild
+  never typechecks — a missing import fails as a silent empty frame
+  (Ink swallows the render error); run `tsc --noEmit` BEFORE the test
+  suite when extracting hooks.
+- Commit sequence (work units, all green at each tree):
+  `05e83a6 feat(docker): add container start and restart over SSH`
+  (focused at that tree: 24 files / 267 tests) →
+  `96d7524 feat(tui): hub container action menu with selection lock`
+  (full suite 118 / 1100 observed on the identical tree pre-commit) →
+  `95fc743 refactor(tui): extract hub action keyboard into
+  useRemoteHomeActions` (full suite 118 / 1100, typecheck 0).
+  Pre-commit evidence: the stage alone held the OLD page with the NEW
+  page tests (red tree) — the page was included so every commit is a
+  green work unit. Push/PR remain user decisions; version bump at PR
+  time per ADR-0017.

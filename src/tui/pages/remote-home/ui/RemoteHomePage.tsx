@@ -4,15 +4,15 @@
 // cursor-owned composition — the cursor walks the containers of expanded
 // groups PLUS collapsed group rows via the shared menu list (↑↓), space
 // collapses a focused container's group / expands a focused collapsed
-// group, `l` on a focused CONTAINER opens its live logs (tui-live-logs),
-// and the detail panel tracks the cursor. Logo, active-remote header and
-// footer are app-shell chrome; tab switching and the remaining container
-// actions are later iterations.
+// group, and the detail panel tracks the cursor. The ACTIONS surface
+// (selection lock, action cursor, start/restart command, the pane keyboard
+// and the footer hints) lives in the model hook useRemoteHomeActions —
+// this file is composition and rendering only. Logo, active-remote header
+// and footer are app-shell chrome; tab switching and the remaining
+// container actions are later iterations.
 import { useMemo, useState } from 'react';
 
 import { Box, Text } from 'ink';
-
-import { useNavigate } from 'react-router';
 
 import { Divider } from './Divider.js';
 import { RemoteHomeDashboard } from './RemoteHomeDashboard.js';
@@ -21,22 +21,12 @@ import { RemoteHomeError } from './RemoteHomeError.js';
 import { RemoteHomeLoading } from './RemoteHomeLoading.js';
 import { useMenuList } from '../../../features/menu/index.js';
 import type { ActionItem } from '../../../features/menu/index.js';
-import type { KeyHint } from '../../../shared/lib/page-hints-store.js';
 import { usePageHints } from '../../../shared/lib/page-hints-store.js';
-import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
+import { usePaneLockStore } from '../../../shared/lib/pane-lock-store.js';
 import { selectableRows } from '../model/remote-home.js';
 import type { InventoryRow } from '../model/remote-home.js';
+import { useRemoteHomeActions } from '../model/use-remote-home-actions.js';
 import { useRemoteHome } from '../model/use-remote-home.js';
-
-// Identity-stable hint constants (usePageHints effect dep) — a fresh literal
-// per render would re-publish on every render (9.10 lesson). Container rows
-// advertise logs; group rows (and every non-ok phase) advertise space only.
-const CONTAINER_HINTS: readonly KeyHint[] = [
-  { key: 'space', label: 'collapse/expand' },
-  { key: 'l', label: 'logs' },
-];
-const GROUP_HINTS: readonly KeyHint[] = [{ key: 'space', label: 'collapse/expand' }];
-const NO_HINTS: readonly KeyHint[] = [];
 
 /** Collapsed-group menu items are prefixed so they can never collide with
  * a container id (docker ids contain no '/'); the prefix doubles as the
@@ -51,11 +41,11 @@ export interface RemoteHomePageProps {
 }
 
 export function RemoteHomePage({ remote, sessionPassword }: RemoteHomePageProps): React.ReactElement {
-  const { state } = useRemoteHome({ remote, sessionPassword, enabled: remote !== '' });
+  const { state, refresh } = useRemoteHome({ remote, sessionPassword, enabled: remote !== '' });
 
   // Collapse state lives HERE, not in the view model: everything starts
   // expanded and the updater form never reads stale state (no effect ever
-  // writes it).
+  // writes it). It reaches the actions hook's keyboard via onToggleGroup.
   const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(new Set());
 
   const toggleGroup = (groupId: string): void => {
@@ -103,48 +93,32 @@ export function RemoteHomePage({ remote, sessionPassword }: RemoteHomePageProps)
     toggleGroup(item.id.slice(GROUP_ID_PREFIX.length));
   };
 
-  const { cursor } = useMenuList({ selectable: items, onSelect: selectRow }, state.phase === 'ok');
+  // The menu list is the LIST pane's keyboard: inactive while the pane lock
+  // holds, so its up/down/select keys can never double-fire with the
+  // ACTIONS pane's. The gate reads the pane-lock STORE directly — the lock
+  // is that store's public signal (committed together with pane in
+  // lock/unlock/success, so !locked ⟺ pane === 'list'), and reading it
+  // here avoids a cycle: useMenuList owns the cursor the actions hook
+  // needs, while the hook owns the pane the menu list needs to gate on.
+  const paneLocked = usePaneLockStore(store => store.locked);
+  const { cursor } = useMenuList({ selectable: items, onSelect: selectRow }, state.phase === 'ok' && !paneLocked);
 
-  // The page's SINGLE hints writer, driven by the focused row's kind: a
-  // container row advertises logs, a collapsed group row space only.
-  const focusedRow = walk[cursor];
-  const hints = useMemo<readonly KeyHint[]>(() => {
-    if (state.phase !== 'ok') return NO_HINTS;
+  const actions = state.phase === 'ok' ? state.view.actions : [];
 
-    return focusedRow?.kind === 'container' ? CONTAINER_HINTS : GROUP_HINTS;
-  }, [state.phase, focusedRow]);
-  usePageHints(hints);
-
-  const navigate = useNavigate();
-
-  // space: a focused container collapses its owning group; a focused
-  // collapsed group row expands it — both are the toggle of the focused
-  // row's group. No sticky state, no refs: the collapsed row itself is
-  // navigable, so reopening is always one cursor move away.
-  // l: a focused CONTAINER navigates to its live logs. Ink broadcasts each
-  // key to ALL useInput hooks — useMenuList's own `l`-select ALSO fires: on
-  // container rows that select is an intentional no-op, on collapsed group
-  // rows it expands the group. This handler must therefore stay a no-op
-  // unless a container row holds the cursor.
-  useKeyBindings(
-    {
-      chars: {
-        ' ': () => {
-          const focused = walk[cursor];
-
-          if (focused !== undefined) toggleGroup(focused.group.id);
-        },
-        l: () => {
-          const focused = walk[cursor];
-
-          if (focused?.kind !== 'container') return;
-
-          navigate(`/logs?container=${encodeURIComponent(focused.container.name)}`);
-        },
-      },
-    },
-    { isActive: state.phase === 'ok' }
-  );
+  // The ACTIONS surface (selection lock, action cursor, command feedback,
+  // pane keyboard, footer hints) — one model-layer hook; the page only
+  // publishes its hints and renders its state.
+  const model = useRemoteHomeActions({
+    remote,
+    sessionPassword,
+    actions,
+    walk,
+    cursor,
+    isActive: state.phase === 'ok',
+    refresh,
+    onToggleGroup: toggleGroup,
+  });
+  usePageHints(model.hints);
 
   // Guard (after hooks, per hooks rules): activation always lands here with
   // a remote; the impossible no-remote case renders nothing.
@@ -185,7 +159,16 @@ export function RemoteHomePage({ remote, sessionPassword }: RemoteHomePageProps)
       <Divider />
 
       {state.phase === 'loading' && <RemoteHomeLoading remote={remote} />}
-      {state.phase === 'ok' && <RemoteHomeDashboard view={state.view} collapsedIds={collapsedIds} cursor={cursor} />}
+      {state.phase === 'ok' && (
+        <RemoteHomeDashboard
+          actionCursor={model.pane === 'actions' ? model.actionCursor : undefined}
+          collapsedIds={collapsedIds}
+          command={model.command}
+          cursor={cursor}
+          selectedContainerId={model.selectedContainerId}
+          view={state.view}
+        />
+      )}
       {state.phase === 'empty' && <RemoteHomeEmpty remote={remote} />}
       {state.phase === 'error' && <RemoteHomeError reason={state.reason} />}
     </Box>

@@ -34,6 +34,79 @@ describe('DetailPanel — container mode', () => {
   });
 });
 
+describe('DetailPanel — per-status action label (iteration 3)', () => {
+  it('labels the restart action Start for an exited container (it would run docker start)', () => {
+    const exited: ContainerEntry = { id: 'grafana-id', name: 'grafana', status: 'exited' };
+    const { lastFrame } = render(
+      <DetailPanel actions={ACTIONS} composeProject='monitoring' container={exited} focusedActionId='' />
+    );
+
+    const frame = lastFrame() ?? '';
+
+    expect(frame).toContain('Start');
+    expect(frame).not.toContain('Restart');
+  });
+
+  it('keeps the Restart label for a running container', () => {
+    const { lastFrame } = render(
+      <DetailPanel actions={ACTIONS} composeProject='proxy' container={CONTAINER} focusedActionId='' />
+    );
+
+    expect(lastFrame() ?? '').toContain('Restart');
+  });
+});
+
+describe('DetailPanel — command feedback (iteration 3)', () => {
+  it('renders a dim running line for an in-flight command', () => {
+    const { lastFrame } = render(
+      <DetailPanel
+        actions={ACTIONS}
+        container={CONTAINER}
+        focusedActionId=''
+        command={{ phase: 'running', verb: 'Restart' }}
+      />
+    );
+
+    expect(lastFrame() ?? '').toContain('Restarting…');
+  });
+
+  it('renders Starting… for the start verb', () => {
+    const { lastFrame } = render(
+      <DetailPanel
+        actions={ACTIONS}
+        container={CONTAINER}
+        focusedActionId=''
+        command={{ phase: 'running', verb: 'Start' }}
+      />
+    );
+
+    expect(lastFrame() ?? '').toContain('Starting…');
+  });
+
+  it('renders the refusal reason for a failed command', () => {
+    const { lastFrame } = render(
+      <DetailPanel
+        actions={ACTIONS}
+        container={CONTAINER}
+        focusedActionId=''
+        command={{ phase: 'error', reason: 'Cannot connect to the Docker daemon' }}
+      />
+    );
+
+    expect(lastFrame() ?? '').toContain('Cannot connect to the Docker daemon');
+  });
+
+  it('renders neither line without a command', () => {
+    const { lastFrame } = render(<DetailPanel actions={ACTIONS} container={CONTAINER} focusedActionId='' />);
+
+    const frame = lastFrame() ?? '';
+
+    expect(frame).not.toContain('…');
+    expect(frame).toContain('Start when stopped, restart when running');
+    expect(frame).not.toContain('Start is available when the container is stopped');
+  });
+});
+
 describe('DetailPanel — group mode (collapsed group row focused)', () => {
   it('renders a focused GROUP as name plus summary, without status row or ACTIONS', () => {
     const view = toRemoteHomeView([

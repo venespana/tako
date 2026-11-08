@@ -20,15 +20,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RemoteHomePage } from './RemoteHomePage.js';
 import type { ContainerSnapshot } from '../../../../services/docker.js';
-import { getContainers } from '../../../../services/docker.js';
+import { getContainers, runContainerLifecycle } from '../../../../services/docker.js';
 import { usePageHintsStore } from '../../../shared/lib/page-hints-store.js';
+import { usePaneLockStore } from '../../../shared/lib/pane-lock-store.js';
+import { useGlobalKeys } from '../../../shared/lib/use-global-keys.js';
 import { KEY_FLUSH_MS, pressAndSettle, settle, wait } from '../../../test-utils/ink-interactions.js';
 
 vi.mock('../../../../services/docker.js', async importOriginal => {
   // Spread the REAL module so the re-exported contract types keep working;
-  // only the transport-bearing function is replaced.
+  // only the transport-bearing functions are replaced.
   const actual = await importOriginal<typeof import('../../../../services/docker.js')>();
-  return { ...actual, getContainers: vi.fn() };
+  return { ...actual, getContainers: vi.fn(), runContainerLifecycle: vi.fn() };
 });
 
 // View after the model: monitoring (grafana, prometheus), proxy (caddy),
@@ -42,9 +44,14 @@ const CONTAINERS: ContainerSnapshot[] = [
 ];
 
 type ContainersOutcome = Awaited<ReturnType<typeof getContainers>>;
+type LifecycleOutcome = Awaited<ReturnType<typeof runContainerLifecycle>>;
 
 function stubContainers(outcome: { result?: ContainersOutcome }): void {
   vi.mocked(getContainers).mockResolvedValue(outcome.result ?? { kind: 'ok', containers: [] });
+}
+
+function stubLifecycle(outcome: LifecycleOutcome): void {
+  vi.mocked(runContainerLifecycle).mockResolvedValue(outcome);
 }
 
 /** The /logs stand-in: renders the query the navigation landed with. */
@@ -119,6 +126,23 @@ function FooterSpy(): React.ReactElement {
 
   return <Text>footer:[{hints.map(hint => `${hint.key} ${hint.label}`).join(' · ')}]</Text>;
 }
+
+const ESCAPE = '\x1b';
+const RETURN = '\r';
+const RIGHT = '\x1b[C';
+const LEFT = '\x1b[D';
+
+/** Footer legend while a CONTAINER row holds the cursor (list pane). */
+const LIST_CONTAINER_HINTS = 'footer:[enter select · space collapse/expand · l logs]';
+/** Footer legend while the ACTIONS pane holds the keyboard (locked). */
+const ACTIONS_HINTS = 'footer:[arrows pick · enter run · esc back]';
+
+/** The cursor AND the published footer hints are both out — the page's
+ * passive effects (hints publication, Ink's key subscription) have flushed,
+ * so key presses land on subscribed handlers instead of the documented
+ * pre-subscription window (React 19 delays passive effects under load). */
+const awaitHubReady = (lastFrame: ReturnType<typeof render>['lastFrame']) =>
+  settle(lastFrame, f => f.includes('❯ ● grafana') && f.includes(LIST_CONTAINER_HINTS), 1000);
 
 describe('RemoteHomePage — tab strip', () => {
   beforeEach(() => {
@@ -208,21 +232,24 @@ describe('RemoteHomePage — ok state (real containers)', () => {
     expect(frame).toContain('· monitoring (compose)');
 
     expect(frame).toMatch(/View logs +l/);
-    expect(frame).toMatch(/Restart +r/);
+    expect(frame).toMatch(/Start +r/);
     expect(frame).toMatch(/Stop +s/);
     expect(frame).toMatch(/Inspect +i/);
     expect(frame).toContain('❯ View logs');
+    // grafana is exited, so the restart action reads Start (docker start).
     expect(frame).not.toContain('❯ Restart');
     // The 100-column test terminal wraps the note inside the detail panel,
-    // so assert the wrap-stable fragments; 'stopped' is unique.
-    expect(frame).toContain('Start is available when the container is');
-    expect(frame).toContain('stopped');
-    expect(frame).toContain('↑↓ pick a container on the left');
+    // so assert the wrap-stable fragments.
+    expect(frame).toContain('Start when stopped, restart when');
+    expect(frame).toContain('running');
+    // The stale list-pane hint line was removed: pane guidance lives in the
+    // footer hints (arrows pick / enter run / esc back while locked).
+    expect(frame).not.toContain('↑↓ pick a container on the left');
   });
 
   it('walks the visible containers with j/k, skipping expanded group rows', async () => {
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
 
     // grafana → prometheus → caddy → portainer: expanded group rows are NOT
     // in the walk. pressAndSettle: keys can drop before Ink's useInput
@@ -251,7 +278,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
   it('space on a focused container collapses its group; the collapsed row renders at column 0', async () => {
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
 
     const frame = await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
 
@@ -266,7 +293,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
   it("group rows never shift: the collapsed glyph sits at the expanded glyphs' indent", async () => {
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
 
     const frame = await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
 
@@ -285,7 +312,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
   it('space again expands the focused collapsed group — the row itself is the handle', async () => {
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
 
     await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
     const frame = await pressToggle(stdin, lastFrame, ' ', f => f.includes('▼ monitoring') && f.includes('grafana'));
@@ -299,7 +326,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
   it('no sticky: past the collapsed row, the next space targets the newly focused container', async () => {
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
 
     // j to prometheus (monitoring's SECOND container): collapsing monitoring
     // leaves the cursor at index 1 — on caddy, NOT the collapsed row.
@@ -324,7 +351,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
   it('l on a focused collapsed group row expands it and never navigates', async () => {
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
 
     await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
 
@@ -340,7 +367,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
   it('l on a focused container navigates to /logs?container=<name>', async () => {
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
 
     const frame = await pressAndSettle(stdin, lastFrame, 'l', f => f.includes('logs-route:grafana'));
 
@@ -364,7 +391,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
   it('shows the focused COLLAPSED group in the detail panel (summary, no ACTIONS)', async () => {
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
 
     const frame = await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
 
@@ -377,7 +404,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
   it('the walk reads: collapsed row first, then the surviving containers', async () => {
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
 
     await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
 
@@ -426,7 +453,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
 
   it('collapsing every group leaves only collapsed group rows, all selectable', async () => {
     const { lastFrame, stdin } = renderPage();
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
 
     // monitoring↓: the cursor takes the collapsed row's WALK slot (index 0).
     await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
@@ -472,19 +499,15 @@ describe('RemoteHomePage — footer hints', () => {
 
     // Compound predicate with the FULL hint string — `footer:[` alone also
     // matches the pre-publication empty footer.
-    const frame = await settle(
-      lastFrame,
-      f => f.includes('❯ ● grafana') && f.includes('footer:[space collapse/expand · l logs]'),
-      1000
-    );
+    const frame = await settle(lastFrame, f => f.includes('❯ ● grafana') && f.includes(LIST_CONTAINER_HINTS), 1000);
 
-    expect(frame).toContain('footer:[space collapse/expand · l logs]');
+    expect(frame).toContain(LIST_CONTAINER_HINTS);
     unmount();
   });
 
   it('switches hints with the focused row kind: container → collapsed group → container', async () => {
     const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
-    await settle(lastFrame, f => f.includes('footer:[space collapse/expand · l logs]'), 1000);
+    await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS), 1000);
 
     // Collapsing the focused container's group leaves the cursor on the
     // collapsed group row → space only.
@@ -495,8 +518,8 @@ describe('RemoteHomePage — footer hints', () => {
 
     // Reopening returns the cursor to the container → the logs hint is back.
     await pressToggle(stdin, lastFrame, ' ', f => f.includes('▼ monitoring') && f.includes('grafana'));
-    const restored = await settle(lastFrame, f => f.includes('footer:[space collapse/expand · l logs]'), 1000);
-    expect(restored).toContain('footer:[space collapse/expand · l logs]');
+    const restored = await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS), 1000);
+    expect(restored).toContain(LIST_CONTAINER_HINTS);
     unmount();
   });
 
@@ -533,7 +556,7 @@ describe('RemoteHomePage — states', () => {
     expect(loading).not.toContain('grafana');
 
     resolveFetch({ kind: 'ok', containers: CONTAINERS });
-    await settle(lastFrame, f => f.includes('❯ ● grafana'), 1000);
+    await awaitHubReady(lastFrame);
     unmount();
   });
 
@@ -553,5 +576,404 @@ describe('RemoteHomePage — states', () => {
     expect(error).toContain('✖ Unable to fetch containers');
     expect(error).toContain('docker ps line 1 is not valid JSON');
     expect(error).toContain('Check that the host is reachable.');
+  });
+});
+
+describe('RemoteHomePage — container selection lock (iteration 3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePageHintsStore.setState({ hints: [], formMode: false });
+    stubContainers({ result: { kind: 'ok', containers: CONTAINERS } });
+  });
+
+  it('Enter on a focused container locks navigation into the ACTIONS pane', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+
+    const locked = await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+    expect(locked).toContain(ACTIONS_HINTS);
+    // The list cursor stays frozen on the locked container.
+    expect(locked).toContain('❯ ● grafana');
+    expect(locked).not.toContain('enter select');
+    unmount();
+  });
+
+  it('ArrowRight locks the same way as Enter', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+
+    const locked = await pressToggle(stdin, lastFrame, RIGHT, f => f.includes(ACTIONS_HINTS));
+
+    expect(locked).toContain(ACTIONS_HINTS);
+    expect(locked).toContain('❯ ● grafana');
+    unmount();
+  });
+
+  it('↑↓ while locked move the ACTIONS cursor, not the list cursor', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+    // grafana is exited, so its second action reads Start.
+    const moved = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Start'));
+
+    expect(moved).toContain('❯ Start');
+    expect(moved).not.toContain('❯ View logs');
+    // The list cursor froze on grafana.
+    expect(moved).toContain('❯ ● grafana');
+    expect(moved).not.toContain('❯ ● prometheus');
+    unmount();
+  });
+
+  it('the action cursor wraps at both ends of the ACTIONS list', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+    // Up from the first action wraps to the last one.
+    const wrapped = await pressAndSettle(stdin, lastFrame, 'k', f => f.includes('❯ Inspect'));
+    expect(wrapped).toContain('❯ Inspect');
+
+    // Down from the last action wraps back to the first.
+    const back = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ View logs'));
+    expect(back).toContain('❯ View logs');
+    unmount();
+  });
+
+  it('ArrowLeft unlocks back to the list pane (the list keyboard works again)', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+    const unlocked = await pressToggle(stdin, lastFrame, LEFT, f => f.includes(LIST_CONTAINER_HINTS));
+
+    expect(unlocked).toContain(LIST_CONTAINER_HINTS);
+
+    const moved = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ ● prometheus'));
+
+    expect(moved).toContain('❯ ● prometheus');
+    unmount();
+  });
+
+  it('Escape unlocks too', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RIGHT, f => f.includes(ACTIONS_HINTS));
+
+    const unlocked = await pressToggle(stdin, lastFrame, ESCAPE, f => f.includes(LIST_CONTAINER_HINTS));
+
+    expect(unlocked).toContain(LIST_CONTAINER_HINTS);
+    expect(unlocked).not.toContain(ACTIONS_HINTS);
+    unmount();
+  });
+
+  it('ArrowRight on a focused collapsed group row expands it and never locks', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, ' ', f => f.includes('▶ monitoring'));
+
+    const expanded = await pressToggle(
+      stdin,
+      lastFrame,
+      RIGHT,
+      f => f.includes('▼ monitoring') && f.includes('grafana')
+    );
+
+    expect(expanded).toContain('▼ monitoring');
+    expect(expanded).not.toContain(ACTIONS_HINTS);
+    expect(expanded).toContain(LIST_CONTAINER_HINTS);
+    unmount();
+  });
+
+  it('while locked the list keys are dead: space collapses nothing, l navigates nowhere', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+    // Sanity: keys ARE processed while locked (the action cursor moves).
+    await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Start'));
+
+    stdin.write(' ');
+    await wait(120);
+
+    const afterSpace = lastFrame() ?? '';
+
+    expect(afterSpace).not.toContain('▶ monitoring');
+    expect(afterSpace).toContain('▼ monitoring');
+
+    stdin.write('l');
+    await wait(120);
+
+    expect(lastFrame() ?? '').not.toContain('logs-route:');
+    unmount();
+  });
+});
+
+describe('RemoteHomePage — action execution (iteration 3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePageHintsStore.setState({ hints: [], formMode: false });
+    stubContainers({ result: { kind: 'ok', containers: CONTAINERS } });
+    stubLifecycle({ kind: 'ok' });
+  });
+
+  it('Enter on View logs navigates to the container logs route', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+    const frame = await pressAndSettle(stdin, lastFrame, RETURN, f => f.includes('logs-route:grafana'));
+
+    expect(frame).toContain('logs-route:grafana');
+    unmount();
+  });
+
+  it('Start on an exited container sends the start op, shows the running line, then refreshes', async () => {
+    let resolveLifecycle!: (outcome: LifecycleOutcome) => void;
+    vi.mocked(runContainerLifecycle).mockImplementation(
+      () =>
+        new Promise<LifecycleOutcome>(resolve => {
+          resolveLifecycle = resolve;
+        })
+    );
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+    await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Start'));
+
+    await pressAndSettle(stdin, lastFrame, RETURN, f => f.includes('Starting…'));
+
+    const frame = lastFrame() ?? '';
+
+    expect(frame).toContain('Starting…');
+    expect(vi.mocked(runContainerLifecycle)).toHaveBeenCalledWith({
+      remote: 'nas',
+      sessionPassword: undefined,
+      container: 'grafana',
+      op: 'start',
+    });
+
+    // Success: the list refreshes (a second fetch) and the pane returns to
+    // the list — the loading phase deactivated the keys in between.
+    resolveLifecycle({ kind: 'ok' });
+    const refreshed = await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS), 2000);
+
+    expect(refreshed).toContain('❯ ● grafana');
+    expect(refreshed).not.toContain('Starting…');
+    expect(vi.mocked(getContainers)).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
+  it('Restart on a running container sends the restart op and shows Restarting…', async () => {
+    let resolveLifecycle!: (outcome: LifecycleOutcome) => void;
+    vi.mocked(runContainerLifecycle).mockImplementation(
+      () =>
+        new Promise<LifecycleOutcome>(resolve => {
+          resolveLifecycle = resolve;
+        })
+    );
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    // Walk to prometheus (running) in the LIST pane, then lock.
+    await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ ● prometheus'));
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+    await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Restart'));
+
+    await pressAndSettle(stdin, lastFrame, RETURN, f => f.includes('Restarting…'));
+
+    expect(vi.mocked(runContainerLifecycle)).toHaveBeenCalledWith({
+      remote: 'nas',
+      sessionPassword: undefined,
+      container: 'prometheus',
+      op: 'restart',
+    });
+    resolveLifecycle({ kind: 'ok' });
+    await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS), 2000);
+    unmount();
+  });
+
+  it('a refusal keeps the lock and shows the reason in the panel', async () => {
+    stubLifecycle({ kind: 'refusal', reason: 'Cannot connect to the Docker daemon' });
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+    await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Start'));
+
+    const refused = await pressAndSettle(stdin, lastFrame, RETURN, f =>
+      f.includes('Cannot connect to the Docker daemon')
+    );
+
+    expect(refused).toContain('Cannot connect to the Docker daemon');
+    // The lock is kept: the action keyboard still owns the footer.
+    expect(refused).toContain(ACTIONS_HINTS);
+    expect(refused).not.toContain('❯ ● prometheus');
+    unmount();
+  });
+
+  it('a running command ignores re-entry (Enter is dead until it settles)', async () => {
+    let resolveLifecycle!: (outcome: LifecycleOutcome) => void;
+    vi.mocked(runContainerLifecycle).mockImplementation(
+      () =>
+        new Promise<LifecycleOutcome>(resolve => {
+          resolveLifecycle = resolve;
+        })
+    );
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+    await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Start'));
+
+    await pressAndSettle(stdin, lastFrame, RETURN, f => f.includes('Starting…'));
+
+    stdin.write(RETURN);
+    await wait(120);
+
+    expect(vi.mocked(runContainerLifecycle)).toHaveBeenCalledTimes(1);
+    resolveLifecycle({ kind: 'ok' });
+    await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS), 2000);
+    unmount();
+  });
+
+  it('stop and inspect stay visible but inert: no service call, no navigation', async () => {
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+    // j → Start, j → Stop.
+    await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Start'));
+    const onStop = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Stop'));
+
+    expect(onStop).toContain('❯ Stop');
+
+    stdin.write(RETURN);
+    await wait(120);
+
+    const afterStop = lastFrame() ?? '';
+
+    expect(vi.mocked(runContainerLifecycle)).not.toHaveBeenCalled();
+    expect(afterStop).not.toContain('logs-route:');
+
+    const onInspect = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Inspect'));
+
+    expect(onInspect).toContain('❯ Inspect');
+
+    stdin.write(RETURN);
+    await wait(120);
+
+    expect(vi.mocked(runContainerLifecycle)).not.toHaveBeenCalled();
+    expect(lastFrame() ?? '').not.toContain('logs-route:');
+    unmount();
+  });
+
+  it('an unknown-remote outcome lands in the panel as a kept-lock error too', async () => {
+    stubLifecycle({ kind: 'unknown-remote', reason: 'unknown remote "nas"' });
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+    await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Start'));
+
+    const refused = await pressAndSettle(stdin, lastFrame, RETURN, f => f.includes('unknown remote "nas"'));
+
+    expect(refused).toContain('unknown remote "nas"');
+    expect(refused).toContain(ACTIONS_HINTS);
+    unmount();
+  });
+});
+
+describe('RemoteHomePage — pane lock vs global back (iteration 3 correction)', () => {
+  /** Production parity: AppShell mounts useGlobalKeys around every page —
+   * without it the global back (Esc/h/⌫) these tests reason about does not
+   * exist. */
+  function GlobalKeysProbe(): React.ReactElement {
+    useGlobalKeys();
+
+    return <></>;
+  }
+
+  /** The hub with a two-entry history: while locked, Esc/h must NOT take
+   * the global back path; after unlocking they must. The `/elsewhere` entry
+   * makes navigate(-1) observable. */
+  const renderHubWithBackHistory = () =>
+    render(
+      <MemoryRouter initialEntries={['/elsewhere', '/remote-home']}>
+        <Routes>
+          <Route path='/remote-home' element={<RemoteHomePage remote='nas' sessionPassword={undefined} />} />
+          <Route path='/logs' element={<LogsMarker />} />
+          <Route path='/elsewhere' element={<Text>elsewhere-route</Text>} />
+        </Routes>
+        <GlobalKeysProbe />
+        <FooterSpy />
+      </MemoryRouter>
+    );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usePageHintsStore.setState({ hints: [], formMode: false });
+    usePaneLockStore.setState({ locked: false });
+    stubContainers({ result: { kind: 'ok', containers: CONTAINERS } });
+  });
+
+  it('Esc while locked unlocks the pane and stays on the services screen', async () => {
+    const { lastFrame, stdin, unmount } = renderHubWithBackHistory();
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+    expect(usePaneLockStore.getState().locked).toBe(true);
+
+    const unlocked = await pressToggle(stdin, lastFrame, ESCAPE, f => f.includes(LIST_CONTAINER_HINTS));
+
+    expect(unlocked).toContain(LIST_CONTAINER_HINTS);
+    // The reported bug: the unlock must NOT fire the global back — the user
+    // stays on /remote-home.
+    expect(unlocked).toContain('Services');
+    expect(unlocked).not.toContain('elsewhere-route');
+    expect(usePaneLockStore.getState().locked).toBe(false);
+    unmount();
+  });
+
+  it('h while locked unlocks too (vim-left parity), and the NEXT h goes back globally', async () => {
+    const { lastFrame, stdin, unmount } = renderHubWithBackHistory();
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+    const unlocked = await pressToggle(stdin, lastFrame, 'h', f => f.includes(LIST_CONTAINER_HINTS));
+
+    expect(unlocked).toContain(LIST_CONTAINER_HINTS);
+    expect(unlocked).not.toContain('elsewhere-route');
+
+    const back = await pressAndSettle(stdin, lastFrame, 'h', f => f.includes('elsewhere-route'));
+
+    expect(back).toContain('elsewhere-route');
+    unmount();
+  });
+
+  it('after unlocking, Esc returns to the global back semantics', async () => {
+    const { lastFrame, stdin, unmount } = renderHubWithBackHistory();
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+    await pressToggle(stdin, lastFrame, ESCAPE, f => f.includes(LIST_CONTAINER_HINTS));
+
+    const back = await pressAndSettle(stdin, lastFrame, ESCAPE, f => f.includes('elsewhere-route'));
+
+    expect(back).toContain('elsewhere-route');
+    unmount();
+  });
+
+  it('leaving the screen while locked clears the lock (view-logs navigation)', async () => {
+    const { lastFrame, stdin, unmount } = renderHubWithBackHistory();
+    await awaitHubReady(lastFrame);
+    await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+    expect(usePaneLockStore.getState().locked).toBe(true);
+
+    await pressAndSettle(stdin, lastFrame, RETURN, f => f.includes('logs-route:grafana'));
+
+    // The route change unmounted the page: its cleanup must release the
+    // global back suppression for whatever screen comes next. React 19
+    // flushes passive-effect cleanups after paint, so poll instead of
+    // asserting on the first logs frame.
+    await vi.waitFor(() => expect(usePaneLockStore.getState().locked).toBe(false));
+    unmount();
   });
 });
