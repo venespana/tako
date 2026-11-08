@@ -5,7 +5,9 @@
 // useMenuList walks selectableRows: containers of expanded groups plus
 // collapsed group rows, the reopen handles); selection itself is
 // intentionally inert on container rows (the detail column tracks the
-// cursor; toggling is page-owned).
+// cursor; toggling is page-owned). While the page is LOCKED onto a
+// container (actions pane), that container's NAME renders in the accent
+// color and the ACTIONS cursor marks the focused action.
 import { Box, Text } from 'ink';
 
 import { CursorColumn } from './CursorColumn.js';
@@ -13,7 +15,7 @@ import { STATUS_COLOR, DetailPanel } from './DetailPanel.js';
 import { Divider } from './Divider.js';
 import { theme } from '../../../shared/ui/theme.js';
 import { buildInventoryRows, groupSummary, selectableRows } from '../model/remote-home.js';
-import type { RemoteHomeView, ServiceGroup } from '../model/remote-home.js';
+import type { ContainerCommand, RemoteHomeView, ServiceGroup } from '../model/remote-home.js';
 
 export interface RemoteHomeDashboardProps {
   /** The grouped view of the fetched containers. */
@@ -22,6 +24,15 @@ export interface RemoteHomeDashboardProps {
   collapsedIds: ReadonlySet<string>;
   /** Page-owned cursor index into the page's selectableRows walk. */
   cursor: number;
+  /** The ACTIONS-pane cursor (locked mode); undefined previews the first
+   * action, the list-pane behavior. */
+  actionCursor?: number;
+  /** In-panel lifecycle feedback (running line / refusal reason). */
+  command?: ContainerCommand;
+  /** The locked container's id: its NAME renders in the accent color while
+   * the keyboard lives in the ACTIONS pane. The status dot keeps its own
+   * light and the cursor column is unchanged. */
+  selectedContainerId?: string;
 }
 
 /** The group's approved `· paused` suffix when every non-running container
@@ -33,7 +44,14 @@ function uniformPaused(group: ServiceGroup): boolean {
   return nonRunning.length > 0 && nonRunning.every(container => container.status === 'paused');
 }
 
-export function RemoteHomeDashboard({ view, collapsedIds, cursor }: RemoteHomeDashboardProps): React.ReactElement {
+export function RemoteHomeDashboard({
+  view,
+  collapsedIds,
+  cursor,
+  actionCursor,
+  command,
+  selectedContainerId,
+}: RemoteHomeDashboardProps): React.ReactElement {
   // All rows for rendering; the walk for focus — the page filters the SAME
   // builder. An out-of-range cursor (the list shrank) yields undefined →
   // no highlight, no detail. Only a COLLAPSED group row can hold the
@@ -43,7 +61,7 @@ export function RemoteHomeDashboard({ view, collapsedIds, cursor }: RemoteHomeDa
   const focused = walk[cursor];
   const focusedCollapsedGroupId = focused?.kind === 'group' ? focused.group.id : undefined;
   const focusedContainerId = focused?.kind === 'container' ? focused.container.id : undefined;
-  const focusedAction = view.actions[0];
+  const focusedAction = view.actions[actionCursor ?? 0];
 
   return (
     <Box alignSelf='stretch' columnGap={2}>
@@ -105,7 +123,10 @@ export function RemoteHomeDashboard({ view, collapsedIds, cursor }: RemoteHomeDa
             <Text key={row.container.id}>
               <CursorColumn focused={focusedContainerId === row.container.id} />
               <Text color={STATUS_COLOR[row.container.status]}>●</Text>
-              {` ${row.container.name}`}
+              {` `}
+              <Text color={row.container.id === selectedContainerId ? theme.cursorColor : undefined}>
+                {row.container.name}
+              </Text>
             </Text>
           );
         })}
@@ -115,6 +136,7 @@ export function RemoteHomeDashboard({ view, collapsedIds, cursor }: RemoteHomeDa
       {focused?.kind === 'container' && focusedAction !== undefined && (
         <DetailPanel
           actions={view.actions}
+          command={command}
           composeProject={focused.group.composeProject}
           container={focused.container}
           focusedActionId={focusedAction.id}

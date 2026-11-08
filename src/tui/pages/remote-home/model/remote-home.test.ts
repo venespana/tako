@@ -5,8 +5,17 @@
 // the collection (never hand-maintained).
 import { describe, expect, it } from 'vitest';
 
-import { buildInventoryRows, groupSummary, selectableRows, toRemoteHomeView, toServiceGroups } from './remote-home.js';
-import type { InventoryRow } from './remote-home.js';
+import {
+  buildInventoryRows,
+  containerActionLabel,
+  groupSummary,
+  lockedContainerId,
+  selectableRows,
+  toRemoteHomeView,
+  toServiceGroups,
+  wrapIndex,
+} from './remote-home.js';
+import type { ContainerAction, InventoryRow } from './remote-home.js';
 import type { ContainerSnapshot } from '../../../../services/docker.js';
 
 const snapshot = (name: string, overrides: Partial<ContainerSnapshot> = {}): ContainerSnapshot => ({
@@ -125,6 +134,73 @@ describe('groupSummary', () => {
     expect(groupSummary(byName.get('proxy')!)).toBe('1/1');
     expect(groupSummary(byName.get('backup')!)).toBe('0/1');
     expect(groupSummary(byName.get('Others')!)).toBe('1 · no compose');
+  });
+});
+
+describe('containerActionLabel — per-status action label (iteration 3)', () => {
+  const action = (id: string, label: string): ContainerAction => ({ id, label, key: id.slice(0, 1) });
+  const restart = action('restart', 'Restart');
+
+  it("a stopped (exited) container's restart action reads Start", () => {
+    expect(containerActionLabel(restart, 'exited')).toBe('Start');
+  });
+
+  it('a running or paused container keeps Restart', () => {
+    expect(containerActionLabel(restart, 'running')).toBe('Restart');
+    expect(containerActionLabel(restart, 'paused')).toBe('Restart');
+  });
+
+  it('every other action returns its own static label untouched', () => {
+    const viewLogs = action('view-logs', 'View logs');
+    const stop = action('stop', 'Stop');
+    const inspect = action('inspect', 'Inspect');
+
+    expect(containerActionLabel(viewLogs, 'exited')).toBe('View logs');
+    expect(containerActionLabel(stop, 'exited')).toBe('Stop');
+    expect(containerActionLabel(inspect, 'running')).toBe('Inspect');
+  });
+});
+
+describe('wrapIndex — wrapped action-cursor movement (iteration 3)', () => {
+  it('steps within bounds (down +1, up -1)', () => {
+    expect(wrapIndex(0, 4, 1)).toBe(1);
+    expect(wrapIndex(2, 4, 1)).toBe(3);
+    expect(wrapIndex(3, 4, -1)).toBe(2);
+    expect(wrapIndex(1, 4, -1)).toBe(0);
+  });
+
+  it('wraps past the last index back to 0 and below 0 to the last index', () => {
+    expect(wrapIndex(3, 4, 1)).toBe(0);
+    expect(wrapIndex(0, 4, -1)).toBe(3);
+  });
+
+  it('a single-element list always stays at 0', () => {
+    expect(wrapIndex(0, 1, 1)).toBe(0);
+    expect(wrapIndex(0, 1, -1)).toBe(0);
+  });
+
+  it('an empty list collapses to 0 (nothing to focus)', () => {
+    expect(wrapIndex(0, 0, 1)).toBe(0);
+    expect(wrapIndex(0, 0, -1)).toBe(0);
+  });
+});
+
+describe('lockedContainerId — accent selection (iteration 3)', () => {
+  const view = toRemoteHomeView([snapshot('grafana', { id: 'g1', state: 'exited', composeProject: 'monitoring' })]);
+  const groups = view.groups;
+
+  it('yields the focused container id only while the ACTIONS pane holds the keyboard', () => {
+    const row = selectableRows(groups, new Set())[0];
+
+    expect(lockedContainerId('list', row)).toBeUndefined();
+    expect(lockedContainerId('actions', row)).toBe('g1');
+  });
+
+  it('group rows and a missing row never carry the accent', () => {
+    const collapsed = selectableRows(groups, new Set([groups[0]!.id]));
+
+    expect(lockedContainerId('actions', collapsed[0])).toBeUndefined();
+    expect(lockedContainerId('actions', undefined)).toBeUndefined();
   });
 });
 

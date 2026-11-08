@@ -1,15 +1,22 @@
 // DetailPanel.tsx — RIGHT column of the Remote Home screen: the focused
-// row's detail panel. Container mode (name, status, compose context, static
-// action list, hints) and group mode (bold name + dim summary — shown while
-// a COLLAPSED group row holds the cursor). Also owns the per-status ink
-// palette shared with the screen's group list.
+// row's detail panel. Container mode (name, status, compose context, action
+// list with per-status labels, in-panel command feedback, hints) and group
+// mode (bold name + dim summary — shown while a COLLAPSED group row holds
+// the cursor). Also owns the per-status ink palette shared with the screen's
+// group list.
 import { Box, Text } from 'ink';
 
 import { CursorColumn } from './CursorColumn.js';
 import { Divider } from './Divider.js';
 import { theme } from '../../../shared/ui/theme.js';
-import { groupSummary } from '../model/remote-home.js';
-import type { ContainerAction, ContainerEntry, ContainerStatus, ServiceGroup } from '../model/remote-home.js';
+import { containerActionLabel, groupSummary } from '../model/remote-home.js';
+import type {
+  ContainerAction,
+  ContainerCommand,
+  ContainerEntry,
+  ContainerStatus,
+  ServiceGroup,
+} from '../model/remote-home.js';
 
 /** Ink color per container status (the pages' established inline palette). */
 export const STATUS_COLOR: Record<ContainerStatus, string> = {
@@ -20,6 +27,10 @@ export const STATUS_COLOR: Record<ContainerStatus, string> = {
 
 interface DetailPanelProps {
   actions: ContainerAction[];
+  /** In-panel lifecycle feedback: a dim running line while the command is
+   * in flight, the red refusal reason when the remote refused. Container
+   * mode only. */
+  command?: ContainerCommand;
   /** The focused container's compose project; null → the standalone
    * context. Container mode only. */
   composeProject?: string | null;
@@ -38,10 +49,11 @@ function containerContext(composeProject: string | null): string {
 }
 
 /** RIGHT column: the focused row's detail panel — a container (name,
- * status, compose context, static action list, hints) or a collapsed group
- * (name + summary). */
+ * status, compose context, action list, command feedback, hints) or a
+ * collapsed group (name + summary). */
 export function DetailPanel({
   actions,
+  command,
   composeProject,
   container,
   group,
@@ -66,7 +78,7 @@ export function DetailPanel({
               <Box key={action.id} justifyContent='space-between'>
                 <Text>
                   <CursorColumn focused={action.id === focusedActionId} />
-                  {action.label}
+                  {containerActionLabel(action, container.status)}
                 </Text>
                 <Text bold dimColor>
                   {action.key}
@@ -74,9 +86,10 @@ export function DetailPanel({
               </Box>
             ))}
 
-            <Text dimColor>Start is available when the container is stopped</Text>
-            <Divider />
-            <Text dimColor>↑↓ pick a container on the left</Text>
+            {command?.phase === 'running' && <Text dimColor>{`${command.verb}ing…`}</Text>}
+            {command?.phase === 'error' && <Text color='red'>{command.reason}</Text>}
+
+            <Text dimColor>Start when stopped, restart when running</Text>
           </>
         ) : group !== undefined ? (
           <>

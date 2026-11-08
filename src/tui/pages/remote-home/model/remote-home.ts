@@ -32,6 +32,12 @@ export interface ContainerAction {
   key: string;
 }
 
+/** In-panel feedback for one lifecycle run while/after it executes: a dim
+ * running line while the command is in flight, the red refusal reason when
+ * the remote refused. Undefined means no command feedback to show. */
+export type ContainerCommand =
+  { readonly phase: 'running'; readonly verb: string } | { readonly phase: 'error'; readonly reason: string };
+
 /** View data for one rendering of the hub screen (derived from real containers). */
 export interface RemoteHomeView {
   totalContainers: number;
@@ -68,6 +74,37 @@ export function groupSummary(group: ServiceGroup): string {
   const running = group.containers.filter(container => container.status === 'running').length;
 
   return group.composeProject === null ? `${running} · no compose` : `${running}/${group.containers.length}`;
+}
+
+/**
+ * The detail-panel label for one action given the focused container's
+ * status (iteration 3): the 'restart' action STARTS a stopped (exited)
+ * container and restarts anything else, so its label follows the status.
+ * Every other action keeps its own static label.
+ */
+export function containerActionLabel(action: ContainerAction, status: ContainerStatus): string {
+  if (action.id !== 'restart') return action.label;
+
+  return status === 'exited' ? 'Start' : 'Restart';
+}
+
+/**
+ * Wrapped cursor movement over a fixed-length list (+1 down, -1 up): past
+ * the last index wraps to 0, below 0 wraps to the last index. An empty list
+ * always yields 0 — nothing to focus. Same rule as the menu feature's
+ * moveCursor, shaped for plain indices (the action list is moved by index,
+ * not by ActionItem[]).
+ */
+export function wrapIndex(index: number, length: number, dir: 1 | -1): number {
+  if (length === 0) return 0;
+
+  const next = index + dir;
+
+  if (next < 0) return length - 1;
+
+  if (next >= length) return 0;
+
+  return next;
 }
 
 /**
@@ -135,6 +172,16 @@ export function toRemoteHomeView(containers: readonly ContainerSnapshot[]): Remo
     groups,
     actions: [...CONTAINER_ACTIONS],
   };
+}
+
+/**
+ * The locked container's id while the ACTIONS pane holds the keyboard — the
+ * dashboard paints that row's NAME in the accent color (the status dot keeps
+ * its own light). Undefined in the list pane (the cursor column alone marks
+ * focus) and on group rows.
+ */
+export function lockedContainerId(pane: 'list' | 'actions', row: InventoryRow | undefined): string | undefined {
+  return pane === 'actions' && row?.kind === 'container' ? row.container.id : undefined;
 }
 
 /**

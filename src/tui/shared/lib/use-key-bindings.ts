@@ -1,14 +1,17 @@
 // use-key-bindings.ts — Shared-layer hook owning the TUI's key
 // interpretation in ONE place (task 9.9): the arrow/vim movement triple
-// (up/k, down/j), selection (return/l), escape, backspace, Tab navigation,
-// Ctrl-C, and exact single-character bindings. Before this hook every
-// component re-implemented `key.upArrow || input === 'k'`-style dispatch —
-// duplicated across the menu list, the job list, and every page handler.
+// (up/k, down/j), the horizontal arrows (iteration 3), selection (return/l),
+// escape, backspace, Tab navigation, Ctrl-C, and exact single-character
+// bindings. Before this hook every component re-implemented
+// `key.upArrow || input === 'k'`-style dispatch — duplicated across the menu
+// list, the job list, and every page handler.
 //
 // Dispatch precedence (documented, tested): anyKey takes over a component's
 // whole keyboard; then ctrl-c; then movement/selection/escape/backspace/tab;
-// then exact single-character `chars` matches. Multi-character input (paste)
-// is ignored — no per-character split. Unbound keys are no-ops.
+// then exact single-character `chars` matches. Movement runs up/down first,
+// then left/right — both BEFORE selection, so a pane switch (→) never also
+// selects. Multi-character input (paste) is ignored — no per-character
+// split. Unbound keys are no-ops.
 //
 // When `isActive` is false (e.g. during text input), the hook is a no-op so
 // plain characters reach the text input without being intercepted.
@@ -20,6 +23,10 @@ export interface KeyBindings {
   moveUp?(): void;
   /** ArrowDown or `j`. */
   moveDown?(): void;
+  /** ArrowLeft (no vim alias — h stays free for text entry surfaces). */
+  moveLeft?(): void;
+  /** ArrowRight (no vim alias — l stays the selection character). */
+  moveRight?(): void;
   /** Return or `l`. */
   confirm?(): void;
   /** Escape. */
@@ -63,6 +70,16 @@ export function useKeyBindings(bindings: KeyBindings, { isActive = true }: UseKe
 
       if (key.downArrow || input === 'j') {
         bindings.moveDown?.();
+        return;
+      }
+
+      if (key.leftArrow) {
+        bindings.moveLeft?.();
+        return;
+      }
+
+      if (key.rightArrow) {
+        bindings.moveRight?.();
         return;
       }
 

@@ -28,6 +28,8 @@ async function renderProbe(bindings: KeyBindings, isActive?: boolean) {
 const ESCAPE = '\x1b';
 const UP = '\x1b[A';
 const DOWN = '\x1b[B';
+const RIGHT = '\x1b[C';
+const LEFT = '\x1b[D';
 const RETURN = '\r';
 
 describe('useKeyBindings — trigger dispatch (9.9)', () => {
@@ -138,6 +140,46 @@ describe('useKeyBindings — trigger dispatch (9.9)', () => {
 
     expect(confirm).not.toHaveBeenCalled();
     expect(chars.x).not.toHaveBeenCalled();
+    unmount();
+  });
+});
+
+describe('useKeyBindings — horizontal movement (iteration 3)', () => {
+  it('moveRight fires on the right arrow ONLY (not a built-in select)', async () => {
+    const moveRight = vi.fn();
+    const confirm = vi.fn();
+    const { stdin, unmount } = await renderProbe({ moveRight, confirm });
+
+    stdin.write(RIGHT);
+    await wait(50);
+    expect(moveRight).toHaveBeenCalledTimes(1);
+    expect(confirm).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('moveLeft fires on the left arrow ONLY (not a built-in cancel)', async () => {
+    const moveLeft = vi.fn();
+    const cancel = vi.fn();
+    const { stdin, unmount } = await renderProbe({ moveLeft, cancel });
+
+    stdin.write(LEFT);
+    await wait(50);
+    expect(moveLeft).toHaveBeenCalledTimes(1);
+    expect(cancel).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('unbound arrows fire nothing (h/j/k/l stay the vertical/select surface)', async () => {
+    const moveUp = vi.fn();
+    const moveDown = vi.fn();
+    const { stdin, unmount } = await renderProbe({ moveUp, moveDown });
+
+    stdin.write(LEFT);
+    stdin.write(RIGHT);
+    await wait(60);
+
+    expect(moveUp).not.toHaveBeenCalled();
+    expect(moveDown).not.toHaveBeenCalled();
     unmount();
   });
 });
