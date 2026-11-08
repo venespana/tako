@@ -9,10 +9,12 @@ import { resolveRemoteAuth } from './remotes.js';
 import type { AgentConnectionAuth } from './remotes.js';
 import { GetContainers } from '../domains/docker/application/GetContainers.js';
 import { GetStackStatus } from '../domains/docker/application/GetStackStatus.js';
+import { RunContainerLifecycle } from '../domains/docker/application/RunContainerLifecycle.js';
 import { RunPrune } from '../domains/docker/application/RunPrune.js';
 import { RunStackLifecycle } from '../domains/docker/application/RunStackLifecycle.js';
 import { StreamContainerLogs } from '../domains/docker/application/StreamContainerLogs.js';
 import type { ContainerLogStreamHandle } from '../domains/docker/application/StreamContainerLogs.js';
+import type { ContainerLifecycleOp } from '../domains/docker/domain/container-lifecycle.js';
 import type { ContainerSnapshot } from '../domains/docker/domain/container-status.js';
 import type { StackStatusEntry } from '../domains/docker/domain/stack-status.js';
 import type {
@@ -32,6 +34,7 @@ export type {
   PruneScope,
   StackLifecycleReport,
 } from '../domains/docker/domain/types.js';
+export type { ContainerLifecycleOp } from '../domains/docker/domain/container-lifecycle.js';
 export type { ContainerSnapshot } from '../domains/docker/domain/container-status.js';
 export type { StackStatusEntry } from '../domains/docker/domain/stack-status.js';
 export type { ContainerLogStreamHandle } from '../domains/docker/application/StreamContainerLogs.js';
@@ -142,6 +145,53 @@ export async function getContainers(request: {
     const adapter = new RemoteDockerPsAdapter(new SshRemoteCommandRunner(manager));
 
     return await new GetContainers(adapter).execute();
+  } finally {
+    await manager.end();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Container lifecycle over SSH (tui-remote-home-screen iteration 3)
+// ---------------------------------------------------------------------------
+
+/** Outcome of one lifecycle run (refusal-object style: expected outcomes never throw). */
+export type RunContainerLifecycleOutcome =
+  | { readonly kind: 'ok' }
+  | { readonly kind: 'unknown-remote'; readonly reason: string }
+  | { readonly kind: 'refusal'; readonly reason: string };
+
+/**
+ * Start or restart one container on a configured remote, over SSH. Same
+ * discipline as {@link getContainers}: the remote resolves FRESH per call,
+ * the SSH wiring stays private and LAZY, and the connection always ends —
+ * on every outcome and even when the use case throws unexpectedly. The op
+ * and the container name are validated in-domain BEFORE any command string
+ * is built (RunContainerLifecycle), so a hostile name never reaches the
+ * remote shell.
+ */
+export async function runContainerLifecycle(request: {
+  readonly remote: string;
+  readonly sessionPassword?: string;
+  readonly container: string;
+  readonly op: ContainerLifecycleOp;
+}): Promise<RunContainerLifecycleOutcome> {
+  const resolution = await resolveRemoteAuth(request.remote, request.sessionPassword);
+
+  if (resolution.kind === 'unknown-remote') return { kind: 'unknown-remote', reason: resolution.reason };
+
+  if (resolution.kind === 'refusal') return { kind: 'refusal', reason: resolution.reason };
+
+  const { RemoteDockerLifecycleAdapter } =
+    await import('../domains/docker/infrastructure/RemoteDockerLifecycleAdapter.js');
+  const { SshConnectionManager } = await import('../domains/remotes/infrastructure/SshConnectionManager.js');
+  const { SshRemoteCommandRunner } = await import('../domains/remotes/infrastructure/SshRemoteCommandRunner.js');
+
+  const manager = new SshConnectionManager(toConnectConfig(resolution.remote, resolution.auth));
+
+  try {
+    const adapter = new RemoteDockerLifecycleAdapter(new SshRemoteCommandRunner(manager));
+
+    return await new RunContainerLifecycle(adapter).execute({ op: request.op, container: request.container });
   } finally {
     await manager.end();
   }
