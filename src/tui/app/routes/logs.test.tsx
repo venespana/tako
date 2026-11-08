@@ -63,13 +63,16 @@ describe('LogsRoute shim', () => {
   it('injects remote, session password and the ?container= query into the page', async () => {
     useAppRuntimeStore.setState({ activeRemote: 'nas', activeRemotePassword: 'secret' });
 
-    renderRoute('/logs?container=web-1');
+    const { unmount } = renderRoute('/logs?container=web-1');
 
     await until(() => LogsPage.mock.calls.length > 0);
     expect(LogsPage).toHaveBeenCalledWith(
       expect.objectContaining({ remote: 'nas', sessionPassword: 'secret', container: 'web-1' }),
       undefined
     );
+    // Unmount before the store resets: a leaked instance would keep
+    // rendering against the next test's store state (FU9).
+    unmount();
   });
 
   it('navigates home when no remote is active', async () => {

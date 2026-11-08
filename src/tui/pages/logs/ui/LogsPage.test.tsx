@@ -117,7 +117,7 @@ describe('LogsPage — dashboard', () => {
     });
 
     const { lastFrame, unmount } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('kernel: boot ok') && f.includes('serving :443'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('kernel: boot ok') && f.includes('serving :443'));
 
     expect(frame).toContain('logs');
     expect(frame).toContain('web-1 · nas');
@@ -131,7 +131,7 @@ describe('LogsPage — dashboard', () => {
     vi.mocked(streamContainerLogs).mockResolvedValue({ kind: 'ok', stream: fakeHandle(['bye'], 'ended') });
 
     const { lastFrame, unmount } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('● ended'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('● ended'));
 
     expect(frame).toContain('● ended');
     expect(frame).toContain('bye');
@@ -154,7 +154,7 @@ describe('LogsPage — error and guard', () => {
     });
 
     const { lastFrame, unmount } = renderPage();
-    const frame = await settle(lastFrame, f => f.includes('✖ Unable to stream logs'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('✖ Unable to stream logs'));
 
     expect(frame).toContain('✖ Unable to stream logs');
     expect(frame).toContain('unknown remote "ghost"');
@@ -164,6 +164,14 @@ describe('LogsPage — error and guard', () => {
 
   it('renders nothing and acquires nothing when the container is empty', async () => {
     const { lastFrame, unmount } = renderPage('');
+
+    expect(lastFrame()?.trim()).toBe('');
+    expect(vi.mocked(streamContainerLogs)).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('renders nothing and acquires nothing when the remote is empty (FU4: no real acquisition before the shim redirect)', async () => {
+    const { lastFrame, unmount } = render(<LogsPage remote='' sessionPassword={undefined} container='web-1' />);
 
     expect(lastFrame()?.trim()).toBe('');
     expect(vi.mocked(streamContainerLogs)).not.toHaveBeenCalled();
@@ -185,12 +193,12 @@ describe('LogsPage — r reconnect and footer hints (T4)', () => {
       .mockResolvedValueOnce({ kind: 'ok', stream: fakeHandle(['recovered line'], 'open') });
 
     const { stdin, lastFrame, unmount } = renderPage();
-    await settle(lastFrame, f => f.includes('✖ Unable to stream logs'), 1000);
+    await settle(lastFrame, f => f.includes('✖ Unable to stream logs'));
     expect(vi.mocked(streamContainerLogs)).toHaveBeenCalledTimes(1);
 
     stdin.write('r');
 
-    const frame = await settle(lastFrame, f => f.includes('recovered line'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('recovered line'));
     expect(vi.mocked(streamContainerLogs)).toHaveBeenCalledTimes(2);
     expect(frame).toContain('● streaming');
     unmount();
@@ -211,7 +219,7 @@ describe('LogsPage — r reconnect and footer hints (T4)', () => {
 
     // Live then dead: the transport error surfaces with the stale handle
     // behind it (the ring still holds its line).
-    await settle(lastFrame, f => f.includes('✖ Unable to stream logs'), 1000);
+    await settle(lastFrame, f => f.includes('✖ Unable to stream logs'));
     expect(lastFrame()).toContain('connection dropped');
 
     stdin.write('r');
@@ -224,7 +232,7 @@ describe('LogsPage — r reconnect and footer hints (T4)', () => {
 
     // The fresh pass renders as CONNECTING with an EMPTY ring — the dead
     // pass's error view and its stale tail are gone in the same commit.
-    const fresh = await settle(lastFrame, f => f.includes('● connecting'), 1000);
+    const fresh = await settle(lastFrame, f => f.includes('● connecting'));
 
     expect(fresh).toContain('● connecting');
     expect(fresh).not.toContain('✖ Unable to stream logs');
@@ -232,7 +240,7 @@ describe('LogsPage — r reconnect and footer hints (T4)', () => {
 
     resolveSecond({ kind: 'ok', stream: fakeHandle(['fresh-line'], 'open') });
 
-    const recovered = await settle(lastFrame, f => f.includes('fresh-line'), 1000);
+    const recovered = await settle(lastFrame, f => f.includes('fresh-line'));
 
     expect(recovered).toContain('● streaming');
     expect(staleHandle.stop).toHaveBeenCalledTimes(1);
@@ -244,7 +252,7 @@ describe('LogsPage — r reconnect and footer hints (T4)', () => {
     vi.mocked(streamContainerLogs).mockResolvedValue({ kind: 'ok', stream: handle });
 
     const { stdin, lastFrame, unmount } = renderPage();
-    await settle(lastFrame, f => f.includes('● streaming'), 1000);
+    await settle(lastFrame, f => f.includes('● streaming'));
     expect(vi.mocked(streamContainerLogs)).toHaveBeenCalledTimes(1);
 
     stdin.write('r');
@@ -259,21 +267,21 @@ describe('LogsPage — r reconnect and footer hints (T4)', () => {
     // Error: r reconnect.
     vi.mocked(streamContainerLogs).mockResolvedValue({ kind: 'unknown-remote', reason: 'boom' });
     const failed = renderPageWithSpy();
-    const errorFrame = await settle(failed.lastFrame, f => f.includes('footer:[r reconnect]'), 1000);
+    const errorFrame = await settle(failed.lastFrame, f => f.includes('footer:[r reconnect]'));
     expect(errorFrame).toContain('footer:[r reconnect]');
     failed.unmount();
 
     // Streaming: none — back/quit stay the only footer.
     vi.mocked(streamContainerLogs).mockResolvedValue({ kind: 'ok', stream: fakeHandle(['tail line'], 'open') });
     const live = renderPageWithSpy();
-    const liveFrame = await settle(live.lastFrame, f => f.includes('● streaming'), 1000);
+    const liveFrame = await settle(live.lastFrame, f => f.includes('● streaming'));
     expect(liveFrame).toContain('footer:[]');
     live.unmount();
 
     // Ended: r reconnect again.
     vi.mocked(streamContainerLogs).mockResolvedValue({ kind: 'ok', stream: fakeHandle(['bye'], 'ended') });
     const done = renderPageWithSpy();
-    const endedFrame = await settle(done.lastFrame, f => f.includes('footer:[r reconnect]'), 1000);
+    const endedFrame = await settle(done.lastFrame, f => f.includes('footer:[r reconnect]'));
     expect(endedFrame).toContain('footer:[r reconnect]');
     done.unmount();
   });

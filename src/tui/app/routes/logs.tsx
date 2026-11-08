@@ -20,8 +20,10 @@ function LogsRoute(): React.ReactElement {
   const sessionPassword = useAppRuntimeStore(state => state.activeRemotePassword);
   const navigate = useNavigate();
 
-  // Guard redirects (the remote-home shim's pattern): the page's own guard
-  // renders nothing meanwhile.
+  // Guard redirects (the remote-home shim's pattern): the page's own guards
+  // render nothing meanwhile — including the empty-remote instant before
+  // this effect runs, where LogsPage mounts no session at all (no
+  // acquisition fires with remote '').
   useEffect(() => {
     if (remote === undefined) navigate('/');
     else if (container === '') navigate('/remote-home');

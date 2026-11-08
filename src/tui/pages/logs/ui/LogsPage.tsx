@@ -26,9 +26,11 @@ export function LogsPage({ remote, sessionPassword, container }: LogsPageProps):
   // (its cleanup stops its handle) and mounts a fresh one.
   const [attempt, setAttempt] = useState(0);
 
-  // Guard: the shim redirects on an empty container; the impossible case
-  // renders nothing (and mounts no session).
-  if (container === '') return <></>;
+  // Guards: the shim redirects on either (no active remote, empty
+  // container); the impossible instants render nothing AND mount no
+  // session, so no acquisition ever fires with an empty remote or container
+  // before the redirect effect lands (FU4).
+  if (remote === '' || container === '') return <></>;
 
   return (
     <LogsSession

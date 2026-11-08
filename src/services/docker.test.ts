@@ -380,6 +380,24 @@ describe('services/docker — streamContainerLogs (tui-live-logs T1)', () => {
     await outcome.stream.stop();
   });
 
+  it('never rethrows: a dead inner stream still ends the connection on stop (FU2)', async () => {
+    const handle = fakeStreamHandle();
+    vi.mocked(handle.stop).mockRejectedValue(new Error('channel already destroyed'));
+    resolveRemoteAuthMock.mockResolvedValue(RESOLVED);
+    executeStreamLogs.mockResolvedValue({ kind: 'ok', stream: handle });
+
+    const outcome = await streamContainerLogs({ remote: 'nas', container: 'web-1' });
+
+    if (outcome.kind !== 'ok') throw new Error('expected an ok outcome');
+
+    // The caller only wants the remote side GONE: teardown races must not
+    // surface as rejections from cleanup — the connection end is the
+    // guarantee that matters.
+    await expect(outcome.stream.stop()).resolves.toBeUndefined();
+    expect(handle.stop).toHaveBeenCalledTimes(1);
+    expect(managerEnd).toHaveBeenCalledTimes(1);
+  });
+
   it('maps unknown-remote without opening any connection', async () => {
     resolveRemoteAuthMock.mockResolvedValue({ kind: 'unknown-remote', reason: 'unknown remote "nope"' });
 
