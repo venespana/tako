@@ -235,6 +235,12 @@ class ManagedLogStream implements ContainerLogStreamHandle {
   async stop(): Promise<void> {
     try {
       await this.inner.stop();
+    } catch {
+      // NEVER rethrow — this is the single fix point for teardown failures.
+      // The caller (the TUI hook's cleanup and its ended-path stop) only
+      // wants the remote side GONE; a channel dying mid-stop must not turn
+      // fire-and-forget cleanup (`void handle.stop()`) into an unhandled
+      // rejection. The connection end below is the guarantee that matters.
     } finally {
       await this.connection.end();
     }

@@ -178,7 +178,7 @@ describe('useLiveLogs', () => {
     expect(connecting).toContain('phase:connecting');
 
     resolve({ kind: 'ok', stream: handle });
-    const streaming = await settle(lastFrame, frame => frame.includes('phase:streaming'), 1000);
+    const streaming = await settle(lastFrame, frame => frame.includes('phase:streaming'));
     expect(streaming).toContain('phase:streaming');
     expect(vi.mocked(streamContainerLogs)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(streamContainerLogs)).toHaveBeenCalledWith({
@@ -192,15 +192,15 @@ describe('useLiveLogs', () => {
   it('appends lines as they arrive and caps the ring at 500 (oldest dropped)', async () => {
     const { handle } = stubStream({});
     const { lastFrame, unmount } = render(createElement(Probe, null));
-    await settle(lastFrame, frame => frame.includes('phase:streaming'), 1000);
+    await settle(lastFrame, frame => frame.includes('phase:streaming'));
 
     handle.emit('early-line');
-    const first = await settle(lastFrame, frame => frame.includes('last:early-line'), 1000);
+    const first = await settle(lastFrame, frame => frame.includes('last:early-line'));
     expect(first).toContain('count:1');
 
     Array.from({ length: 600 }, (_, index) => index).forEach(index => handle.emit(`n${index}`));
 
-    const capped = await settle(lastFrame, frame => frame.includes('last:n599'), 1000);
+    const capped = await settle(lastFrame, frame => frame.includes('last:n599'));
     expect(capped).toContain('count:500');
     expect(capped).toContain('last:n599');
     unmount();
@@ -210,7 +210,7 @@ describe('useLiveLogs', () => {
     const { handle } = stubStream({});
     const renderLog: number[] = [];
     const { lastFrame, unmount } = render(createElement(Probe, { renderLog }));
-    await settle(lastFrame, frame => frame.includes('phase:streaming'), 1000);
+    await settle(lastFrame, frame => frame.includes('phase:streaming'));
 
     vi.useFakeTimers();
 
@@ -256,11 +256,11 @@ describe('useLiveLogs', () => {
   it('caps the ring at 500 under a 600-line one-tick burst (batch append drops the oldest)', async () => {
     const { handle } = stubStream({});
     const { lastFrame, unmount } = render(createElement(Probe, null));
-    await settle(lastFrame, frame => frame.includes('phase:streaming'), 1000);
+    await settle(lastFrame, frame => frame.includes('phase:streaming'));
 
     Array.from({ length: 600 }, (_, index) => index).forEach(index => handle.emit(`flood-${index}`));
 
-    const capped = await settle(lastFrame, frame => frame.includes('last:flood-599'), 1000);
+    const capped = await settle(lastFrame, frame => frame.includes('last:flood-599'));
 
     expect(capped).toContain('count:500');
     expect(capped).toContain('first:flood-100');
@@ -271,13 +271,13 @@ describe('useLiveLogs', () => {
   it('flushes pending buffered lines before the ended phase lands (complete tail at the status change)', async () => {
     const { handle } = stubStream({});
     const { lastFrame, unmount } = render(createElement(Probe, null));
-    await settle(lastFrame, frame => frame.includes('phase:streaming'), 1000);
+    await settle(lastFrame, frame => frame.includes('phase:streaming'));
 
     handle.emit('pending-1');
     handle.emit('pending-2');
     handle.endStream();
 
-    const ended = await settle(lastFrame, frame => frame.includes('phase:ended'), 1000);
+    const ended = await settle(lastFrame, frame => frame.includes('phase:ended'));
 
     expect(ended).toContain('phase:ended');
     expect(ended).toContain('count:2');
@@ -290,7 +290,7 @@ describe('useLiveLogs', () => {
     stubStream({ outcome: { kind: 'refusal', reason: 'invalid container name "we b"' } });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const error = await settle(lastFrame, frame => frame.includes('phase:error'), 1000);
+    const error = await settle(lastFrame, frame => frame.includes('phase:error'));
     expect(error).toContain('reason:invalid container name "we b"');
     unmount();
   });
@@ -299,7 +299,7 @@ describe('useLiveLogs', () => {
     stubStream({ outcome: { kind: 'unknown-remote', reason: 'no remote named ghost' } });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const error = await settle(lastFrame, frame => frame.includes('phase:error'), 1000);
+    const error = await settle(lastFrame, frame => frame.includes('phase:error'));
     expect(error).toContain('reason:no remote named ghost');
     unmount();
   });
@@ -308,7 +308,7 @@ describe('useLiveLogs', () => {
     stubStream({ error: new Error('ssh channel open failed') });
     const { lastFrame, unmount } = render(createElement(Probe, null));
 
-    const error = await settle(lastFrame, frame => frame.includes('phase:error'), 1000);
+    const error = await settle(lastFrame, frame => frame.includes('phase:error'));
     expect(error).toContain('reason:ssh channel open failed');
     unmount();
   });
@@ -316,12 +316,12 @@ describe('useLiveLogs', () => {
   it('maps an iterator failure to error with its message', async () => {
     const { handle } = stubStream({});
     const { lastFrame, unmount } = render(createElement(Probe, null));
-    await settle(lastFrame, frame => frame.includes('phase:streaming'), 1000);
+    await settle(lastFrame, frame => frame.includes('phase:streaming'));
 
     handle.emit('before-drop');
     handle.fail(new Error('dropped mid-stream'));
 
-    const error = await settle(lastFrame, frame => frame.includes('phase:error'), 1000);
+    const error = await settle(lastFrame, frame => frame.includes('phase:error'));
     expect(error).toContain('reason:dropped mid-stream');
     unmount();
   });
@@ -329,21 +329,45 @@ describe('useLiveLogs', () => {
   it('lands in ended when the remote docker logs process exits', async () => {
     const { handle } = stubStream({});
     const { lastFrame, unmount } = render(createElement(Probe, null));
-    await settle(lastFrame, frame => frame.includes('phase:streaming'), 1000);
+    await settle(lastFrame, frame => frame.includes('phase:streaming'));
 
     handle.emit('final output');
     handle.endStream();
 
-    const ended = await settle(lastFrame, frame => frame.includes('phase:ended'), 1000);
+    const ended = await settle(lastFrame, frame => frame.includes('phase:ended'));
     expect(ended).toContain('phase:ended');
     expect(ended).toContain('last:final output');
     unmount();
   });
 
+  it('a keepalive-style channel close (done: ended) stops the handle exactly once, and unmount adds no second stop (FU3/FU7)', async () => {
+    const { handle } = stubStream({});
+    const { lastFrame, unmount } = render(createElement(Probe, null));
+    await settle(lastFrame, frame => frame.includes('phase:streaming'));
+
+    handle.emit('final heartbeat');
+    // The keepalive closed the channel: the iterator ends AND done settles
+    // 'ended' — the remote side is gone without any unmount or `r`.
+    handle.endStream();
+
+    const ended = await settle(lastFrame, frame => frame.includes('phase:ended'));
+
+    // The hook must close the connection itself now: the handle's stop.
+    expect(ended).toContain('phase:ended');
+    expect(handle.stop).toHaveBeenCalledTimes(1);
+
+    // Unmounting afterwards must not add a second stop (idempotent-safe,
+    // but the lifecycle is exactly one stop per pass).
+    unmount();
+    await flush();
+
+    expect(handle.stop).toHaveBeenCalledTimes(1);
+  });
+
   it('stops the handle exactly once on unmount', async () => {
     const { handle } = stubStream({});
     const { lastFrame, unmount } = render(createElement(Probe, null));
-    await settle(lastFrame, frame => frame.includes('phase:streaming'), 1000);
+    await settle(lastFrame, frame => frame.includes('phase:streaming'));
 
     unmount();
     await flush();

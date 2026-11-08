@@ -10,8 +10,10 @@
 // the tail. The dashboard (T7) renders a viewport-bounded window of the
 // ring's tail, so the hook's job is only to keep that tail fresh. Cleanup
 // ALWAYS stops the handle — unmount therefore ends the channel AND the SSH
-// connection (the service's handle contract) — and a handle that only exists
-// after cleanup is stopped by its late acquisition instead of leaking. Each
+// connection (the service's handle contract) — a handle that only exists
+// after cleanup is stopped by its late acquisition instead of leaking, and
+// the ended path stops the handle ITSELF (the remote process exited, so the
+// connection closes without an unmount or `r`). Each
 // acquisition pass is its own component mount: the page remounts its session
 // per reconnect (key={attempt}, T8 C1), so fresh state is structural — no
 // in-hook reset here, and deliberately no effect-body reset either (that
@@ -119,7 +121,8 @@ export function useLiveLogs({ remote, sessionPassword, container, enabled }: Use
 
         if (cancelled) {
           // Unmount (or a dependency change) won the race: the handle exists
-          // now, so THIS branch is its cleanup.
+          // now, so THIS branch is its cleanup. Void is safe by contract —
+          // ManagedLogStream.stop() never rethrows (see services/docker).
           void outcome.stream.stop();
 
           return;
@@ -156,7 +159,20 @@ export function useLiveLogs({ remote, sessionPassword, container, enabled }: Use
             // Only the remote process exiting is a state the screen renders.
             const how = await stream.done;
 
-            if (!cancelled && how === 'ended') setState({ phase: 'ended' });
+            if (how === 'ended') {
+              // The remote process exited (container stopped, or keepalive
+              // dropped the channel): stop the handle NOW so the SSH
+              // connection closes without waiting for an unmount or `r`.
+              // Void is safe by contract — ManagedLogStream.stop() never
+              // rethrows (the single teardown fix point in services/docker).
+              // `handle` clears too: this pass did its own cleanup, so the
+              // unmount path below must not stop the dead stream again —
+              // exactly one stop per pass, no double-stop regressions.
+              void stream.stop();
+              handle = undefined;
+
+              if (!cancelled) setState({ phase: 'ended' });
+            }
           } catch (error) {
             // Same ordering as the ended path: the tail completes before the
             // error status lands.
@@ -177,6 +193,10 @@ export function useLiveLogs({ remote, sessionPassword, container, enabled }: Use
 
       if (flushTimer !== undefined) clearTimeout(flushTimer);
 
+      // Void is safe by contract — ManagedLogStream.stop() never rethrows
+      // (the single teardown fix point in services/docker), so cleanup can
+      // stay fire-and-forget: the ended path above may already have stopped
+      // this handle, and stop is idempotent downstream.
       void handle?.stop();
     };
   }, [enabled, remote, sessionPassword, container]);

@@ -11,7 +11,7 @@
 import { render } from 'ink-testing-library';
 import { describe, expect, it } from 'vitest';
 
-import { LogsDashboard, visibleRowCount } from './LogsDashboard.js';
+import { chromeRowCount, LogsDashboard, visibleRowCount } from './LogsDashboard.js';
 
 /** Distinct, non-substring-colliding row markers (3-digit padding). */
 const linesOf = (count: number): string[] =>
@@ -107,6 +107,18 @@ describe('LogsDashboard', () => {
     expect(rendered.length).toBeLessThan(600);
     expect(frame).toContain('row-599');
     unmount();
+  });
+});
+
+describe('chromeRowCount (FU8 invariant)', () => {
+  it('stays 14 — the windowing subtracts exactly the rows the shell and page always render', () => {
+    // The window math (rows − chrome) is only overflow-safe while this sum
+    // matches the rendered chrome: shell 9 (logo 6, active-remote line 1,
+    // footer hints 1, version bar 1) + page 5 (top spacer 2, title 1, meta
+    // 1, status 1). A chrome change flips THIS pin, forcing the author to
+    // re-check the no-overflow guarantee (floor 10 on a 24-row terminal)
+    // instead of silently cropping the tail.
+    expect(chromeRowCount()).toBe(14);
   });
 });
 

@@ -10,8 +10,12 @@
 // stderr, and Go apps (adguardhome among them) log to stderr by default —
 // ignoring it would render an empty screen. Each source keeps its own
 // StringDecoder + partial buffer (lines never tear across sources); arrival
-// order interleaves into one queue. Daemon errors (e.g. a vanished container)
-// now surface as plain lines followed by the stream's natural end.
+// order interleaves into one queue. Line endings: \n, \r\n and a LONE \r all
+// terminate (progressive `tail -f` redraws surface as they arrive; a \r\n
+// pair straddling chunks stays one terminator), and an un-terminated
+// partial flushes as a line past PARTIAL_CAP — bounded memory. Daemon
+// errors (e.g. a vanished container) surface as plain lines followed by
+// the stream's natural end.
 import { StringDecoder } from 'node:string_decoder';
 
 import type { ClientChannel } from 'ssh2';
@@ -31,8 +35,31 @@ function shellSingleQuote(value: string): string {
 /** Strip one trailing \r so \r\n endings do not leak into rendered lines. */
 const withoutCarriageReturn = (line: string): string => (line.endsWith('\r') ? line.slice(0, -1) : line);
 
-/** One source's decode state: a line never tears because chunks of one
- * source arrive intact, and two sources never share a partial buffer. */
+/** A partial longer than this flushes as a line: a source with no
+ * terminators (or one pathological un-terminated line) cannot grow the
+ * pipe's memory without limit — past the cap the partial becomes a line
+ * and the tail continues fresh. 8 KiB ≫ any honest progress-redraw line. */
+const PARTIAL_CAP = 8192;
+
+/** First index of a line terminator (\n or a lone \r), or -1 when none. A
+ * \r at the very END of the partial is not one YET: it may pair with the
+ * next chunk's leading \n into a single CRLF terminator, so it is held
+ * until the next chunk decides. */
+const lineEndOf = (partial: string): number => {
+  const lf = partial.indexOf('\n');
+  const cr = partial.indexOf('\r');
+
+  if (cr === partial.length - 1 && lf === -1) return -1;
+
+  if (lf === -1) return cr;
+
+  if (cr === -1) return lf;
+
+  return Math.min(lf, cr);
+};
+
+// One source's decode state: a line never tears because chunks of one
+// source arrive intact, and two sources never share a partial buffer.
 interface LinePipe {
   readonly decoder: StringDecoder;
   partial: string;
@@ -82,14 +109,31 @@ class RemoteLogStream implements ContainerLogStreamHandle {
   }
 
   private accept(chunk: Buffer, pipe: LinePipe): void {
-    pipe.partial += pipe.decoder.write(chunk);
+    const text = pipe.decoder.write(chunk);
 
-    let newlineAt = pipe.partial.indexOf('\n');
+    // A \r held from the previous chunk pairs with this chunk's leading
+    // \n: drop it so a CRLF straddling the boundary stays ONE terminator
+    // (the \n below ends the line exactly once — no phantom empty line).
+    if (text.startsWith('\n') && pipe.partial.endsWith('\r')) {
+      pipe.partial = pipe.partial.slice(0, -1);
+    }
+
+    // CRLF inside one chunk normalizes to \n; a LONE \r survives and
+    // terminates its line below, so progressive `tail -f` redraws (progress
+    // bars) surface as chunks arrive instead of buffering until close.
+    pipe.partial += text.replaceAll('\r\n', '\n');
+
+    let newlineAt = lineEndOf(pipe.partial);
 
     while (newlineAt !== -1) {
-      this.emitLine(withoutCarriageReturn(pipe.partial.slice(0, newlineAt)));
+      this.emitLine(pipe.partial.slice(0, newlineAt));
       pipe.partial = pipe.partial.slice(newlineAt + 1);
-      newlineAt = pipe.partial.indexOf('\n');
+      newlineAt = lineEndOf(pipe.partial);
+    }
+
+    if (pipe.partial.length > PARTIAL_CAP) {
+      this.emitLine(withoutCarriageReturn(pipe.partial));
+      pipe.partial = '';
     }
   }
 

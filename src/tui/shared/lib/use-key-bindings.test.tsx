@@ -21,7 +21,7 @@ function Probe({ bindings, isActive }: { bindings: KeyBindings; isActive?: boole
 /** Render the probe and wait until its first frame is committed. */
 async function renderProbe(bindings: KeyBindings, isActive?: boolean) {
   const instance = render(<Probe bindings={bindings} isActive={isActive} />);
-  await settle(instance.lastFrame, frame => frame.includes('ready'), 1000);
+  await settle(instance.lastFrame, frame => frame.includes('ready'));
   return instance;
 }
 

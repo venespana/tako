@@ -53,6 +53,33 @@ describe('StreamContainerLogs — name validation is the domain gate', () => {
   );
 });
 
+describe('StreamContainerLogs — tail validation is the command boundary', () => {
+  // The tail interpolates into the remote command like the name does, so it
+  // is bounded at the same gate BEFORE the port is touched: docker itself
+  // caps --tail at 10000 (all lines), and nothing below 1 line is a stream.
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 10_001])(
+    'refuses the out-of-bounds tail %j without touching the port',
+    async tail => {
+      const { stream, streamer } = streamerWith(inertHandle());
+
+      const result = await new StreamContainerLogs(streamer).execute({ container: 'web-1', tail });
+
+      expect(result.kind).toBe('refusal');
+      expect(result.kind === 'refusal' && result.reason).toContain('invalid tail');
+      expect(stream).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([1, 10_000])('accepts the boundary tail %s and passes it through', async tail => {
+    const { stream, streamer } = streamerWith(inertHandle());
+
+    const result = await new StreamContainerLogs(streamer).execute({ container: 'web-1', tail });
+
+    expect(result.kind).toBe('ok');
+    expect(stream).toHaveBeenCalledWith({ container: 'web-1', tail });
+  });
+});
+
 describe('StreamContainerLogs — delegation and transport mapping', () => {
   it('returns the port handle untouched on a valid name', async () => {
     const handle = inertHandle();

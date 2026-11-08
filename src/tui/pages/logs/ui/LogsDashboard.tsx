@@ -29,13 +29,24 @@ const STATUS_LINE: Record<LogsDashboardPhase, React.ReactElement> = {
   ended: <Text dimColor>● ended</Text>,
 };
 
-/** Fixed rows that surround the window at runtime — AppShell's logo (6),
+/** Fixed rows the screen ALWAYS renders around the log window, as one
+ * auditable sum (FU8 — the single source of truth): the shell's logo (6),
  * active-remote line (1), footer hints (1) and version bar (1), plus this
- * page's top spacer (2), title (1), meta (1) and status (1): 14 total.
- * Rendering `rows − CHROME_ROWS` log rows keeps title+meta+status+window
- * inside the shell's fixed-height viewport: on a 24-row terminal that is
- * exactly the 10-row floor below. */
-const CHROME_ROWS = 14;
+ * page's top spacer (2, LogsSession), title (1), meta (1) and status (1).
+ * Exported pure so a unit test pins the sum: a chrome change flips the pin
+ * instead of silently breaking the no-overflow guarantee below. */
+export const chromeRowCount = (): number => {
+  // AppShell chrome above/below the page (widgets/app-shell):
+  // logo + active-remote line + footer hints + version bar.
+  const shellRows = 6 + 1 + 1 + 1;
+  // This page's own fixed rows (LogsSession spacer + this dashboard's block):
+  // top spacer + title + meta + status.
+  const pageRows = 2 + 1 + 1 + 1;
+
+  return shellRows + pageRows;
+};
+
+const CHROME_ROWS = chromeRowCount();
 
 /** Window bounds: never fewer than 10 rows (a shorter terminal accepts a
  * slightly cropped tail over a useless sliver), never more than 60 (a huge

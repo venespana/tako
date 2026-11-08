@@ -122,6 +122,98 @@ describe('RemoteDockerLogsAdapter — line integrity', () => {
   });
 });
 
+describe('RemoteDockerLogsAdapter — CR-only progress lines (FU6)', () => {
+  it('emits lines incrementally on lone \\r terminators as chunks arrive (progressive tail -f output)', async () => {
+    const channel = createFakeChannel();
+    const { source } = sourceServing(channel);
+    const handle = await new RemoteDockerLogsAdapter(source).stream({ container: 'web-1', tail: 200 });
+
+    const iterator = handle.lines[Symbol.asyncIterator]();
+    const first = iterator.next();
+
+    // Two \r-terminated progress redraws, no \n anywhere: the first line
+    // must surface when the SECOND chunk arrives — driven by the data
+    // events, not by the stream ending.
+    channel.emit('data', Buffer.from('progress 0%\r'));
+    channel.emit('data', Buffer.from('progress 50%\r'));
+
+    await expect(first).resolves.toEqual({ value: 'progress 0%', done: false });
+
+    const second = iterator.next();
+    channel.emit('close');
+
+    await expect(second).resolves.toEqual({ value: 'progress 50%', done: false });
+  });
+
+  it('collects a \\r-only stream as separate lines, not one merged partial', async () => {
+    const channel = createFakeChannel();
+    const { source } = sourceServing(channel);
+    const handle = await new RemoteDockerLogsAdapter(source).stream({ container: 'web-1', tail: 200 });
+
+    channel.emit('data', Buffer.from('one\r'));
+    channel.emit('data', Buffer.from('two\r'));
+    channel.emit('data', Buffer.from('three\r'));
+    channel.emit('close');
+
+    await expect(collect(handle.lines)).resolves.toEqual(['one', 'two', 'three']);
+  });
+
+  // Regression pin for the CR rewire: a \r\n pair is ONE terminator even
+  // when the pair straddles a chunk boundary (the \r rides at the end of
+  // one chunk, the \n opens the next) — exactly one line, no empty extra.
+  it('emits exactly ONE line for a \\r\\n pair straddling a chunk boundary', async () => {
+    const channel = createFakeChannel();
+    const { source } = sourceServing(channel);
+    const handle = await new RemoteDockerLogsAdapter(source).stream({ container: 'web-1', tail: 200 });
+
+    channel.emit('data', Buffer.from('crlf\r'));
+    channel.emit('data', Buffer.from('\nafter\n'));
+    channel.emit('close');
+
+    await expect(collect(handle.lines)).resolves.toEqual(['crlf', 'after']);
+  });
+});
+
+describe('RemoteDockerLogsAdapter — the partial buffer stays bounded (FU6)', () => {
+  it('flushes an un-terminated partial as a line once it exceeds the 8 KiB cap', async () => {
+    const channel = createFakeChannel();
+    const { source } = sourceServing(channel);
+    const handle = await new RemoteDockerLogsAdapter(source).stream({ container: 'web-1', tail: 200 });
+
+    const iterator = handle.lines[Symbol.asyncIterator]();
+    const oversized = iterator.next();
+
+    // 8 KiB + 1 char with no terminator: the partial flushes as a line on
+    // arrival — unbounded progress spam cannot grow memory.
+    channel.emit('data', Buffer.from('a'.repeat(8193)));
+
+    await expect(oversized).resolves.toEqual({ value: 'a'.repeat(8193), done: false });
+  });
+
+  it('keeps the stream alive after a cap flush and holds exactly-at-cap partials', async () => {
+    const channel = createFakeChannel();
+    const { source } = sourceServing(channel);
+    const handle = await new RemoteDockerLogsAdapter(source).stream({ container: 'web-1', tail: 200 });
+
+    const iterator = handle.lines[Symbol.asyncIterator]();
+    const oversized = iterator.next();
+
+    channel.emit('data', Buffer.from('a'.repeat(8193)));
+    await expect(oversized).resolves.toEqual({ value: 'a'.repeat(8193), done: false });
+
+    // At exactly the cap nothing flushes yet: the partial keeps growing
+    // until a terminator or the cap is EXCEEDED.
+    const atCap = iterator.next();
+    channel.emit('data', Buffer.from('b'.repeat(8192)));
+    channel.emit('data', Buffer.from('c\ndone\n'));
+    await expect(atCap).resolves.toEqual({ value: `${'b'.repeat(8192)}c`, done: false });
+
+    // The stream is alive and still delivering after a cap flush.
+    channel.emit('close');
+    await expect(collect(handle.lines)).resolves.toEqual(['done']);
+  });
+});
+
 describe('RemoteDockerLogsAdapter — stderr is part of the log stream', () => {
   it('surfaces stderr lines (containers logging to stderr would otherwise show nothing)', async () => {
     const channel = createFakeChannel();

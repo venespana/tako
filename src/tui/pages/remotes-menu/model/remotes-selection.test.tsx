@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useRemotesSelection } from './remotes-selection.js';
 import type { Remote, RemoteSummary, SshValidationOutcome } from '../../../../services/remotes.js';
 import { getRemote, listRemotes, testSshConnection } from '../../../../services/remotes.js';
-import { settle, pressAndSettle } from '../../../test-utils/ink-interactions.js';
+import { LOAD_TIMEOUT_MS, pressAndSettle, settle } from '../../../test-utils/ink-interactions.js';
 
 vi.mock('../../../../services/remotes.js', async importOriginal => {
   // Spread the REAL module so the re-exported contract types and pure
@@ -144,7 +144,7 @@ describe('useRemotesSelection', () => {
     const loading = await settle(lastFrame, f => f.includes('status:loading'), 200);
     expect(loading).toContain('status:loading');
 
-    const ready = await settle(lastFrame, f => f.includes('status:ready'), 1000);
+    const ready = await settle(lastFrame, f => f.includes('status:ready'));
     expect(list).toHaveBeenCalledTimes(1);
     expect(ready).toContain('rows:nas,web');
     expect(ready).toContain('focused:nas');
@@ -156,7 +156,7 @@ describe('useRemotesSelection', () => {
 
     const { lastFrame, unmount } = render(<Probe onActivate={vi.fn()} onEmpty={onEmpty} />);
 
-    await settle(lastFrame, f => f.includes('status:ready'), 1000);
+    await settle(lastFrame, f => f.includes('status:ready'));
     // The redirect decision runs in a passive effect — it can fire a tick
     // after the frame already shows ready.
     await vi.waitFor(() => expect(onEmpty).toHaveBeenCalledTimes(1));
@@ -170,7 +170,7 @@ describe('useRemotesSelection', () => {
 
     const { lastFrame } = render(<Probe onActivate={vi.fn()} onEmpty={onEmpty} />);
 
-    const frame = await settle(lastFrame, f => f.includes('status:error'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('status:error'));
     expect(frame).toContain('status:error');
     expect(onEmpty).not.toHaveBeenCalled();
   });
@@ -203,9 +203,9 @@ describe('useRemotesSelection connect-time gate', () => {
     return { ...rendered, list, getRemoteMock: getRemote, onActivate, validator };
   }
 
-  it('4.6: ssh-key remote activates directly — no prompt, no password', async () => {
+  it('4.6: ssh-key remote activates directly — no prompt, no password', { timeout: LOAD_TIMEOUT_MS }, async () => {
     const { stdin, lastFrame, unmount, onActivate } = renderGateTest(sshKeyRemote);
-    await settle(lastFrame, f => f.includes('status:ready'), 1000);
+    await settle(lastFrame, f => f.includes('status:ready'));
 
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('gate:'));
     await vi.waitFor(() => expect(onActivate).toHaveBeenCalledTimes(1));
@@ -214,9 +214,9 @@ describe('useRemotesSelection connect-time gate', () => {
     unmount();
   });
 
-  it('4.6: store-with-password remote activates directly — no prompt', async () => {
+  it('4.6: store-with-password remote activates directly — no prompt', { timeout: LOAD_TIMEOUT_MS }, async () => {
     const { stdin, lastFrame, unmount, onActivate } = renderGateTest(storeRemote);
-    await settle(lastFrame, f => f.includes('status:ready'), 1000);
+    await settle(lastFrame, f => f.includes('status:ready'));
 
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('gate:'));
     await vi.waitFor(() => expect(onActivate).toHaveBeenCalledTimes(1));
@@ -225,9 +225,9 @@ describe('useRemotesSelection connect-time gate', () => {
     unmount();
   });
 
-  it('4.6: interactive remote opens a prompt gate instead of activating', async () => {
+  it('4.6: interactive remote opens a prompt gate instead of activating', { timeout: LOAD_TIMEOUT_MS }, async () => {
     const { stdin, lastFrame, unmount, onActivate } = renderGateTest(interactiveRemote);
-    await settle(lastFrame, f => f.includes('status:ready'), 1000);
+    await settle(lastFrame, f => f.includes('status:ready'));
 
     const frame = await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('gate:nas:prompt'));
 
@@ -236,22 +236,26 @@ describe('useRemotesSelection connect-time gate', () => {
     unmount();
   });
 
-  it('4.6: wrong password → auth-failure message, re-prompt, remote stays inactive', async () => {
+  it(
+    '4.6: wrong password → auth-failure message, re-prompt, remote stays inactive',
+    { timeout: LOAD_TIMEOUT_MS },
+    async () => {
+      const { stdin, lastFrame, unmount, onActivate } = renderGateTest(interactiveRemote);
+      await settle(lastFrame, f => f.includes('status:ready'));
+      await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('gate:nas:prompt'));
+
+      apiRef.current!.submit('wrong-pw');
+
+      const frame = await settle(lastFrame, f => f.includes('gate:nas:prompt:auth'));
+      expect(frame).toContain('gate:nas:prompt:auth');
+      expect(onActivate).not.toHaveBeenCalled();
+      unmount();
+    }
+  );
+
+  it('4.6: correct password → onActivate(name, password), gate cleared', { timeout: LOAD_TIMEOUT_MS }, async () => {
     const { stdin, lastFrame, unmount, onActivate } = renderGateTest(interactiveRemote);
-    await settle(lastFrame, f => f.includes('status:ready'), 1000);
-    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('gate:nas:prompt'));
-
-    apiRef.current!.submit('wrong-pw');
-
-    const frame = await settle(lastFrame, f => f.includes('gate:nas:prompt:auth'), 1000);
-    expect(frame).toContain('gate:nas:prompt:auth');
-    expect(onActivate).not.toHaveBeenCalled();
-    unmount();
-  });
-
-  it('4.6: correct password → onActivate(name, password), gate cleared', async () => {
-    const { stdin, lastFrame, unmount, onActivate } = renderGateTest(interactiveRemote);
-    await settle(lastFrame, f => f.includes('status:ready'), 1000);
+    await settle(lastFrame, f => f.includes('status:ready'));
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('gate:nas:prompt'));
 
     apiRef.current!.submit('good-pw');
@@ -262,41 +266,45 @@ describe('useRemotesSelection connect-time gate', () => {
     unmount();
   });
 
-  it('4.6: cancel closes the gate and restores the selection list', async () => {
+  it('4.6: cancel closes the gate and restores the selection list', { timeout: LOAD_TIMEOUT_MS }, async () => {
     const { stdin, lastFrame, unmount, onActivate } = renderGateTest(interactiveRemote);
-    await settle(lastFrame, f => f.includes('status:ready'), 1000);
+    await settle(lastFrame, f => f.includes('status:ready'));
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('gate:nas:prompt'));
 
     apiRef.current!.cancel();
 
-    const frame = await settle(lastFrame, f => f.includes('gate:none') && f.includes('rows:nas,web'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('gate:none') && f.includes('rows:nas,web'));
     expect(frame).toContain('gate:none');
     expect(frame).toContain('rows:nas,web');
     expect(onActivate).not.toHaveBeenCalled();
     unmount();
   });
 
-  it('4.6: getRemote null (remote vanished) → list refreshes, stays on selection', async () => {
-    const { stdin, lastFrame, unmount, list, onActivate } = renderGateTest(null);
-    await settle(lastFrame, f => f.includes('status:ready'), 1000);
+  it(
+    '4.6: getRemote null (remote vanished) → list refreshes, stays on selection',
+    { timeout: LOAD_TIMEOUT_MS },
+    async () => {
+      const { stdin, lastFrame, unmount, list, onActivate } = renderGateTest(null);
+      await settle(lastFrame, f => f.includes('status:ready'));
 
-    await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('status:ready'));
-    await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('status:ready'));
+      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
 
-    await settle(lastFrame, f => f.includes('gate:none') && f.includes('rows:nas,web'), 500);
-    expect(onActivate).not.toHaveBeenCalled();
-    unmount();
-  });
+      await settle(lastFrame, f => f.includes('gate:none') && f.includes('rows:nas,web'), 500);
+      expect(onActivate).not.toHaveBeenCalled();
+      unmount();
+    }
+  );
 
-  it('4.6: no password material ever appears in the rendered frame', async () => {
+  it('4.6: no password material ever appears in the rendered frame', { timeout: LOAD_TIMEOUT_MS }, async () => {
     const secret = 'S3cret!pw-xyz';
     const { stdin, lastFrame, unmount } = renderGateTest(interactiveRemote);
-    await settle(lastFrame, f => f.includes('status:ready'), 1000);
+    await settle(lastFrame, f => f.includes('status:ready'));
     await pressAndSettle(stdin, lastFrame, '\r', f => f.includes('gate:nas:prompt'));
     expect(lastFrame()).not.toContain(secret);
 
     apiRef.current!.submit(secret);
-    await settle(lastFrame, f => f.includes('gate:none'), 1000);
+    await settle(lastFrame, f => f.includes('gate:none'));
 
     expect(lastFrame()).not.toContain(secret);
     unmount();

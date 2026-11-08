@@ -19,7 +19,7 @@ const renderHome = (hasActiveRemote = false) =>
 describe('HomePage', () => {
   it('renders the registry groups and items', async () => {
     const { lastFrame } = renderHome();
-    const frame = await settle(lastFrame, f => f.includes('Local'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Local'));
 
     expect(frame).toContain('Local');
     expect(frame).toContain('Remote');
@@ -32,7 +32,7 @@ describe('HomePage', () => {
 
   it('starts the cursor on the first selectable item (doctor)', async () => {
     const { lastFrame } = renderHome();
-    const frame = await settle(lastFrame, f => f.includes('Local'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Local'));
 
     expect(frame).toContain('❯ doctor');
   });
@@ -41,7 +41,7 @@ describe('HomePage', () => {
     // hasActiveRemote=false: selectable = [doctor, Select, Add, Delete]
     // Two j presses from doctor → Select → Add → wraps back to doctor
     const { stdin, lastFrame } = renderHome(false);
-    await settle(lastFrame, f => f.includes('❯ doctor'), 1000);
+    await settle(lastFrame, f => f.includes('❯ doctor'));
 
     const frame1 = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Select'));
     expect(frame1).toContain('❯ Select');
@@ -59,7 +59,7 @@ describe('HomePage', () => {
   it('shows all items when a remote is active', async () => {
     // All items are always enabled now — no more gated items
     const { stdin, lastFrame } = renderHome(true);
-    await settle(lastFrame, f => f.includes('❯ doctor'), 1000);
+    await settle(lastFrame, f => f.includes('❯ doctor'));
 
     const frame = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Select'));
     expect(frame).toContain('❯ Select');
@@ -67,7 +67,7 @@ describe('HomePage', () => {
 
   it('does not render shell chrome (logo, key hints, version)', async () => {
     const { lastFrame } = renderHome();
-    const frame = await settle(lastFrame, f => f.includes('Local'), 1000);
+    const frame = await settle(lastFrame, f => f.includes('Local'));
 
     expect(frame).not.toContain('███╗');
     expect(frame).not.toContain('quit');
