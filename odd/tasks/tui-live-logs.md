@@ -306,10 +306,16 @@ tests) — over/near the ~400 budget → strategy ask-on-risk at delivery.
   + hook + page + dashboard + shim (T9–T11) and ink-interactions + 15
   test files (T12) — all within the authorized surfaces, odd/ doc
   parent-owned.
-- COMMITS PENDING USER VALIDATION (global rule). Proposed work-unit
-  split at commit time: (1) fix(docker): validate log tail and handle
-  CR-only streams (T9); (2) fix(tui): stop log streams exactly once
-  across ended/keepalive/unmount paths (T10); (3) test(tui): derive
-  chrome rows and harden route test hygiene (T11); (4) test(tui):
-  CI-scaled ink test budgets fixing the connect-gate flake class
-  (T12, closes VEN-1 after CI green ×2).
+- DELIVERED 2026-11-08 (user validated + ordered merge): 5 commits
+  rebased onto #13 (`6061d2d`/`3ec69dd`/`ee1921a`/`4f1caac`/`63f6e67`
+  + bump `0.4.1`), shipped as PR #14 — squash `25bbbb0` on main.
+  Rebase conflict resolved by taking main's pane-lock tests and
+  re-applying the budget policy. CI caught the T12 residual the writer
+  had flagged (heavy hub/logs tests cross vitest's 5s default under
+  CI-scaled budgets) → corrective commit `8dbc70b`: explicit
+  LOAD_TIMEOUT_MS on every RemoteHomePage and LogsPage test + unused
+  import cleanup; verified in CI MODE locally (CI=true, ×3 budgets:
+  118 files / 1117 tests) BEFORE pushing. CI green twice on the PR
+  head (run 42515036769 + rerun) → Linear VEN-1 CLOSED (Done, with
+  evidence comment). Full-suite counts on main now: 118 files / 1117
+  tests.
