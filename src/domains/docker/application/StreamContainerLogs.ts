@@ -40,6 +40,14 @@ export type StreamContainerLogsResult =
 /** Docker-safe container name: starts alphanumeric, then [A-Za-z0-9_.-]. */
 export const CONTAINER_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
 
+/** `--tail` bounds: at least one line, at most docker's own cap (10000 =
+ * all lines). The tail interpolates into the remote command just like the
+ * name, so it is bounded at the same gate, before the port is touched. */
+const MIN_LOG_TAIL = 1;
+const MAX_LOG_TAIL = 10_000;
+
+const isValidTail = (tail: number): boolean => Number.isInteger(tail) && tail >= MIN_LOG_TAIL && tail <= MAX_LOG_TAIL;
+
 /** Use case: stream one container's logs (name validated in-domain first). */
 export class StreamContainerLogs {
   constructor(private readonly streamer: ContainerLogStreamer) {}
@@ -47,6 +55,13 @@ export class StreamContainerLogs {
   async execute(request: { readonly container: string; readonly tail: number }): Promise<StreamContainerLogsResult> {
     if (!CONTAINER_NAME_PATTERN.test(request.container)) {
       return { kind: 'refusal', reason: `invalid container name "${request.container}"` };
+    }
+
+    if (!isValidTail(request.tail)) {
+      return {
+        kind: 'refusal',
+        reason: `invalid tail ${request.tail} (expected an integer from ${MIN_LOG_TAIL} to ${MAX_LOG_TAIL})`,
+      };
     }
 
     try {
