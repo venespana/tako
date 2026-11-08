@@ -126,6 +126,26 @@ keyboard is the TUI's core interaction model.
       branch after this landed (work-unit split, then RDD assess per commit) — commits
       recorded in Review outcome below.
 
+- [x] T8 `review-comments` — user review comments before committing: (a) the hook's
+      render-phase `attempt !== pass` ring reset is replaced by a keyed remount
+      (`LogsPage` renders its session body with `key={attempt}` — fresh state in the same
+      commit, no render-phase setState, no effect-body reset, `attempt` leaves the hook's
+      option surface); (b) `windowSize` extraction evaluated: single consumer today, so an
+      exported pure `visibleRowCount()` in the dashboard module with unit tests instead of
+      a speculative shared helper. Route: delegated writer. Evidence: RED per behavior —
+      C1: after `r` the old code kept painting the DEAD pass's error view (the hook's
+      phase survived the attempt bump; `● connecting` never rendered) → new page test
+      asserts the fresh pass's connecting frame; C2: `visibleRowCount is not a function`
+      ×4 → helper unit tests (fallback 16, floor 10, ceiling 60, mid 26). C1 typecheck RED
+      observed too (`'attempt' does not exist in type 'UseLiveLogsOptions'` ×2). GREEN:
+      1027 tests (113 files); typecheck/lint exit 0 (pre-existing react-plugin config
+      warning only). `LogsSession` extracted to its own file (repo rule: one component
+      per file, `react/no-multi-comp: 'error'` in production). WHY documented in-code:
+      keyed remount over effect-body reset (which paints one commit of the superseded
+      pass's stale ring and adds a render). Commits approved by the user for the whole
+      branch after this landed (work-unit split, then RDD assess per commit) — commits
+      recorded in Review outcome below.
+
 ## Authorized edit surfaces
 
 - `src/domains/docker/application/**` (new stream port/use-case files)
@@ -199,23 +219,97 @@ package.json version bump (repo rule 5).
 
 ## Follow-ups (quarantined review findings — candidates, need user authorization)
 
-- [ ] FU1 (WARNING risk): validate+bound `tail` before it interpolates into the remote
-      command (`StreamContainerLogs`/`RemoteDockerLogsAdapter`).
-- [ ] FU2 (WARNING resilience/reliability): stop() teardown is fire-and-forget and
-      `ManagedLogStream.stop()` can rethrow — await/catch at both call sites.
-- [ ] FU3 (SUGGESTION resilience): on phase `ended` the handle is never stopped — the SSH
-      connection idles open until unmount/`r`; stop it when the remote process exits.
-- [ ] FU4 (SUGGESTION reliability): shim fires a real acquisition with empty remote before
-      the redirect effect; gate the hook on remote !== ''.
-- [ ] FU5 (SUGGESTION reliability): reject zero/negative/non-integer tail at the boundary.
-- [ ] FU6 (SUGGESTION reliability): \r-only sources never emit lines and grow the partial
-      buffer unbounded — flush on \r or cap the buffer.
-- [ ] FU7 (SUGGESTION reliability): keepalive disconnect → hook-exit path has no end-to-end
-      test (only config plumbing asserted).
-- [ ] FU8 (SUGGESTION resilience): CHROME_ROWS=14 invariant is unchecked at runtime; a
-      chrome change silently breaks the no-overflow guarantee.
-- [ ] FU9 (SUGGESTION reliability): route test leaks a rendered instance across store
-      resets — unmount in the test harness.
-- [ ] FU10 (flake class): fixed settle budgets (1000–2000ms) across ink tests are too tight
+- [x] FU1 (WARNING risk): validate+bound `tail` before it interpolates into the remote
+      command (`StreamContainerLogs`/`RemoteDockerLogsAdapter`). → T9
+- [x] FU2 (WARNING resilience/reliability): stop() teardown is fire-and-forget and
+      `ManagedLogStream.stop()` can rethrow — await/catch at both call sites. → T10
+      (single fix point: stop() never rethrows; sites documented, still void-safe)
+- [x] FU3 (SUGGESTION resilience): on phase `ended` the handle is never stopped — the SSH
+      connection idles open until unmount/`r`; stop it when the remote process exits. → T10
+- [x] FU4 (SUGGESTION reliability): shim fires a real acquisition with empty remote before
+      the redirect effect; gate the hook on remote !== ''. → T10 (mount-level guard in
+      LogsPage — equivalent, one line instead of threading a prop)
+- [x] FU5 (SUGGESTION reliability): reject zero/negative/non-integer tail at the boundary. → T9
+- [x] FU6 (SUGGESTION reliability): \r-only sources never emit lines and grow the partial
+      buffer unbounded — flush on \r or cap the buffer. → T9 (both: \r terminator + 8 KiB cap)
+- [x] FU7 (SUGGESTION reliability): keepalive disconnect → hook-exit path has no end-to-end
+      test (only config plumbing asserted). → T10 (real-hook + stubbed-service e2e-path test)
+- [x] FU8 (SUGGESTION resilience): CHROME_ROWS=14 invariant is unchecked at runtime; a
+      chrome change silently breaks the no-overflow guarantee. → T11 (`chromeRowCount()`
+      single source of truth, unit test pins 14)
+- [x] FU9 (SUGGESTION reliability): route test leaks a rendered instance across store
+      resets — unmount in the test harness. → T11
+- [x] FU10 (flake class): fixed settle budgets (1000–2000ms) across ink tests are too tight
       for loaded CI — RemotesMenuPage 4.8 failed in CI and LogsPage r-reconnect flaked once
-      locally; sweep all test files to condition-based budgets with CI-load headroom.
+      locally; sweep all test files to condition-based budgets with CI-load headroom. → T12
+      (ROOT CAUSE found: KEY_FLUSH_MS gated a RETRY — delivered keys echoed after 350ms
+      were re-sent, duplicating chars in the ACK-per-char password flow; all budgets now
+      CI-scaled constants in ink-interactions.ts; 10/10 consecutive green full suites)
+
+## Iteration 2 — FU follow-ups (2026-11-08, user authorized)
+
+The quarantined findings ship as two writer passes on a fresh branch
+`fix/live-logs-review-findings` from `main` (the original work shipped via
+PR #12 / `8342ec6`). Route: delegated direct, one
+writer per pass (trigger: ≥2 non-trivial files per pass); parent owns this
+doc; TDD with RED per behavior. Forecast ≈ 450–600 authored lines (mostly
+tests) — over/near the ~400 budget → strategy ask-on-risk at delivery.
+
+- [x] T9 `fu-command-boundary` (FU1+FU5+FU6) — docker-domain hardening:
+      strict `tail` validation in `StreamContainerLogs` (integer, 1..10000,
+      refusal otherwise — before the port; service default 200 unchanged) and
+      CR handling in `RemoteDockerLogsAdapter` line pipes (lone `\r` is a
+      terminator like `tail -f`; partial buffer capped ~8 KiB flushed as a
+      line). Tests: boundary refusals (0, -1, 1.5, NaN, 10001, '200'),
+      \r-only stream emits lines, \r\n stays one line, oversized partial
+      flushed.
+- [x] T10 `fu-lifecycle` (FU2+FU3+FU4+FU7) — stream lifecycle integrity:
+      `ManagedLogStream.stop()` never rethrows (catch inside, still ends the
+      connection); the hook awaits-and-catches both stop call sites; on
+      `done` resolving `'ended'` the hook stops the handle (connection
+      closes without unmount/r); the `/logs` shim gates the hook on
+      `remote !== ''`; NEW end-to-end-path test: keepalive-style channel
+      close → `done: 'ended'` → hook transitions and stops the handle.
+- [x] T11 `fu-hygiene` (FU8+FU9) — CHROME_ROWS invariant asserted by a unit
+      test deriving the rendered chrome rows (single source of truth for the
+      constant), route-test harness unmounts its rendered instance.
+- [x] T12 `fu-flake-sweep` (FU10, after T9–T11) — sweep ink test timing:
+      condition-based settle with CI headroom in `src/tui/test-utils/
+      ink-interactions.ts`, raise the connect-gate suite budget (VEN-1), no
+      production-code changes. Acceptance mirrors VEN-1: 10 green local
+      full-suite runs; CI green twice.
+
+## Iteration 2 verification evidence (2026-11-08)
+
+- Pass 1 (T9–T11, delegated writer ses_e43937399ffe5XPyo6nthHGB6R): RED
+  observed per slice (6 tail-boundary failures, 4 CR-handling failures,
+  stop-rethrow, ended-path stop=0, empty-remote acquisition, missing
+  chromeRowCount) → GREEN; suite 113 files / 1044 tests (base on this
+  branch was 113/1027 — main's tree; the container-actions numbers
+  118/1100 belong to the unmerged PR #13 branch); typecheck 0; scoped
+  eslint 0. Two writer decisions parent-verified sound: FU4 as a
+  mount-level guard in LogsPage (equivalent to enabled=remote!=='' with
+  less threading) and the ended-path self-stop clearing the local handle
+  (exactly-one-stop-per-pass asserted on both sides of unmount).
+- Pass 2 (T12, delegated writer ses_e43842d99ffecGoi0JjtSHGxfZ): timing
+  policy centralized as CI-scaled constants in ink-interactions.ts
+  (KEY_FLUSH_MS/DEFAULT_SETTLE_MS/CONNECT_TIMEOUT_MS/LOAD_TIMEOUT_MS,
+  ×3 under CI); 15 test files swept to helper defaults; 13 connect-gate
+  tests carry explicit LOAD_TIMEOUT_MS; ROOT CAUSE of the 4.8 CI
+  failure identified and fixed at the source (retry-gated KEY_FLUSH_MS
+  re-sent delivered keys, corrupting ACK-per-char passwords).
+  Acceptance: 10 consecutive green full-suite runs (1044 each, 0
+  failures across runs; logs /tmp/opencode/fu10-runs/); typecheck 0;
+  scoped eslint 0. CI-green-twice pending commit+push (human-gated).
+- Parent spot checks: full suite re-run green after each pass (113/1044
+  + typecheck OK). Delivered surface: 2 domain files + adapter + service
+  + hook + page + dashboard + shim (T9–T11) and ink-interactions + 15
+  test files (T12) — all within the authorized surfaces, odd/ doc
+  parent-owned.
+- COMMITS PENDING USER VALIDATION (global rule). Proposed work-unit
+  split at commit time: (1) fix(docker): validate log tail and handle
+  CR-only streams (T9); (2) fix(tui): stop log streams exactly once
+  across ended/keepalive/unmount paths (T10); (3) test(tui): derive
+  chrome rows and harden route test hygiene (T11); (4) test(tui):
+  CI-scaled ink test budgets fixing the connect-gate flake class
+  (T12, closes VEN-1 after CI green ×2).

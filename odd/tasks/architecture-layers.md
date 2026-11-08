@@ -114,13 +114,20 @@ single-file fix) and removed its own scratch prompt file.
     PENDING native review (committed-only, base e9c9b11).
 - Commit: final piece 3 below; assess vs 5817eca was high_risk/slice_budget (3586 lines).
 
-### Fase 4 — enforcement
-- [ ] F4-T1 eslint zones: shared↖nobody, domains↖cli/tui, application↖infrastructure,
+### Fase 4 — enforcement (DELIVERED — implemented as deliverable E4, commit `7e5520e`, shipped via PR #9 / `b8afefa`)
+- [x] F4-T1 eslint zones: shared↖nobody, domains↖cli/tui, application↖infrastructure,
       FSD layer direction in tui; remove *.test.* globalIgnores → scoped test config.
-- [ ] F4-T2 ADR-0016 whitelist: add src/cli/commands/agent-run.ts.
-- [ ] F4-T3 knip + steiger (devDeps + config + scripts; CI wiring is a later decision).
-- [ ] F4-T4 cli/index.ts --version reads generated version file.
-- [ ] F4-T5 Suite green; audit violations re-scan = zero.
+      (= E4 "13 eslint zones; *.test.* un-blinded, 437 → 0".)
+- [x] F4-T2 ADR-0016 whitelist: add src/cli/commands/agent-run.ts.
+      (= E4 "cli→domains via no-restricted-imports + agent-run off-override".)
+- [x] F4-T3 knip + steiger (devDeps + config + scripts; CI wiring is a later decision).
+      (= E4 "knip + steiger configured as scripts".)
+- [x] F4-T4 cli/index.ts --version reads generated version file.
+      (= E4 "cli --version → generated 0.2.0".)
+- [x] F4-T5 Suite green; audit violations re-scan = zero.
+      (= E4 "18 green runs".) Re-scan 2026-11-08 on the current tree (includes
+      PR #13's new code): knip clean, zone lint green (CI Lint job pass),
+      steiger unchanged at the 2 accepted-debt findings recorded in Backlog.
 
 ## Progress
 - 2026-10-02: branch feature/architecture-layers created (from feature/remote-agent HEAD).
@@ -228,5 +235,8 @@ single-file fix) and removed its own scratch prompt file.
   partially updated).
 
 ## Next step
-E5 Delivery: version bump (repo rule 5), PR architecture-layers → main (optional native
-review of the E3+E4 range first), steiger policy decisions to user.
+CLOSED 2026-11-08 — E5 delivery happened via PR #9 (`b8afefa`, merged to main
+2026-10-14): version bump included, squash-merged, steiger policy findings stayed
+as recorded Backlog. Feature complete: F0–F4 + E0–E5 all delivered. The F4-T1..T5
+checkboxes above were stale (E4 superseded the phase checklist); reconciled
+2026-11-08. Pending decisions live in Backlog, not in this checklist.
