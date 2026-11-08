@@ -358,3 +358,38 @@ each behavior slice, GREEN, then refactor; runner `bun run test`.
 - Delegation incident note: the server restarted mid-delegation (first
   attempt aborted with zero tree changes — verified by grep before
   relaunch); the relaunched same-session writer completed the fix.
+
+## Commits + review-comment refactor (2026-11-08, user request)
+
+User review comment on RemoteHomePage.tsx: move the actions into a hook
+(cleanest code). Delivered in the same writer session:
+
+- `refactor(tui): extract hub action keyboard into useRemoteHomeActions`
+  (95fc743): NEW `model/use-remote-home-actions.ts` owns pane/
+  actionCursor/command state, pane-lock sync + cleanup, the full
+  useKeyBindings block (comments moved verbatim), per-pane hints and
+  selectedContainerId; the page keeps composition/rendering
+  (358 → 176 lines). Two flagged deviations, parent-verified: (1)
+  `onToggleGroup` option (collapse state stays page-owned; space and →
+  reach it through the hook); (2) useMenuList gates on the pane-lock
+  STORE (`!locked ⟺ pane === 'list'`, committed together in
+  lock/unlock/success) to avoid a render-order cycle between the menu
+  cursor and the hook. Tests UNMODIFIED — zero behavior change proven.
+- Writer: focused 4 files / 91 tests, full suite 118 / 1100 (no flakes
+  that run), typecheck 0, scoped eslint 0. Parent spot check: focused
+  91/91 re-run green + store-equivalence verified in source.
+- Writer debugging lesson kept for future extractions: vitest/esbuild
+  never typechecks — a missing import fails as a silent empty frame
+  (Ink swallows the render error); run `tsc --noEmit` BEFORE the test
+  suite when extracting hooks.
+- Commit sequence (work units, all green at each tree):
+  `05e83a6 feat(docker): add container start and restart over SSH`
+  (focused at that tree: 24 files / 267 tests) →
+  `96d7524 feat(tui): hub container action menu with selection lock`
+  (full suite 118 / 1100 observed on the identical tree pre-commit) →
+  `95fc743 refactor(tui): extract hub action keyboard into
+  useRemoteHomeActions` (full suite 118 / 1100, typecheck 0).
+  Pre-commit evidence: the stage alone held the OLD page with the NEW
+  page tests (red tree) — the page was included so every commit is a
+  green work unit. Push/PR remain user decisions; version bump at PR
+  time per ADR-0017.
