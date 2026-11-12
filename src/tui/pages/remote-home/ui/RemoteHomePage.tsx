@@ -23,8 +23,8 @@ import { useMenuList } from '../../../features/menu/index.js';
 import type { ActionItem } from '../../../features/menu/index.js';
 import { usePageHints } from '../../../shared/lib/page-hints-store.js';
 import { usePaneLockStore } from '../../../shared/lib/pane-lock-store.js';
-import { selectableRows } from '../model/remote-home.js';
-import type { InventoryRow } from '../model/remote-home.js';
+import { containerActionsFor, selectableRows } from '../model/remote-home.js';
+import type { ContainerAction, InventoryRow, RemoteHomeView } from '../model/remote-home.js';
 import { useRemoteHomeActions } from '../model/use-remote-home-actions.js';
 import { useRemoteHome } from '../model/use-remote-home.js';
 
@@ -103,7 +103,20 @@ export function RemoteHomePage({ remote, sessionPassword }: RemoteHomePageProps)
   const paneLocked = usePaneLockStore(store => store.locked);
   const { cursor } = useMenuList({ selectable: items, onSelect: selectRow }, state.phase === 'ok' && !paneLocked);
 
-  const actions = state.phase === 'ok' ? state.view.actions : [];
+  // The ACTIONS surface is per STATUS (T2-container-stop): the focused
+  // container's own list — stop is offered only for running/paused; group
+  // rows (and the pre-walk frames) get the base list. The SAME array feeds
+  // the actions hook and the dashboard's view, so the action cursor and the
+  // rendered ACTIONS rows can never disagree.
+  const focusedRow = walk[cursor];
+  const actions = useMemo<ContainerAction[]>(
+    () => containerActionsFor(focusedRow?.kind === 'container' ? focusedRow.container.status : undefined),
+    [focusedRow]
+  );
+  const view = useMemo<RemoteHomeView | undefined>(
+    () => (state.phase === 'ok' ? { ...state.view, actions } : undefined),
+    [state, actions]
+  );
 
   // The ACTIONS surface (selection lock, action cursor, command feedback,
   // pane keyboard, footer hints) — one model-layer hook; the page only
@@ -159,14 +172,14 @@ export function RemoteHomePage({ remote, sessionPassword }: RemoteHomePageProps)
       <Divider />
 
       {state.phase === 'loading' && <RemoteHomeLoading remote={remote} />}
-      {state.phase === 'ok' && (
+      {state.phase === 'ok' && view !== undefined && (
         <RemoteHomeDashboard
           actionCursor={model.pane === 'actions' ? model.actionCursor : undefined}
           collapsedIds={collapsedIds}
           command={model.command}
           cursor={cursor}
           selectedContainerId={model.selectedContainerId}
-          view={state.view}
+          view={view}
         />
       )}
       {state.phase === 'empty' && <RemoteHomeEmpty remote={remote} />}

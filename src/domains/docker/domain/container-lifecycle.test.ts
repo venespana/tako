@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { CONTAINER_LIFECYCLE_OPS, isContainerLifecycleOp, isValidContainerName } from './container-lifecycle.js';
 
 describe('CONTAINER_LIFECYCLE_OPS — closed union', () => {
-  it('admits exactly start and restart, in canonical order', () => {
-    expect(CONTAINER_LIFECYCLE_OPS).toEqual(['start', 'restart']);
+  it('admits exactly start, restart, and stop, in canonical order', () => {
+    expect(CONTAINER_LIFECYCLE_OPS).toEqual(['start', 'restart', 'stop']);
   });
 });
 
@@ -18,8 +18,12 @@ describe('isContainerLifecycleOp', () => {
     expect(CONTAINER_LIFECYCLE_OPS.every(op => isContainerLifecycleOp(op))).toBe(true);
   });
 
+  it('accepts stop (T2-container-stop)', () => {
+    expect(isContainerLifecycleOp('stop')).toBe(true);
+  });
+
   it('refuses stack ops, other container verbs, and non-strings', () => {
-    const rejects = ['up', 'down', 'pull', 'stop', 'kill', 'pause', '', 'Start', 42, null, undefined, {}];
+    const rejects = ['up', 'down', 'pull', 'kill', 'pause', '', 'Start', 42, null, undefined, {}];
 
     expect(rejects.every(value => !isContainerLifecycleOp(value))).toBe(true);
   });

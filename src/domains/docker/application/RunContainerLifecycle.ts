@@ -1,5 +1,6 @@
-// RunContainerLifecycle.ts — use case: container start/restart via a port
-// (iteration 3 of tui-remote-home-screen)
+// RunContainerLifecycle.ts — use case: one container lifecycle op (start,
+// restart, stop) via a port (iteration 3 of tui-remote-home-screen; stop by
+// T2-container-stop)
 //
 // Validates op and container name IN-DOMAIN BEFORE the port is touched: a
 // rejected input is a refusal object and the runner is never called, so no
@@ -31,7 +32,7 @@ export interface ContainerLifecycleRunner {
 export type RunContainerLifecycleResult =
   { readonly kind: 'ok' } | { readonly kind: 'refusal'; readonly reason: string };
 
-/** Use case: start or restart one docker container. */
+/** Use case: run one lifecycle op (start, restart, or stop) on a docker container. */
 export class RunContainerLifecycle {
   private readonly runner: ContainerLifecycleRunner;
 
