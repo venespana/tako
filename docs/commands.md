@@ -11,7 +11,7 @@ tako install                      # bootstrap remote host
 tako update [--host X]            # self-update or host update
 tako remote add                   # add remote (interactive wizard)
 tako remotes <list|rm|use|test>
-tako status --host <remote>       # non-interactive table (REQUIRED --host for now)
+tako status [--containers] --host <remote>  # non-interactive table (REQUIRED --host for now)
 tako logs <stack> [--host X] [-f]
 tako cleanup [--host X]           # safe prune
 tako rollback <stack> [--to <tag>]
@@ -69,21 +69,35 @@ Connection management (remaining subcommands):
 - `use <name>`: sets the active remote.
 - `test <name>`: tests the connection.
 
-### `tako status --host <remote>`
+### `tako status [--containers] --host <remote>`
 
 Non-interactive table with stack status. For scripts/cron. `--host` is REQUIRED
 for now — it names a configured remote (`tako remote add`); it becomes optional
 once a default remote (`remotes use`) exists.
 
-Runs `docker compose ls --format json` on the remote over SSH (read-only).
-Exit codes: `0` ok (an empty listing prints `no compose stacks found`); `1`
-refused or invalid usage — unknown remote, refused connection, missing compose
-on the host, absent `--host` — with the reason on stderr; `2` unexpected failure.
+By default it runs `docker compose ls --format json` on the remote over SSH
+(read-only). With `--containers` (ADR 0021) it runs `docker ps -a --format
+'{{json .}}'` instead and prints one line per container — name, state, and
+health (`-` when the container defines no healthcheck) — plus a count line.
+Health is auxiliary metadata: docker versions or containers without a usable
+health field simply show `-`; the strict refusal discipline covers the core
+fields only.
+
+Exit codes (both modes): `0` ok (an empty listing prints `no compose stacks
+found`, or `no containers found` with `--containers`); `1` refused or invalid
+usage — unknown remote, refused connection, missing docker/compose on the
+host, absent `--host` — with the reason on stderr; `2` unexpected failure.
 
 ```console
 $ tako status --host nas
 NAME   STATUS  CONFIG FILES
 media  up      /srv/media/compose.yml
+
+$ tako status --containers --host nas
+NAME           STATE    HEALTH
+media-web-1    running  healthy
+media-db-1     exited   -
+2 containers
 ```
 
 ### `tako logs <stack> [--host X] [-f]`

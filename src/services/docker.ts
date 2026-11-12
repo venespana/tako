@@ -37,7 +37,7 @@ export type {
   StackLifecycleReport,
 } from '../domains/docker/domain/types.js';
 export type { ContainerLifecycleOp } from '../domains/docker/domain/container-lifecycle.js';
-export type { ContainerSnapshot } from '../domains/docker/domain/container-status.js';
+export type { ContainerSnapshot, ContainerHealth } from '../domains/docker/domain/container-status.js';
 export type { StackStatusEntry } from '../domains/docker/domain/stack-status.js';
 export type { ContainerLogStreamHandle } from '../domains/docker/application/StreamContainerLogs.js';
 export type { StackLogStreamHandle } from '../domains/docker/application/StreamStackLogs.js';

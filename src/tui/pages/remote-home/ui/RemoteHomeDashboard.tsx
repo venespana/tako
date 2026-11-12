@@ -15,7 +15,7 @@ import { STATUS_COLOR, DetailPanel } from './DetailPanel.js';
 import { Divider } from './Divider.js';
 import { theme } from '../../../shared/ui/theme.js';
 import { buildInventoryRows, groupSummary, selectableRows } from '../model/remote-home.js';
-import type { ContainerCommand, RemoteHomeView, ServiceGroup } from '../model/remote-home.js';
+import type { ContainerCommand, ContainerHealth, RemoteHomeView, ServiceGroup } from '../model/remote-home.js';
 
 export interface RemoteHomeDashboardProps {
   /** The grouped view of the fetched containers. */
@@ -43,6 +43,14 @@ function uniformPaused(group: ServiceGroup): boolean {
 
   return nonRunning.length > 0 && nonRunning.every(container => container.status === 'paused');
 }
+
+/** Health badge palette (T3-health-status): the STATUS_COLOR lights applied
+ * to healthcheck outcomes; rendered as a dim-colored word after the name. */
+const HEALTH_COLOR: Record<ContainerHealth, string> = {
+  healthy: STATUS_COLOR.running,
+  unhealthy: STATUS_COLOR.exited,
+  starting: STATUS_COLOR.paused,
+};
 
 export function RemoteHomeDashboard({
   view,
@@ -127,6 +135,12 @@ export function RemoteHomeDashboard({
               <Text color={row.container.id === selectedContainerId ? theme.cursorColor : undefined}>
                 {row.container.name}
               </Text>
+              {row.container.health !== undefined && row.container.health !== null && (
+                <>
+                  {` `}
+                  <Text color={HEALTH_COLOR[row.container.health]}>{row.container.health}</Text>
+                </>
+              )}
             </Text>
           );
         })}

@@ -32,8 +32,8 @@ vi.mock('../../../../services/docker.js', async importOriginal => {
 type LifecycleOutcome = Awaited<ReturnType<typeof runContainerLifecycle>>;
 
 const CONTAINERS: ContainerSnapshot[] = [
-  { id: '1', name: 'grafana', state: 'running', composeProject: 'monitoring' },
-  { id: '2', name: 'portainer', state: 'exited', composeProject: null },
+  { id: '1', name: 'grafana', state: 'running', composeProject: 'monitoring', health: null },
+  { id: '2', name: 'portainer', state: 'exited', composeProject: null, health: null },
 ];
 
 /** The page's own derivation: the walk plus the focused row's ACTIONS list. */

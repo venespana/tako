@@ -36,11 +36,19 @@ vi.mock('../../../../services/docker.js', async importOriginal => {
 // View after the model: monitoring (grafana, prometheus), proxy (caddy),
 // Others (portainer, restic) — Others LAST; totals 5/3.
 const CONTAINERS: ContainerSnapshot[] = [
-  { id: 'prometheus-id', name: 'prometheus', state: 'running', composeProject: 'monitoring' },
-  { id: 'grafana-id', name: 'grafana', state: 'exited', composeProject: 'monitoring' },
-  { id: 'caddy-id', name: 'caddy', state: 'running', composeProject: 'proxy' },
-  { id: 'portainer-id', name: 'portainer', state: 'running', composeProject: null },
-  { id: 'restic-id', name: 'restic', state: 'paused', composeProject: null },
+  { id: 'prometheus-id', name: 'prometheus', state: 'running', composeProject: 'monitoring', health: null },
+  { id: 'grafana-id', name: 'grafana', state: 'exited', composeProject: 'monitoring', health: null },
+  { id: 'caddy-id', name: 'caddy', state: 'running', composeProject: 'proxy', health: null },
+  { id: 'portainer-id', name: 'portainer', state: 'running', composeProject: null, health: null },
+  { id: 'restic-id', name: 'restic', state: 'paused', composeProject: null, health: null },
+];
+
+/** One healthy and one unhealthy container, for the health-badge tests. */
+const HEALTH_CONTAINERS: ContainerSnapshot[] = [
+  { id: 'web-id', name: 'web', state: 'running', composeProject: 'media', health: 'healthy' },
+  { id: 'db-id', name: 'db', state: 'running', composeProject: 'media', health: 'unhealthy' },
+  { id: 'queue-id', name: 'queue', state: 'running', composeProject: 'media', health: 'starting' },
+  { id: 'bare-id', name: 'bare', state: 'running', composeProject: 'media', health: null },
 ];
 
 type ContainersOutcome = Awaited<ReturnType<typeof getContainers>>;
@@ -384,7 +392,7 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
     stubContainers({
       result: {
         kind: 'ok',
-        containers: [{ id: 'odd-1', name: 'app_2.cache-1', state: 'running', composeProject: 'proxy' }],
+        containers: [{ id: 'odd-1', name: 'app_2.cache-1', state: 'running', composeProject: 'proxy', health: null }],
       },
     });
     const { lastFrame, stdin } = renderPage();
@@ -450,9 +458,9 @@ describe('RemoteHomePage — collapsible groups (space)', () => {
         result: {
           kind: 'ok',
           containers: [
-            { id: 'backup-1', name: 'backup-1', state: 'exited', composeProject: 'backup' },
-            { id: 'backup-2', name: 'backup-2', state: 'exited', composeProject: 'backup' },
-            { id: 'caddy-id', name: 'caddy', state: 'running', composeProject: 'proxy' },
+            { id: 'backup-1', name: 'backup-1', state: 'exited', composeProject: 'backup', health: null },
+            { id: 'backup-2', name: 'backup-2', state: 'exited', composeProject: 'backup', health: null },
+            { id: 'caddy-id', name: 'caddy', state: 'running', composeProject: 'proxy', health: null },
           ],
         },
       });
@@ -603,6 +611,37 @@ describe('RemoteHomePage — states', () => {
     expect(error).toContain('docker ps line 1 is not valid JSON');
     expect(error).toContain('Check that the host is reachable.');
   });
+});
+
+describe('RemoteHomePage — health badges (T3-health-status)', () => {
+  it(
+    'shows the health badge next to the status light on container rows with a healthcheck',
+    { timeout: LOAD_TIMEOUT_MS },
+    async () => {
+      stubContainers({ result: { kind: 'ok', containers: HEALTH_CONTAINERS } });
+      const { lastFrame } = renderPage();
+
+      const frame = await settle(lastFrame, f => f.includes('healthy'));
+
+      expect(frame).toContain('healthy');
+      expect(frame).toContain('unhealthy');
+      expect(frame).toContain('starting');
+    }
+  );
+
+  it(
+    'shows NO health text for a container without a healthcheck (health null)',
+    { timeout: LOAD_TIMEOUT_MS },
+    async () => {
+      stubContainers({ result: { kind: 'ok', containers: [HEALTH_CONTAINERS[3]!] } });
+      const { lastFrame } = renderPage();
+
+      const frame = await settle(lastFrame, f => f.includes('containers ·'));
+
+      expect(frame).toContain('bare');
+      expect(frame).not.toContain('healthy');
+    }
+  );
 });
 
 describe('RemoteHomePage — container selection lock (iteration 3)', () => {

@@ -13,9 +13,29 @@ the project workflow. ODD (`odd/tasks/*.md`) is the only planning/tracking mecha
 
 ## Tasks
 
-- [ ] RA-001 — Real-world validation on an actual homelab server. This was the only
+- [x] RA-001 — Real-world validation on an actual homelab server. This was the only
       gate keeping the change from being marked archive-ready
       (`verify-report.md:81-83`).
+      - **2026-11-12, FULLY VALIDATED on the user's local machine**
+        (remote `local` = venespana@127.0.0.1:22, the alternate T4 target the
+        user chose while the homeServer is offline), agent v0.7.0:
+        1. `agent install local` — full pipeline: preflight (x64, systemd
+           --user, compose v2, linger disabled→enabled), binary at
+           `~/.tako/tako` (sha256 dc68b0062df9…), `tako-agent.service`
+           started, survive-disconnect probe **passed**.
+        2. `agent status` — active / linger enabled / agent 0.7.0 = client
+           0.7.0 / protocol v1 / handshake ok.
+        3. Idempotent reinstall — same sha256, linger "already enabled —
+           kept as-is (not recorded as Tako-enabled)", service restarted
+           for the fresh binary, probe passed.
+        4. Uninstall — unit stopped+disabled, unit file removed, systemd
+           reloaded, linger kept ENABLED (only-by-tako rule never guessed),
+           residue check on independent connection: clean. Ground truth:
+           no `~/.tako/`, unit not-found.
+        5. Reinstall after uninstall — pipeline green again, status active,
+           handshake ok.
+        Residual (optional, out of MVP): re-validate on the homeServer once
+        its SSD is replaced.
 - [ ] RA-002 — Native arm64 e2e validation (task 8.15, test already written:
       `tests/e2e/agent-arm64.e2e.ts`). Requires a native arm64 runner; gated by
       `TAKO_E2E_ARM64=1` + `TAKO_E2E_BINARY`.

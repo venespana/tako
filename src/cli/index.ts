@@ -74,6 +74,7 @@ export function buildProgram(): Command {
     .command('status')
     .description('Show the compose stack status of one remote over SSH (non-interactive)')
     .option('--host <name>', 'configured remote name (required — no default-remote fallback yet)')
+    .option('--containers', 'per-container table (name, state, health) instead of the compose stack listing')
     .action(async (options: StatusFlags) => {
       try {
         // Lazy import to defer Ink/React loading (required for compile)

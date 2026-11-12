@@ -4,7 +4,10 @@
 // bucket kept last), maps docker states onto the design's three lights, and
 // computes the section totals from the collection (never hand-maintained)
 // so the meta can never drift from the rendered rows. No React, no I/O.
-import type { ContainerSnapshot } from '../../../../services/docker.js';
+import type { ContainerHealth, ContainerSnapshot } from '../../../../services/docker.js';
+
+/** Re-exported for the page's UI layer (the health badge palette key). */
+export type { ContainerHealth };
 
 export type ContainerStatus = 'running' | 'exited' | 'paused';
 
@@ -13,6 +16,9 @@ export interface ContainerEntry {
   id: string;
   name: string;
   status: ContainerStatus;
+  /** Healthcheck outcome; undefined when the container has no healthcheck
+   * (or the field was foreign) — nothing renders for it. */
+  health?: ContainerHealth | null;
 }
 
 /** A service group: one compose project's stack, or the ad-hoc "Others"
@@ -149,6 +155,7 @@ export function toServiceGroups(containers: readonly ContainerSnapshot[]): Servi
       id: snapshot.id,
       name: snapshot.name,
       status: toContainerStatus(snapshot.state),
+      health: snapshot.health ?? undefined,
     };
 
     if (snapshot.composeProject === null) {

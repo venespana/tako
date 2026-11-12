@@ -217,6 +217,20 @@ describe('services/docker — getContainers', () => {
     expect(managerEnd).toHaveBeenCalledTimes(1);
   });
 
+  it('passes a container snapshot carrying health through untouched (T3-health-status)', async () => {
+    const container = { id: 'a', name: 'web', state: 'running', composeProject: 'proxy', health: 'healthy' };
+    const outcome = { kind: 'ok', containers: [container] };
+    resolveRemoteAuthMock.mockResolvedValue(RESOLVED);
+    executeGetContainers.mockResolvedValue(outcome);
+
+    const result = await getContainers({ remote: 'nas' });
+
+    if (result.kind !== 'ok') throw new Error('expected ok');
+
+    expect(result.containers[0]?.health).toBe('healthy');
+    expect(result.containers[0]).toBe(container);
+  });
+
   it('maps unknown-remote without opening any connection', async () => {
     resolveRemoteAuthMock.mockResolvedValue({ kind: 'unknown-remote', reason: 'unknown remote "nope"' });
 

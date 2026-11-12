@@ -24,6 +24,7 @@ const snapshot = (name: string, overrides: Partial<ContainerSnapshot> = {}): Con
   name,
   state: 'running',
   composeProject: null,
+  health: null,
   ...overrides,
 });
 
@@ -98,6 +99,28 @@ describe('toServiceGroups — status mapping (the design’s three lights)', () 
       'exited',
       'exited',
     ]);
+  });
+});
+
+describe('toServiceGroups — health threading (T3-health-status)', () => {
+  it('carries the snapshot health onto each container entry', () => {
+    const groups = toServiceGroups([
+      snapshot('healthy-web', { id: '1', composeProject: 'media', health: 'healthy' }),
+      snapshot('starting-db', { id: '2', composeProject: 'media', health: 'starting' }),
+      snapshot('unhealthy-api', { id: '3', state: 'running', composeProject: 'media', health: 'unhealthy' }),
+    ]);
+
+    const byName = new Map(groups[0]!.containers.map(container => [container.name, container.health]));
+
+    expect(byName.get('healthy-web')).toBe('healthy');
+    expect(byName.get('starting-db')).toBe('starting');
+    expect(byName.get('unhealthy-api')).toBe('unhealthy');
+  });
+
+  it('carries health null (no healthcheck) through as undefined — nothing to render', () => {
+    const groups = toServiceGroups([snapshot('no-check', { id: '1', composeProject: 'media', health: null })]);
+
+    expect(groups[0]!.containers[0]!.health).toBeUndefined();
   });
 });
 
