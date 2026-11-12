@@ -14,6 +14,8 @@ import { RunPrune } from '../domains/docker/application/RunPrune.js';
 import { RunStackLifecycle } from '../domains/docker/application/RunStackLifecycle.js';
 import { StreamContainerLogs } from '../domains/docker/application/StreamContainerLogs.js';
 import type { ContainerLogStreamHandle } from '../domains/docker/application/StreamContainerLogs.js';
+import { StreamStackLogs } from '../domains/docker/application/StreamStackLogs.js';
+import type { StackLogStreamHandle } from '../domains/docker/application/StreamStackLogs.js';
 import type { ContainerLifecycleOp } from '../domains/docker/domain/container-lifecycle.js';
 import type { ContainerSnapshot } from '../domains/docker/domain/container-status.js';
 import type { StackStatusEntry } from '../domains/docker/domain/stack-status.js';
@@ -38,6 +40,7 @@ export type { ContainerLifecycleOp } from '../domains/docker/domain/container-li
 export type { ContainerSnapshot } from '../domains/docker/domain/container-status.js';
 export type { StackStatusEntry } from '../domains/docker/domain/stack-status.js';
 export type { ContainerLogStreamHandle } from '../domains/docker/application/StreamContainerLogs.js';
+export type { StackLogStreamHandle } from '../domains/docker/application/StreamStackLogs.js';
 
 /** One compose stack lifecycle operation (validated in-domain before anything runs). */
 export function runStackLifecycle(request: {
@@ -218,11 +221,27 @@ const DEFAULT_LOG_TAIL = 200;
  * this function call, so the connection closes exactly when the caller
  * stops the handle.
  */
+/** A handle that reports the remote command's exit status (compose logs,
+ * R3). Optional read: the container path's handles carry no exit status. */
+interface RemoteExitAwareHandle {
+  readonly remoteExitCode: number | null;
+  readonly stderrTail: string;
+}
+
 class ManagedLogStream implements ContainerLogStreamHandle {
+  private readonly exitStatus: RemoteExitAwareHandle | undefined;
+
   constructor(
     private readonly inner: ContainerLogStreamHandle,
     private readonly connection: { end(): Promise<void> }
-  ) {}
+  ) {
+    // Forward the inner handle's exit observability when it reports one
+    // (compose logs R3): without this forwarding, the CLI's exit-code
+    // mapping dies exactly at this wrapper and a failing remote command
+    // reads as success. The container path's handles carry no exit status
+    // and keep working (the getters read undefined).
+    this.exitStatus = 'remoteExitCode' in inner && 'stderrTail' in inner ? (inner as RemoteExitAwareHandle) : undefined;
+  }
 
   get lines(): AsyncIterable<string> {
     return this.inner.lines;
@@ -230,6 +249,17 @@ class ManagedLogStream implements ContainerLogStreamHandle {
 
   get done(): Promise<'stopped' | 'ended'> {
     return this.inner.done;
+  }
+
+  /** The remote command's exit code once `done` settled 'ended'; undefined
+   * when the inner handle reports no exit status (container path). */
+  get remoteExitCode(): number | null | undefined {
+    return this.exitStatus?.remoteExitCode;
+  }
+
+  /** The last characters of remote stderr, for refusal reasons (compose logs R3). */
+  get stderrTail(): string | undefined {
+    return this.exitStatus?.stderrTail;
   }
 
   async stop(): Promise<void> {
@@ -273,6 +303,53 @@ export async function streamContainerLogs(request: {
   const result = await new StreamContainerLogs(new RemoteDockerLogsAdapter(manager)).execute({
     container: request.container,
     tail: request.tail ?? DEFAULT_LOG_TAIL,
+  });
+
+  if (result.kind !== 'ok') {
+    await manager.end();
+    return result;
+  }
+
+  return { kind: 'ok', stream: new ManagedLogStream(result.stream, manager) };
+}
+
+// ---------------------------------------------------------------------------
+// Live stack (compose) log streaming over SSH (T1-cli-logs)
+// ---------------------------------------------------------------------------
+
+/** Outcome of one stack log-stream acquisition (refusal-object style: expected outcomes never throw). */
+export type StreamStackLogsOutcome =
+  | { readonly kind: 'ok'; readonly stream: StackLogStreamHandle }
+  | { readonly kind: 'unknown-remote'; readonly reason: string }
+  | { readonly kind: 'refusal'; readonly reason: string };
+
+/**
+ * Follow one compose stack's logs on a configured remote, over SSH. Same
+ * discipline as {@link streamContainerLogs}: the remote resolves FRESH per
+ * call, the SSH wiring stays private and LAZY, and the returned handle
+ * owns the connection — `stop()` ends channel AND connection. The stack
+ * name is validated in-domain BEFORE any command string is built
+ * (StreamStackLogs), so a hostile name never reaches the remote shell.
+ */
+export async function streamStackLogs(request: {
+  readonly remote: string;
+  readonly sessionPassword?: string;
+  readonly stack: string;
+  readonly follow: boolean;
+}): Promise<StreamStackLogsOutcome> {
+  const resolution = await resolveRemoteAuth(request.remote, request.sessionPassword);
+
+  if (resolution.kind === 'unknown-remote') return { kind: 'unknown-remote', reason: resolution.reason };
+
+  if (resolution.kind === 'refusal') return { kind: 'refusal', reason: resolution.reason };
+
+  const { RemoteComposeLogsAdapter } = await import('../domains/docker/infrastructure/RemoteComposeLogsAdapter.js');
+  const { SshConnectionManager } = await import('../domains/remotes/infrastructure/SshConnectionManager.js');
+
+  const manager = new SshConnectionManager(toConnectConfig(resolution.remote, resolution.auth));
+  const result = await new StreamStackLogs(new RemoteComposeLogsAdapter(manager)).execute({
+    stack: request.stack,
+    follow: request.follow,
   });
 
   if (result.kind !== 'ok') {
