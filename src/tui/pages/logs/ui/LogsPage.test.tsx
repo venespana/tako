@@ -19,7 +19,7 @@ import { LogsPage } from './LogsPage.js';
 import type { ContainerLogStreamHandle, StreamContainerLogsOutcome } from '../../../../services/docker.js';
 import { streamContainerLogs } from '../../../../services/docker.js';
 import { usePageHintsStore } from '../../../shared/lib/page-hints-store.js';
-import { LOAD_TIMEOUT_MS, settle } from '../../../test-utils/ink-interactions.js';
+import { KEY_FLUSH_MS, LOAD_TIMEOUT_MS, pressAndSettle, settle, wait } from '../../../test-utils/ink-interactions.js';
 
 vi.mock('../../../../services/docker.js', async importOriginal => {
   // Spread the REAL module so the re-exported contract types keep working;
@@ -99,8 +99,6 @@ function FooterSpy(): React.ReactElement {
 
   return <Text>footer:[{hints.map(hint => `${hint.key} ${hint.label}`).join(' · ')}]</Text>;
 }
-
-const flush = () => new Promise(resolve => setTimeout(resolve, 100));
 
 describe('LogsPage — dashboard', () => {
   beforeEach(() => {
@@ -210,7 +208,11 @@ describe('LogsPage — r reconnect and footer hints (T4)', () => {
 
     stdin.write('r');
 
-    const frame = await settle(lastFrame, f => f.includes('recovered line'));
+    // Condition-based with the shared retry: a slow CI runner can drop the
+    // key or process it late; a re-press while a command runs is inert
+    // (re-entry guard), so the retry is safe. The acquisition count is
+    // asserted only AFTER the recovered frame proves the key landed.
+    const frame = await pressAndSettle(stdin, lastFrame, 'r', f => f.includes('recovered line'));
     expect(vi.mocked(streamContainerLogs)).toHaveBeenCalledTimes(2);
     expect(frame).toContain('● streaming');
     unmount();
@@ -238,7 +240,13 @@ describe('LogsPage — r reconnect and footer hints (T4)', () => {
       expect(lastFrame()).toContain('connection dropped');
 
       stdin.write('r');
-      await flush();
+
+      // Condition-based proof that the key landed and the remount happened
+      // (a fixed 100ms flush raced the whole block on slow CI runners). The
+      // fresh pass paints '● connecting' AFTER the superseded handle was
+      // stopped exactly once and the second acquisition started — so the
+      // count assertions below are post-processing, never pre-key races.
+      const fresh = await pressAndSettle(stdin, lastFrame, 'r', f => f.includes('● connecting'));
 
       // The keyed remount stopped the superseded pass's handle exactly once
       // and started the fresh acquisition.
@@ -247,8 +255,6 @@ describe('LogsPage — r reconnect and footer hints (T4)', () => {
 
       // The fresh pass renders as CONNECTING with an EMPTY ring — the dead
       // pass's error view and its stale tail are gone in the same commit.
-      const fresh = await settle(lastFrame, f => f.includes('● connecting'));
-
       expect(fresh).toContain('● connecting');
       expect(fresh).not.toContain('✖ Unable to stream logs');
       expect(fresh).not.toContain('stale-line');
@@ -275,7 +281,10 @@ describe('LogsPage — r reconnect and footer hints (T4)', () => {
       expect(vi.mocked(streamContainerLogs)).toHaveBeenCalledTimes(1);
 
       stdin.write('r');
-      await flush();
+      // Inert action: no frame change to settle on. Give Ink the SCALED key
+      // window (KEY_FLUSH_MS) so a slow-but-delivered key is fully processed
+      // before counting calls — 100ms fixed waits misclassify it on CI.
+      await wait(KEY_FLUSH_MS);
 
       expect(vi.mocked(streamContainerLogs)).toHaveBeenCalledTimes(1);
       expect(handle.stop).not.toHaveBeenCalled();
