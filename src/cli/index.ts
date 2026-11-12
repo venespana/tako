@@ -3,6 +3,7 @@
 
 import { Command } from 'commander';
 
+import type { LogsFlags } from './commands/logs.js';
 import type { RemoteAddFlags } from './commands/remote-add.js';
 import type { StatusFlags } from './commands/status.js';
 import { SESSION_PASSWORD_ENV } from '../shared/lib/session-password.js';
@@ -78,6 +79,26 @@ export function buildProgram(): Command {
         // Lazy import to defer Ink/React loading (required for compile)
         const { runStatus } = await import('./commands/status.js');
         process.exit(await runStatus(options, { log: console.log, error: console.error }));
+      } catch (err) {
+        console.error(err);
+        process.exit(2);
+      }
+    });
+
+  // Stack logs over SSH — `docker compose logs` without opening the TUI.
+  program
+    .command('logs')
+    .description("Show a compose stack's logs on a remote over SSH (non-interactive; -f to follow)")
+    .argument('<stack>', 'compose project (stack) name')
+    .option('--host <name>', 'configured remote name (required — no default-remote fallback yet)')
+    .option('-f, --follow', 'follow the log output live (Ctrl-C to stop)')
+    .action(async (stack: string, options: LogsFlags) => {
+      try {
+        // Lazy import to defer Ink/React loading (required for compile).
+        // runLogs awaits every stdout write callback before returning (R4),
+        // so this exit can never truncate already-printed piped output.
+        const { runLogs } = await import('./commands/logs.js');
+        process.exit(await runLogs(stack, options, { log: console.log, error: console.error }));
       } catch (err) {
         console.error(err);
         process.exit(2);

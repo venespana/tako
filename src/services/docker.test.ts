@@ -10,6 +10,7 @@ import {
   getStackStatus,
   getContainers,
   streamContainerLogs,
+  streamStackLogs,
   runContainerLifecycle,
 } from './docker.js';
 import { GetContainers } from '../domains/docker/application/GetContainers.js';
@@ -94,7 +95,12 @@ vi.mock('../domains/remotes/infrastructure/SshConnectionManager.js', () => ({
 vi.mock('../domains/remotes/infrastructure/SshRemoteCommandRunner.js', () => ({
   SshRemoteCommandRunner: vi.fn(),
 }));
-
+const composeStreamFake = vi.hoisted(() => vi.fn());
+vi.mock('../domains/docker/infrastructure/RemoteComposeLogsAdapter.js', () => ({
+  RemoteComposeLogsAdapter: vi.fn(function () {
+    return { stream: composeStreamFake };
+  }),
+}));
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -428,5 +434,77 @@ describe('services/docker — streamContainerLogs (tui-live-logs T1)', () => {
     await streamContainerLogs({ remote: 'nope', container: 'web-1' });
 
     expect(StreamContainerLogs).not.toHaveBeenCalled();
+  });
+});
+
+describe('services/docker — streamStackLogs keeps R3 exit observability through the wrapper', () => {
+  const RESOLVED = {
+    kind: 'resolved',
+    remote: { host: '10.0.0.5', port: 22, username: 'ops' },
+    auth: { kind: 'password', password: 'pw' },
+  } as const;
+
+  function bareHandle(): ContainerLogStreamHandle {
+    return {
+      lines: {
+        [Symbol.asyncIterator]: () => ({
+          next: async (): Promise<IteratorResult<string>> => ({ value: undefined, done: true }),
+        }),
+      },
+      stop: vi.fn(async () => {}),
+      done: Promise.resolve('ended'),
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('forwards the inner handle’s remote exit status and stderr tail through ManagedLogStream', async () => {
+    resolveRemoteAuthMock.mockResolvedValue(RESOLVED);
+    composeStreamFake.mockResolvedValue({
+      ...bareHandle(),
+      remoteExitCode: 1,
+      stderrTail: 'no configuration file found: media',
+    });
+
+    const outcome = await streamStackLogs({ remote: 'nas', stack: 'media', follow: false });
+
+    if (outcome.kind !== 'ok') throw new Error(`expected ok, got ${outcome.kind}: ${outcome.reason}`);
+
+    await expect(outcome.stream.done).resolves.toBe('ended');
+
+    const observable = outcome.stream as ContainerLogStreamHandle & {
+      remoteExitCode?: number | null;
+      stderrTail?: string;
+    };
+    expect(observable.remoteExitCode).toBe(1);
+    expect(observable.stderrTail).toContain('no configuration file found');
+  });
+
+  it('reads undefined (never a fake exit code) when the inner handle reports no exit status', async () => {
+    resolveRemoteAuthMock.mockResolvedValue(RESOLVED);
+    composeStreamFake.mockResolvedValue(bareHandle());
+
+    const outcome = await streamStackLogs({ remote: 'nas', stack: 'media', follow: false });
+
+    if (outcome.kind !== 'ok') throw new Error(`expected ok, got ${outcome.kind}: ${outcome.reason}`);
+
+    const observable = outcome.stream as ContainerLogStreamHandle & {
+      remoteExitCode?: number | null;
+    };
+    expect(observable.remoteExitCode).toBeUndefined();
+  });
+
+  it('refuses a missing session password before any connection exists', async () => {
+    resolveRemoteAuthMock.mockResolvedValue({ kind: 'refusal', reason: 'no session password' });
+    composeStreamFake.mockResolvedValue(bareHandle());
+
+    await expect(streamStackLogs({ remote: 'nas', stack: 'media', follow: false })).resolves.toEqual({
+      kind: 'refusal',
+      reason: 'no session password',
+    });
+    expect(SshConnectionManager).not.toHaveBeenCalled();
+    expect(composeStreamFake).not.toHaveBeenCalled();
   });
 });
