@@ -88,8 +88,12 @@ const RETURN = '\r';
 const RIGHT = '\x1b[C';
 const LEFT = '\x1b[D';
 
-/** Footer legend while a CONTAINER row holds the cursor (list pane). */
-const LIST_CONTAINER_HINTS = 'footer:[enter select · space collapse/expand · l logs]';
+/** Footer legend while an EXITED container row holds the cursor: the `s`
+ * shortcut STARTS it (status-aware, T2-container-stop). */
+const LIST_STARTABLE_HINTS = 'footer:[enter select · space collapse/expand · s start · l logs]';
+/** Footer legend while a RUNNING/PAUSED container row holds the cursor: stop
+ * is offered there (T2-container-stop), so the footer advertises `s stop`. */
+const LIST_STOPPABLE_HINTS = 'footer:[enter select · space collapse/expand · s stop · l logs]';
 /** Footer legend while the ACTIONS pane holds the keyboard (locked). */
 const ACTIONS_HINTS = 'footer:[arrows pick · enter run · esc back]';
 
@@ -98,7 +102,7 @@ const ACTIONS_HINTS = 'footer:[arrows pick · enter run · esc back]';
  * so key presses land on subscribed handlers instead of the documented
  * pre-subscription window (React 19 delays passive effects under load). */
 const awaitHubReady = (lastFrame: ReturnType<typeof render>['lastFrame']) =>
-  settle(lastFrame, f => f.includes('❯ ● grafana') && f.includes(LIST_CONTAINER_HINTS));
+  settle(lastFrame, f => f.includes('❯ ● grafana') && f.includes(LIST_STARTABLE_HINTS));
 
 describe('RemoteHomePage — tab strip', () => {
   beforeEach(() => {
@@ -200,11 +204,13 @@ describe('RemoteHomePage — ok state (real containers)', () => {
 
       expect(frame).toMatch(/View logs +l/);
       expect(frame).toMatch(/Start +r/);
-      expect(frame).toMatch(/Stop +s/);
       expect(frame).toMatch(/Inspect +i/);
       expect(frame).toContain('❯ View logs');
-      // grafana is exited, so the restart action reads Start (docker start).
+      // grafana is exited: the restart action reads Start (docker start) and
+      // Stop is NOT offered — there is nothing to stop.
       expect(frame).not.toContain('❯ Restart');
+      expect(frame).not.toMatch(/Stop +s/);
+      expect(frame).not.toContain('❯ Stop');
       // The 100-column test terminal wraps the note inside the detail panel,
       // so assert the wrap-stable fragments.
       expect(frame).toContain('Start when stopped, restart when');
@@ -212,6 +218,22 @@ describe('RemoteHomePage — ok state (real containers)', () => {
       // The stale list-pane hint line was removed: pane guidance lives in the
       // footer hints (arrows pick / enter run / esc back while locked).
       expect(frame).not.toContain('↑↓ pick a container on the left');
+    }
+  );
+
+  it(
+    'a RUNNING container is offered Stop, and the footer advertises `s stop`',
+    { timeout: LOAD_TIMEOUT_MS },
+    async () => {
+      const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+      await awaitHubReady(lastFrame);
+      await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ ● prometheus'));
+
+      const frame = lastFrame() ?? '';
+
+      expect(frame).toMatch(/Stop +s/);
+      expect(frame).toContain(LIST_STOPPABLE_HINTS);
+      unmount();
     }
   );
 
@@ -499,9 +521,9 @@ describe('RemoteHomePage — footer hints', () => {
 
     // Compound predicate with the FULL hint string — `footer:[` alone also
     // matches the pre-publication empty footer.
-    const frame = await settle(lastFrame, f => f.includes('❯ ● grafana') && f.includes(LIST_CONTAINER_HINTS));
+    const frame = await settle(lastFrame, f => f.includes('❯ ● grafana') && f.includes(LIST_STARTABLE_HINTS));
 
-    expect(frame).toContain(LIST_CONTAINER_HINTS);
+    expect(frame).toContain(LIST_STARTABLE_HINTS);
     unmount();
   });
 
@@ -510,7 +532,7 @@ describe('RemoteHomePage — footer hints', () => {
     { timeout: LOAD_TIMEOUT_MS },
     async () => {
       const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
-      await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS));
+      await settle(lastFrame, f => f.includes(LIST_STARTABLE_HINTS));
 
       // Collapsing the focused container's group leaves the cursor on the
       // collapsed group row → space only.
@@ -521,8 +543,8 @@ describe('RemoteHomePage — footer hints', () => {
 
       // Reopening returns the cursor to the container → the logs hint is back.
       await pressToggle(stdin, lastFrame, ' ', f => f.includes('▼ monitoring') && f.includes('grafana'));
-      const restored = await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS));
-      expect(restored).toContain(LIST_CONTAINER_HINTS);
+      const restored = await settle(lastFrame, f => f.includes(LIST_STARTABLE_HINTS));
+      expect(restored).toContain(LIST_STARTABLE_HINTS);
       unmount();
     }
   );
@@ -653,13 +675,15 @@ describe('RemoteHomePage — container selection lock (iteration 3)', () => {
       await awaitHubReady(lastFrame);
       await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
 
-      const unlocked = await pressToggle(stdin, lastFrame, LEFT, f => f.includes(LIST_CONTAINER_HINTS));
+      const unlocked = await pressToggle(stdin, lastFrame, LEFT, f => f.includes(LIST_STARTABLE_HINTS));
 
-      expect(unlocked).toContain(LIST_CONTAINER_HINTS);
+      expect(unlocked).toContain(LIST_STARTABLE_HINTS);
 
       const moved = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ ● prometheus'));
 
       expect(moved).toContain('❯ ● prometheus');
+      // prometheus is running: stop is offered, so the footer says so.
+      expect(moved).toContain(LIST_STOPPABLE_HINTS);
       unmount();
     }
   );
@@ -669,9 +693,9 @@ describe('RemoteHomePage — container selection lock (iteration 3)', () => {
     await awaitHubReady(lastFrame);
     await pressToggle(stdin, lastFrame, RIGHT, f => f.includes(ACTIONS_HINTS));
 
-    const unlocked = await pressToggle(stdin, lastFrame, ESCAPE, f => f.includes(LIST_CONTAINER_HINTS));
+    const unlocked = await pressToggle(stdin, lastFrame, ESCAPE, f => f.includes(LIST_STARTABLE_HINTS));
 
-    expect(unlocked).toContain(LIST_CONTAINER_HINTS);
+    expect(unlocked).toContain(LIST_STARTABLE_HINTS);
     expect(unlocked).not.toContain(ACTIONS_HINTS);
     unmount();
   });
@@ -693,7 +717,7 @@ describe('RemoteHomePage — container selection lock (iteration 3)', () => {
 
       expect(expanded).toContain('▼ monitoring');
       expect(expanded).not.toContain(ACTIONS_HINTS);
-      expect(expanded).toContain(LIST_CONTAINER_HINTS);
+      expect(expanded).toContain(LIST_STARTABLE_HINTS);
       unmount();
     }
   );
@@ -776,7 +800,7 @@ describe('RemoteHomePage — action execution (iteration 3)', () => {
       // Success: the list refreshes (a second fetch) and the pane returns to
       // the list — the loading phase deactivated the keys in between.
       resolveLifecycle({ kind: 'ok' });
-      const refreshed = await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS));
+      const refreshed = await settle(lastFrame, f => f.includes(LIST_STARTABLE_HINTS));
 
       expect(refreshed).toContain('❯ ● grafana');
       expect(refreshed).not.toContain('Starting…');
@@ -812,7 +836,8 @@ describe('RemoteHomePage — action execution (iteration 3)', () => {
         op: 'restart',
       });
       resolveLifecycle({ kind: 'ok' });
-      await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS));
+      // prometheus is running: the refreshed list pane advertises `s stop`.
+      await settle(lastFrame, f => f.includes(LIST_STOPPABLE_HINTS));
       unmount();
     }
   );
@@ -855,35 +880,24 @@ describe('RemoteHomePage — action execution (iteration 3)', () => {
 
     expect(vi.mocked(runContainerLifecycle)).toHaveBeenCalledTimes(1);
     resolveLifecycle({ kind: 'ok' });
-    await settle(lastFrame, f => f.includes(LIST_CONTAINER_HINTS));
+    await settle(lastFrame, f => f.includes(LIST_STARTABLE_HINTS));
     unmount();
   });
 
   it(
-    'stop and inspect stay visible but inert: no service call, no navigation',
+    'an EXITED container offers no Stop row and Inspect stays inert: no service call, no navigation',
     { timeout: LOAD_TIMEOUT_MS },
     async () => {
       const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
       await awaitHubReady(lastFrame);
       await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
 
-      // j → Start, j → Stop.
+      // grafana is exited: View logs → Start → Inspect. No Stop row at all.
       await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Start'));
-      const onStop = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Stop'));
-
-      expect(onStop).toContain('❯ Stop');
-
-      stdin.write(RETURN);
-      await wait(120);
-
-      const afterStop = lastFrame() ?? '';
-
-      expect(vi.mocked(runContainerLifecycle)).not.toHaveBeenCalled();
-      expect(afterStop).not.toContain('logs-route:');
-
       const onInspect = await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Inspect'));
 
       expect(onInspect).toContain('❯ Inspect');
+      expect(onInspect).not.toContain('❯ Stop');
 
       stdin.write(RETURN);
       await wait(120);
@@ -893,6 +907,94 @@ describe('RemoteHomePage — action execution (iteration 3)', () => {
       unmount();
     }
   );
+
+  it(
+    'Stop on a running container (ACTIONS pane) sends the stop op and shows Stopping…',
+    { timeout: LOAD_TIMEOUT_MS },
+    async () => {
+      let resolveLifecycle!: (outcome: LifecycleOutcome) => void;
+      vi.mocked(runContainerLifecycle).mockImplementation(
+        () =>
+          new Promise<LifecycleOutcome>(resolve => {
+            resolveLifecycle = resolve;
+          })
+      );
+      const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+      await awaitHubReady(lastFrame);
+
+      // Walk to prometheus (running) in the LIST pane, then lock.
+      await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ ● prometheus'));
+      await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
+
+      // The ACTIONS cursor starts on View logs; Stop is the third row.
+      await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Restart'));
+      await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ Stop'));
+
+      await pressAndSettle(stdin, lastFrame, RETURN, f => f.includes('Stopping…'));
+
+      expect(vi.mocked(runContainerLifecycle)).toHaveBeenCalledWith({
+        remote: 'nas',
+        sessionPassword: undefined,
+        container: 'prometheus',
+        op: 'stop',
+      });
+      resolveLifecycle({ kind: 'ok' });
+      await settle(lastFrame, f => f.includes(LIST_STOPPABLE_HINTS));
+      unmount();
+    }
+  );
+
+  it('s in the LIST pane on a running container sends the stop op directly', { timeout: LOAD_TIMEOUT_MS }, async () => {
+    let resolveLifecycle!: (outcome: LifecycleOutcome) => void;
+    vi.mocked(runContainerLifecycle).mockImplementation(
+      () =>
+        new Promise<LifecycleOutcome>(resolve => {
+          resolveLifecycle = resolve;
+        })
+    );
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+    await pressAndSettle(stdin, lastFrame, 'j', f => f.includes('❯ ● prometheus'));
+
+    await pressAndSettle(stdin, lastFrame, 's', f => f.includes('Stopping…'));
+
+    expect(vi.mocked(runContainerLifecycle)).toHaveBeenCalledWith({
+      remote: 'nas',
+      sessionPassword: undefined,
+      container: 'prometheus',
+      op: 'stop',
+    });
+
+    // s on an EXITED container afterwards is inert: back to grafana, no
+    // second call while the first is in flight — resolve and count.
+    resolveLifecycle({ kind: 'ok' });
+    await settle(lastFrame, f => f.includes(LIST_STOPPABLE_HINTS));
+    unmount();
+  });
+
+  it('s in the LIST pane on an exited container STARTS it (status-aware shortcut)', async () => {
+    // Deferred: the running window stays observable while we assert it.
+    let resolveLifecycle!: (outcome: LifecycleOutcome) => void;
+    vi.mocked(runContainerLifecycle).mockImplementation(
+      () =>
+        new Promise<LifecycleOutcome>(resolve => {
+          resolveLifecycle = resolve;
+        })
+    );
+    const { lastFrame, stdin, unmount } = renderHub(<FooterSpy />);
+    await awaitHubReady(lastFrame);
+
+    // The cursor sits on grafana (exited) — `s` runs its Start entry.
+    await pressAndSettle(stdin, lastFrame, 's', f => f.includes('Starting…'));
+
+    expect(lastFrame() ?? '').toContain('Starting…');
+    expect(vi.mocked(runContainerLifecycle)).toHaveBeenCalledWith(
+      expect.objectContaining({ container: 'grafana', op: 'start' })
+    );
+    resolveLifecycle({ kind: 'ok' });
+    await settle(lastFrame, f => !f.includes('Starting…'));
+    unmount();
+  });
 
   it(
     'an unknown-remote outcome lands in the panel as a kept-lock error too',
@@ -953,9 +1055,9 @@ describe('RemoteHomePage — pane lock vs global back (iteration 3 correction)',
 
     expect(usePaneLockStore.getState().locked).toBe(true);
 
-    const unlocked = await pressToggle(stdin, lastFrame, ESCAPE, f => f.includes(LIST_CONTAINER_HINTS));
+    const unlocked = await pressToggle(stdin, lastFrame, ESCAPE, f => f.includes(LIST_STARTABLE_HINTS));
 
-    expect(unlocked).toContain(LIST_CONTAINER_HINTS);
+    expect(unlocked).toContain(LIST_STARTABLE_HINTS);
     // The reported bug: the unlock must NOT fire the global back — the user
     // stays on /remote-home.
     expect(unlocked).toContain('Services');
@@ -972,9 +1074,9 @@ describe('RemoteHomePage — pane lock vs global back (iteration 3 correction)',
       await awaitHubReady(lastFrame);
       await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
 
-      const unlocked = await pressToggle(stdin, lastFrame, 'h', f => f.includes(LIST_CONTAINER_HINTS));
+      const unlocked = await pressToggle(stdin, lastFrame, 'h', f => f.includes(LIST_STARTABLE_HINTS));
 
-      expect(unlocked).toContain(LIST_CONTAINER_HINTS);
+      expect(unlocked).toContain(LIST_STARTABLE_HINTS);
       expect(unlocked).not.toContain('elsewhere-route');
 
       const back = await pressAndSettle(stdin, lastFrame, 'h', f => f.includes('elsewhere-route'));
@@ -988,7 +1090,7 @@ describe('RemoteHomePage — pane lock vs global back (iteration 3 correction)',
     const { lastFrame, stdin, unmount } = renderHubWithBackHistory();
     await awaitHubReady(lastFrame);
     await pressToggle(stdin, lastFrame, RETURN, f => f.includes(ACTIONS_HINTS));
-    await pressToggle(stdin, lastFrame, ESCAPE, f => f.includes(LIST_CONTAINER_HINTS));
+    await pressToggle(stdin, lastFrame, ESCAPE, f => f.includes(LIST_STARTABLE_HINTS));
 
     const back = await pressAndSettle(stdin, lastFrame, ESCAPE, f => f.includes('elsewhere-route'));
 

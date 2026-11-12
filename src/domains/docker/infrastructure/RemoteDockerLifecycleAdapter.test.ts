@@ -40,6 +40,16 @@ describe('RemoteDockerLifecycleAdapter — command discipline', () => {
     expect(dockerLifecycleCommand('restart', 'grafana')).toBe('docker restart grafana');
   });
 
+  it('runs the exact `docker stop <name>` command for the stop op (T2-container-stop)', async () => {
+    const { run, runner } = fakeRunner({ exitCode: 0, stdout: 'grafana\n', stderr: '' });
+
+    await new RemoteDockerLifecycleAdapter(runner).run({ op: 'stop', container: 'grafana' });
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledWith('docker stop grafana');
+    expect(dockerLifecycleCommand('stop', 'grafana')).toBe('docker stop grafana');
+  });
+
   it('maps the result fields into CommandExecution untouched', async () => {
     const { runner } = fakeRunner({ exitCode: 0, stdout: 'web-1\n', stderr: 'warn-line\n' });
     const execution = await new RemoteDockerLifecycleAdapter(runner).run({ op: 'start', container: 'web-1' });

@@ -4,33 +4,56 @@
 // keys), the action cursor with wrap-around, the in-panel command feedback
 // (dim running line / red refusal reason), and the whole pane keyboard —
 // Enter/→ locks onto a focused container, ↑↓ walk the ACTIONS list, Enter
-// runs the focused action (view-logs navigates; start/restart executes over
-// SSH with re-entry ignored and a success refresh), ←/Esc/h unlock, and
-// space/l stay list-pane-only. It also derives the footer hints and the
-// locked container's id the dashboard accent-paints. Composition stays in
-// the page: the data fetch, the cursor walk, the menu list and collapse
-// toggling arrive as options (collapse state stays page-owned and reaches
-// the keyboard through `onToggleGroup`).
+// runs the focused action (view-logs navigates; start/restart/stop execute
+// over SSH with re-entry ignored and a success refresh — with `s` as the
+// status-aware list-pane shortcut: stop while running/paused, start once
+// exited), ←/Esc/h unlock, and space/l stay list-pane-only. It also derives
+// the footer hints and the locked container's id the dashboard
+// accent-paints. Composition stays in the page: the data fetch, the cursor
+// walk, the menu list and collapse toggling arrive as options (collapse
+// state stays page-owned and reaches the keyboard through `onToggleGroup`).
 import { useEffect, useMemo, useState } from 'react';
 
 import { useNavigate } from 'react-router';
 
 import { containerActionLabel, lockedContainerId, wrapIndex } from './remote-home.js';
-import type { ContainerAction, ContainerCommand, ContainerEntry, InventoryRow } from './remote-home.js';
+import type {
+  ContainerAction,
+  ContainerCommand,
+  ContainerEntry,
+  ContainerStatus,
+  InventoryRow,
+} from './remote-home.js';
 import { runContainerLifecycle } from '../../../../services/docker.js';
+import type { ContainerLifecycleOp } from '../../../../services/docker.js';
 import type { KeyHint } from '../../../shared/lib/page-hints-store.js';
 import { usePaneLockStore } from '../../../shared/lib/pane-lock-store.js';
 import { useKeyBindings } from '../../../shared/lib/use-key-bindings.js';
 
 // Identity-stable hint constants (usePageHints effect dep) — a fresh literal
 // per render would re-publish on every render (9.10 lesson). Container rows
-// advertise select/logs; group rows (and every non-ok phase) advertise
+// advertise select/logs plus the status-aware `s` shortcut (see
+// CONTAINER_HINTS_BY_STATUS); group rows (and every non-ok phase) advertise
 // space only; the locked ACTIONS pane owns its own trio.
-const CONTAINER_HINTS: readonly KeyHint[] = [
+const STARTABLE_CONTAINER_HINTS: readonly KeyHint[] = [
   { key: 'enter', label: 'select' },
   { key: 'space', label: 'collapse/expand' },
+  { key: 's', label: 'start' },
   { key: 'l', label: 'logs' },
 ];
+const STOPPABLE_CONTAINER_HINTS: readonly KeyHint[] = [
+  { key: 'enter', label: 'select' },
+  { key: 'space', label: 'collapse/expand' },
+  { key: 's', label: 'stop' },
+  { key: 'l', label: 'logs' },
+];
+/** Container rows advertise `s` with the action the row actually runs:
+ * stop while running/paused, start once exited (T2-container-stop). */
+const CONTAINER_HINTS_BY_STATUS: Record<ContainerStatus, readonly KeyHint[]> = {
+  running: STOPPABLE_CONTAINER_HINTS,
+  paused: STOPPABLE_CONTAINER_HINTS,
+  exited: STARTABLE_CONTAINER_HINTS,
+};
 const GROUP_HINTS: readonly KeyHint[] = [{ key: 'space', label: 'collapse/expand' }];
 const ACTIONS_HINTS: readonly KeyHint[] = [
   { key: 'arrows', label: 'pick' },
@@ -38,6 +61,10 @@ const ACTIONS_HINTS: readonly KeyHint[] = [
   { key: 'esc', label: 'back' },
 ];
 const NO_HINTS: readonly KeyHint[] = [];
+
+/** The running-line stem DetailPanel renders as `${verb}ing…`: the doubled
+ * consonant yields the correct "Stopping…" (Start/Restart gerundize as-is). */
+const STOP_RUNNING_VERB = 'Stopp';
 
 export interface UseRemoteHomeActionsOptions {
   /** Active remote name (the SSH target for start/restart). */
@@ -123,7 +150,7 @@ export function useRemoteHomeActions({
 
     if (pane === 'actions') return ACTIONS_HINTS;
 
-    return focusedRow?.kind === 'container' ? CONTAINER_HINTS : GROUP_HINTS;
+    return focusedRow?.kind === 'container' ? CONTAINER_HINTS_BY_STATUS[focusedRow.container.status] : GROUP_HINTS;
   }, [isActive, pane, focusedRow]);
 
   const lock = (): void => {
@@ -139,23 +166,21 @@ export function useRemoteHomeActions({
     setLocked(false);
   };
 
-  // The restart action runs over SSH: a stopped (exited) container STARTS,
-  // anything else RESTARTS. While a command runs the panel shows a dim
-  // line and re-entry is ignored; a refusal keeps the lock with the red
-  // reason; success refreshes the list (and resets the pane above).
-  const runLifecycle = (container: ContainerEntry): void => {
+  // A lifecycle action runs over SSH through the ONE service path: restart
+  // STARTS a stopped (exited) container and restarts anything else; stop is
+  // dispatched only where the action is offered (running/paused). While a
+  // command runs the panel shows a dim line and re-entry is ignored; a
+  // refusal keeps the lock with the red reason; success refreshes the list
+  // (and resets the pane above).
+  const runLifecycle = (container: ContainerEntry, op: ContainerLifecycleOp, verb: string): void => {
     if (command?.phase === 'running') return;
 
-    const restartAction = actions.find(action => action.id === 'restart');
-
-    if (restartAction === undefined) return;
-
-    setCommand({ phase: 'running', verb: containerActionLabel(restartAction, container.status) });
+    setCommand({ phase: 'running', verb });
     void runContainerLifecycle({
       remote,
       sessionPassword,
       container: container.name,
-      op: container.status === 'exited' ? 'start' : 'restart',
+      op,
     }).then(outcome => {
       if (outcome.kind !== 'ok') {
         setCommand({ phase: 'error', reason: outcome.reason });
@@ -171,8 +196,36 @@ export function useRemoteHomeActions({
     });
   };
 
-  // The ACTIONS pane's confirm: logs navigates, start/restart executes,
-  // stop/inspect stay visible but inert (later iterations).
+  const runRestart = (container: ContainerEntry): void => {
+    const restartAction = actions.find(action => action.id === 'restart');
+
+    if (restartAction === undefined) return;
+
+    runLifecycle(
+      container,
+      container.status === 'exited' ? 'start' : 'restart',
+      containerActionLabel(restartAction, container.status)
+    );
+  };
+
+  // The list-pane `s` shortcut runs whatever the row's status offers — the
+  // same lifecycle path as the ACTIONS pane: stop while running/paused,
+  // START once exited (the relabeled Start entry). One key, status-aware;
+  // a refusal lands in the panel without taking the pane lock.
+  const runShortcut = (container: ContainerEntry): void => {
+    const stopAction = actions.find(action => action.id === 'stop');
+
+    if (stopAction !== undefined) {
+      runLifecycle(container, 'stop', STOP_RUNNING_VERB);
+
+      return;
+    }
+
+    runRestart(container);
+  };
+
+  // The ACTIONS pane's confirm: logs navigates, start/restart/stop execute,
+  // inspect stays visible but inert (later iterations).
   const runFocusedAction = (): void => {
     if (focusedRow?.kind !== 'container') return;
 
@@ -186,7 +239,9 @@ export function useRemoteHomeActions({
       return;
     }
 
-    if (action.id === 'restart') runLifecycle(focusedRow.container);
+    if (action.id === 'restart') runRestart(focusedRow.container);
+
+    if (action.id === 'stop') runShortcut(focusedRow.container);
   };
 
   // The hook owns the LOCK keyboard (iteration 3). Ink broadcasts every key
@@ -256,6 +311,18 @@ export function useRemoteHomeActions({
           if (focused?.kind !== 'container') return;
 
           navigate(`/logs?container=${encodeURIComponent(focused.container.name)}`);
+        },
+        // Status-aware lifecycle shortcut (list-pane, T2-container-stop):
+        // stop while running/paused, START once exited — the same path the
+        // ACTIONS pane uses. Group rows have no container to act on.
+        s: () => {
+          if (pane !== 'list') return;
+
+          const focused = walk[cursor];
+
+          if (focused?.kind !== 'container') return;
+
+          runShortcut(focused.container);
         },
         // Vim-left parity with moveLeft: while locked, h unlocks (the
         // global back-h is suppressed meanwhile). The list pane keeps the

@@ -49,13 +49,38 @@ export interface RemoteHomeView {
 const OTHERS_GROUP_ID = 'others';
 const OTHERS_GROUP_NAME = 'Others';
 
-/** The detail panel's static action list (this iteration's scope). */
-const CONTAINER_ACTIONS: readonly ContainerAction[] = [
+/** The detail-panel action lists in display order. Stop is offered ONLY
+ * while the container can stop (running/paused); an exited container has
+ * nothing to stop — it gets Start instead (the restart action's label
+ * follows the status). */
+const BASE_CONTAINER_ACTIONS: readonly ContainerAction[] = [
+  { id: 'view-logs', label: 'View logs', key: 'l' },
+  { id: 'restart', label: 'Restart', key: 'r' },
+  { id: 'inspect', label: 'Inspect', key: 'i' },
+];
+
+const STOPPABLE_CONTAINER_ACTIONS: readonly ContainerAction[] = [
   { id: 'view-logs', label: 'View logs', key: 'l' },
   { id: 'restart', label: 'Restart', key: 'r' },
   { id: 'stop', label: 'Stop', key: 's' },
   { id: 'inspect', label: 'Inspect', key: 'i' },
 ];
+
+/** Per-status ACTIONS builder (T2-container-stop): `undefined` is the
+ * no-container case (group rows) — the base list without Stop. */
+const ACTIONS_BY_STATUS: Record<ContainerStatus, readonly ContainerAction[]> = {
+  running: STOPPABLE_CONTAINER_ACTIONS,
+  paused: STOPPABLE_CONTAINER_ACTIONS,
+  exited: BASE_CONTAINER_ACTIONS,
+};
+
+/** The ACTIONS list for one focused container status; a fresh array per
+ * call, so callers can never mutate the shared lists. */
+export function containerActionsFor(status: ContainerStatus | undefined): ContainerAction[] {
+  const actions = status === undefined ? BASE_CONTAINER_ACTIONS : ACTIONS_BY_STATUS[status];
+
+  return [...actions];
+}
 
 /** Typed lookup for the two states with their own light; everything else
  * (exited, created, restarting, dead…) falls back to the exited light. */
@@ -80,7 +105,9 @@ export function groupSummary(group: ServiceGroup): string {
  * The detail-panel label for one action given the focused container's
  * status (iteration 3): the 'restart' action STARTS a stopped (exited)
  * container and restarts anything else, so its label follows the status.
- * Every other action keeps its own static label.
+ * 'stop' is only OFFERED for running/paused containers
+ * (containerActionsFor); when it appears its label stays 'Stop'. Every
+ * other action keeps its own static label.
  */
 export function containerActionLabel(action: ContainerAction, status: ContainerStatus): string {
   if (action.id !== 'restart') return action.label;
@@ -161,7 +188,8 @@ export function toServiceGroups(containers: readonly ContainerSnapshot[]): Servi
 }
 
 /** The full hub view for a container collection: grouped rows plus totals
- * computed from the same collection and the static action list. */
+ * computed from the same collection and the base (no-container) action
+ * list — the page derives the per-status list for the focused container. */
 export function toRemoteHomeView(containers: readonly ContainerSnapshot[]): RemoteHomeView {
   const groups = toServiceGroups(containers);
   const flat = groups.flatMap(group => group.containers);
@@ -170,7 +198,7 @@ export function toRemoteHomeView(containers: readonly ContainerSnapshot[]): Remo
     totalContainers: flat.length,
     runningContainers: flat.filter(container => container.status === 'running').length,
     groups,
-    actions: [...CONTAINER_ACTIONS],
+    actions: containerActionsFor(undefined),
   };
 }
 

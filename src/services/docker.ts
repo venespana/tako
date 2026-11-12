@@ -164,7 +164,8 @@ export type RunContainerLifecycleOutcome =
   | { readonly kind: 'refusal'; readonly reason: string };
 
 /**
- * Start or restart one container on a configured remote, over SSH. Same
+ * Run one lifecycle op (start, restart, or stop) on a container of a
+ * configured remote, over SSH. Same
  * discipline as {@link getContainers}: the remote resolves FRESH per call,
  * the SSH wiring stays private and LAZY, and the connection always ends —
  * on every outcome and even when the use case throws unexpectedly. The op

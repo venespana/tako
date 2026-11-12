@@ -37,20 +37,29 @@ describe('RunContainerLifecycle — ok outcomes', () => {
 });
 
 describe('RunContainerLifecycle — input gate runs BEFORE the port', () => {
+  it('runs the stop op through the port once validated (T2-container-stop)', async () => {
+    const { run, runner } = fakeRunner({ exitCode: 0, stdout: 'web-1\n', stderr: '' });
+    const result = await new RunContainerLifecycle(runner).execute({ op: 'stop', container: 'web-1' });
+
+    expect(result).toEqual({ kind: 'ok' });
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledWith({ op: 'stop', container: 'web-1' });
+  });
+
   it('refuses an op outside the closed union and never calls the port', async () => {
     const { run, runner } = fakeRunner({ exitCode: 0, stdout: '', stderr: '' });
     const result = await new RunContainerLifecycle(runner).execute({
-      op: 'stop' as ContainerLifecycleOp,
+      op: 'pause' as ContainerLifecycleOp,
       container: 'web-1',
     });
 
-    expect(result).toEqual({ kind: 'refusal', reason: 'unknown container lifecycle op "stop"' });
+    expect(result).toEqual({ kind: 'refusal', reason: 'unknown container lifecycle op "pause"' });
     expect(run).not.toHaveBeenCalled();
   });
 
-  it('refuses an unsafe container name and never calls the port', async () => {
+  it('refuses an unsafe container name on stop and never calls the port', async () => {
     const { run, runner } = fakeRunner({ exitCode: 0, stdout: '', stderr: '' });
-    const result = await new RunContainerLifecycle(runner).execute({ op: 'restart', container: 'web 1; rm -rf /' });
+    const result = await new RunContainerLifecycle(runner).execute({ op: 'stop', container: 'web 1; rm -rf /' });
 
     expect(result).toEqual({ kind: 'refusal', reason: 'invalid container name "web 1; rm -rf /"' });
     expect(run).not.toHaveBeenCalled();
@@ -86,5 +95,20 @@ describe('RunContainerLifecycle — refusals are data, never throws', () => {
     const result = await new RunContainerLifecycle(runner).execute({ op: 'start', container: 'web-1' });
 
     expect(result).toEqual({ kind: 'refusal', reason: 'permission denied on docker.sock' });
+  });
+
+  it('stop: refuses a non-zero exit carrying the remote stderr (T2-container-stop)', async () => {
+    const execution = { exitCode: 1, stdout: '', stderr: 'Error: no such container: web-1\n' };
+    const { runner } = fakeRunner(execution);
+    const result = await new RunContainerLifecycle(runner).execute({ op: 'stop', container: 'web-1' });
+
+    expect(result).toEqual({ kind: 'refusal', reason: 'Error: no such container: web-1' });
+  });
+
+  it('stop: refuses a signal-killed command (exit code null)', async () => {
+    const { runner } = fakeRunner({ exitCode: null, stdout: '', stderr: '' });
+    const result = await new RunContainerLifecycle(runner).execute({ op: 'stop', container: 'web-1' });
+
+    expect(result).toEqual({ kind: 'refusal', reason: 'docker stop was terminated by a signal' });
   });
 });

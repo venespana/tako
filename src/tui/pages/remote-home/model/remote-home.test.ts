@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildInventoryRows,
   containerActionLabel,
+  containerActionsFor,
   groupSummary,
   lockedContainerId,
   selectableRows,
@@ -15,7 +16,7 @@ import {
   toServiceGroups,
   wrapIndex,
 } from './remote-home.js';
-import type { ContainerAction, InventoryRow } from './remote-home.js';
+import type { ContainerAction, ContainerStatus, InventoryRow } from './remote-home.js';
 import type { ContainerSnapshot } from '../../../../services/docker.js';
 
 const snapshot = (name: string, overrides: Partial<ContainerSnapshot> = {}): ContainerSnapshot => ({
@@ -113,11 +114,40 @@ describe('toRemoteHomeView', () => {
     expect(view.runningContainers).toBe(2);
   });
 
-  it('carries the four static detail-panel actions in order', () => {
+  it('carries the base detail-panel actions in order (no stop — offered per status)', () => {
     const view = toRemoteHomeView([]);
 
-    expect(view.actions.map(action => action.label)).toEqual(['View logs', 'Restart', 'Stop', 'Inspect']);
+    expect(view.actions.map(action => action.label)).toEqual(['View logs', 'Restart', 'Inspect']);
     expect(view.groups).toEqual([]);
+  });
+});
+
+describe('containerActionsFor — per-status ACTIONS list (T2-container-stop)', () => {
+  const labels = (status: ContainerStatus | undefined): string[] =>
+    containerActionsFor(status).map(action => action.label);
+
+  it('running containers are offered View logs, Restart, Stop, Inspect', () => {
+    expect(labels('running')).toEqual(['View logs', 'Restart', 'Stop', 'Inspect']);
+  });
+
+  it('paused containers are offered Stop too', () => {
+    expect(labels('paused')).toEqual(['View logs', 'Restart', 'Stop', 'Inspect']);
+  });
+
+  it('exited containers get NO Stop (Start replaces Restart, Stop is not offered)', () => {
+    expect(labels('exited')).toEqual(['View logs', 'Restart', 'Inspect']);
+  });
+
+  it('no focused container (group rows) yields the base list without Stop', () => {
+    expect(labels(undefined)).toEqual(['View logs', 'Restart', 'Inspect']);
+  });
+
+  it('returns a fresh array per call (callers cannot mutate the shared list)', () => {
+    const first = containerActionsFor('running');
+
+    first.push({ id: 'x', label: 'X', key: 'x' });
+
+    expect(containerActionsFor('running')).toHaveLength(4);
   });
 });
 
@@ -157,6 +187,8 @@ describe('containerActionLabel — per-status action label (iteration 3)', () =>
 
     expect(containerActionLabel(viewLogs, 'exited')).toBe('View logs');
     expect(containerActionLabel(stop, 'exited')).toBe('Stop');
+    expect(containerActionLabel(stop, 'running')).toBe('Stop');
+    expect(containerActionLabel(stop, 'paused')).toBe('Stop');
     expect(containerActionLabel(inspect, 'running')).toBe('Inspect');
   });
 });

@@ -16,8 +16,9 @@ import type { ContainerLifecycleRequest, ContainerLifecycleRunner } from '../app
 import { isValidContainerName } from '../domain/container-lifecycle.js';
 import type { CommandExecution } from '../domain/types.js';
 
-/** The exact remote command for one lifecycle op: `docker start <name>` or
- * `docker restart <name>`. Callers must have passed the name gate. */
+/** The exact remote command for one lifecycle op: `docker start <name>`,
+ * `docker restart <name>`, or `docker stop <name>`. Callers must have
+ * passed the name gate. */
 export function dockerLifecycleCommand(op: ContainerLifecycleRequest['op'], container: string): string {
   return `docker ${op} ${container}`;
 }

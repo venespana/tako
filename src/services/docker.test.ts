@@ -290,6 +290,17 @@ describe('services/docker — runContainerLifecycle (iteration 3)', () => {
     expect(executeRunContainerLifecycle).toHaveBeenCalledWith({ op: 'restart', container: 'grafana' });
   });
 
+  it('passes the stop op through to the use case untouched (T2-container-stop)', async () => {
+    resolveRemoteAuthMock.mockResolvedValue(RESOLVED);
+    executeRunContainerLifecycle.mockResolvedValue({ kind: 'ok' });
+
+    await expect(runContainerLifecycle({ remote: 'nas', container: 'web-1', op: 'stop' })).resolves.toEqual({
+      kind: 'ok',
+    });
+
+    expect(executeRunContainerLifecycle).toHaveBeenCalledWith({ op: 'stop', container: 'web-1' });
+  });
+
   it('maps unknown-remote without opening any connection', async () => {
     resolveRemoteAuthMock.mockResolvedValue({ kind: 'unknown-remote', reason: 'unknown remote "nope"' });
 
