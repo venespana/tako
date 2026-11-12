@@ -5,18 +5,28 @@
 // injected io, with the service mocked — no real SSH in unit tests.
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import { formatStatusTable, runStatus } from './status.js';
+import { formatContainersTable, formatStatusTable, runStatus } from './status.js';
 import type { StatusIo } from './status.js';
-import type { StackStatusEntry } from '../../services/docker.js';
+import type { ContainerSnapshot, StackStatusEntry } from '../../services/docker.js';
 import { SESSION_PASSWORD_ENV } from '../../shared/lib/session-password.js';
 
 const getStackStatusMock = vi.hoisted(() => vi.fn());
+const getContainersMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../../services/docker.js', () => ({
   getStackStatus: getStackStatusMock,
+  getContainers: getContainersMock,
 }));
 
 const entry = (name: string, status: string, configFiles: string): StackStatusEntry => ({ name, status, configFiles });
+
+const container = (name: string, state: string, health: ContainerSnapshot['health']): ContainerSnapshot => ({
+  id: `id-${name}`,
+  name,
+  state,
+  composeProject: null,
+  health,
+});
 
 function createIo(): { io: StatusIo; out: string[]; err: string[] } {
   const out: string[] = [];
@@ -134,6 +144,124 @@ describe('runStatus — outcome mapping (0 ok · 1 refusal · 2 unexpected)', ()
     const { io, err } = createIo();
 
     const exit = await runStatus({ host: 'nas' }, io);
+
+    expect(exit).toBe(2);
+    expect(err.join('\n')).toContain('transport exploded');
+  });
+});
+
+describe('runStatus — DEFAULT mode pin (T3-health-status: byte-identical to pre-flag behavior)', () => {
+  beforeEach(() => {
+    getStackStatusMock.mockReset();
+    getContainersMock.mockReset();
+  });
+
+  it('prints the EXACT pre-flag table bytes and never touches the containers service', async () => {
+    getStackStatusMock.mockResolvedValue({
+      kind: 'ok',
+      entries: [entry('media', 'up', '/srv/media/compose.yml'), entry('proxy', 'up', '/srv/proxy/compose.yml')],
+    });
+    const { io, out, err } = createIo();
+
+    const exit = await runStatus({ host: 'nas' }, io);
+
+    expect(exit).toBe(0);
+    expect(out).toEqual([
+      'NAME   STATUS  CONFIG FILES',
+      'media  up      /srv/media/compose.yml',
+      'proxy  up      /srv/proxy/compose.yml',
+    ]);
+    expect(err).toEqual([]);
+    expect(getContainersMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('formatContainersTable — `--containers` rendering (T3-health-status)', () => {
+  it('renders aligned NAME/STATE/HEALTH columns with a count line', () => {
+    expect(
+      formatContainersTable([
+        container('media-web-1', 'running', 'healthy'),
+        container('proxy-caddy-1', 'running', 'unhealthy'),
+      ])
+    ).toEqual([
+      'NAME           STATE    HEALTH',
+      'media-web-1    running  healthy',
+      'proxy-caddy-1  running  unhealthy',
+      '2 containers',
+    ]);
+  });
+
+  it('shows `-` for a container without a healthcheck (health null)', () => {
+    const lines = formatContainersTable([container('portainer', 'running', null)]);
+
+    expect(lines).toEqual(['NAME       STATE    HEALTH', 'portainer  running  -', '1 container']);
+  });
+
+  it('renders the explicit empty state for a remote with no containers', () => {
+    expect(formatContainersTable([])).toEqual(['no containers found']);
+  });
+});
+
+describe('runStatus — `--containers` mode (T3-health-status)', () => {
+  beforeEach(() => {
+    getStackStatusMock.mockReset();
+    getContainersMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('calls getContainers with the host + session password and prints the table, exit 0', async () => {
+    vi.stubEnv(SESSION_PASSWORD_ENV, 'session-pw');
+    getContainersMock.mockResolvedValue({ kind: 'ok', containers: [container('web', 'running', 'healthy')] });
+    const { io, out, err } = createIo();
+
+    const exit = await runStatus({ host: 'nas', containers: true }, io);
+
+    expect(exit).toBe(0);
+    expect(getContainersMock).toHaveBeenCalledWith({ remote: 'nas', sessionPassword: 'session-pw' });
+    expect(getStackStatusMock).not.toHaveBeenCalled();
+    expect(out).toEqual(['NAME  STATE    HEALTH', 'web   running  healthy', '1 container']);
+    expect(err).toEqual([]);
+  });
+
+  it('still refuses a missing --host loudly in --containers mode', async () => {
+    const { io, err } = createIo();
+
+    const exit = await runStatus({ containers: true }, io);
+
+    expect(exit).toBe(1);
+    expect(err.join('\n')).toContain('--host');
+    expect(getContainersMock).not.toHaveBeenCalled();
+  });
+
+  it('maps an unknown remote to exit 1 with the reason on stderr', async () => {
+    getContainersMock.mockResolvedValue({ kind: 'unknown-remote', reason: 'unknown remote "nope"' });
+    const { io, out, err } = createIo();
+
+    const exit = await runStatus({ host: 'nope', containers: true }, io);
+
+    expect(exit).toBe(1);
+    expect(err.join('\n')).toContain('unknown remote "nope"');
+    expect(out).toEqual([]);
+  });
+
+  it('maps an ssh/docker refusal to exit 1 with the reason on stderr', async () => {
+    getContainersMock.mockResolvedValue({ kind: 'refusal', reason: 'sh: docker: not found' });
+    const { io, err } = createIo();
+
+    const exit = await runStatus({ host: 'nas', containers: true }, io);
+
+    expect(exit).toBe(1);
+    expect(err.join('\n')).toContain('sh: docker: not found');
+  });
+
+  it('maps an unexpected throw to exit 2', async () => {
+    getContainersMock.mockRejectedValue(new Error('transport exploded'));
+    const { io, err } = createIo();
+
+    const exit = await runStatus({ host: 'nas', containers: true }, io);
 
     expect(exit).toBe(2);
     expect(err.join('\n')).toContain('transport exploded');

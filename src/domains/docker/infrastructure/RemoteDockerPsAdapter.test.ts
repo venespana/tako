@@ -44,7 +44,7 @@ describe('RemoteDockerPsAdapter — composition with GetContainers', () => {
 
     expect(result).toEqual({
       kind: 'ok',
-      containers: [{ id: 'abc123', name: 'web-1', state: 'running', composeProject: 'media' }],
+      containers: [{ id: 'abc123', name: 'web-1', state: 'running', composeProject: 'media', health: null }],
     });
   });
 

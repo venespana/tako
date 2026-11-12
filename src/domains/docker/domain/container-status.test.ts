@@ -19,8 +19,8 @@ describe('parseDockerPsJson — JSON lines (docker ps shape)', () => {
     expect(result).toEqual({
       kind: 'ok',
       containers: [
-        { id: 'abc123', name: 'media-web-1', state: 'running', composeProject: 'media' },
-        { id: 'def456', name: 'media-db-1', state: 'exited', composeProject: 'media' },
+        { id: 'abc123', name: 'media-web-1', state: 'running', composeProject: 'media', health: null },
+        { id: 'def456', name: 'media-db-1', state: 'exited', composeProject: 'media', health: null },
       ],
     });
   });
@@ -34,8 +34,8 @@ describe('parseDockerPsJson — JSON lines (docker ps shape)', () => {
     expect(result).toEqual({
       kind: 'ok',
       containers: [
-        { id: 'abc123', name: 'portainer', state: 'running', composeProject: null },
-        { id: 'def456', name: 'watchtower', state: 'running', composeProject: null },
+        { id: 'abc123', name: 'portainer', state: 'running', composeProject: null, health: null },
+        { id: 'def456', name: 'watchtower', state: 'running', composeProject: null, health: null },
       ],
     });
   });
@@ -45,7 +45,7 @@ describe('parseDockerPsJson — JSON lines (docker ps shape)', () => {
 
     expect(result).toEqual({
       kind: 'ok',
-      containers: [{ id: 'abc123', name: 'legacy-old', state: 'running', composeProject: null }],
+      containers: [{ id: 'abc123', name: 'legacy-old', state: 'running', composeProject: null, health: null }],
     });
   });
 
@@ -55,7 +55,7 @@ describe('parseDockerPsJson — JSON lines (docker ps shape)', () => {
 
     expect(result).toEqual({
       kind: 'ok',
-      containers: [{ id: 'abc123', name: 'caddy', state: 'paused', composeProject: 'proxy' }],
+      containers: [{ id: 'abc123', name: 'caddy', state: 'paused', composeProject: 'proxy', health: null }],
     });
   });
 
@@ -66,8 +66,95 @@ describe('parseDockerPsJson — JSON lines (docker ps shape)', () => {
     expect(result).toEqual({
       kind: 'ok',
       containers: [
-        { id: 'a', name: 'one', state: 'running', composeProject: null },
-        { id: 'b', name: 'two', state: 'exited', composeProject: null },
+        { id: 'a', name: 'one', state: 'running', composeProject: null, health: null },
+        { id: 'b', name: 'two', state: 'exited', composeProject: null, health: null },
+      ],
+    });
+  });
+});
+
+describe('parseDockerPsJson — health (T3-health-status)', () => {
+  it('reads health from the Health string field (docker CLI formatter emits a plain string)', () => {
+    const stdout =
+      `{"ID":"a","Names":"web","State":"running","Labels":"","Health":"healthy"}\n` +
+      `{"ID":"b","Names":"db","State":"running","Labels":"","Health":"unhealthy"}\n` +
+      `{"ID":"c","Names":"queue","State":"running","Labels":"","Health":"starting"}\n`;
+
+    expect(parseDockerPsJson(stdout)).toEqual({
+      kind: 'ok',
+      containers: [
+        { id: 'a', name: 'web', state: 'running', composeProject: null, health: 'healthy' },
+        { id: 'b', name: 'db', state: 'running', composeProject: null, health: 'unhealthy' },
+        { id: 'c', name: 'queue', state: 'running', composeProject: null, health: 'starting' },
+      ],
+    });
+  });
+
+  it('reads health from HealthStatus too (the field name since the API v1.52 rename)', () => {
+    const result = parseDockerPsJson(
+      `{"ID":"a","Names":"web","State":"running","Labels":"","HealthStatus":"healthy"}\n`
+    );
+
+    expect(result).toEqual({
+      kind: 'ok',
+      containers: [{ id: 'a', name: 'web', state: 'running', composeProject: null, health: 'healthy' }],
+    });
+  });
+
+  it('prefers Health over HealthStatus when both appear', () => {
+    const result = parseDockerPsJson(
+      `{"ID":"a","Names":"web","State":"running","Labels":"","Health":"unhealthy","HealthStatus":"healthy"}\n`
+    );
+
+    if (result.kind !== 'ok') throw new Error('expected ok');
+
+    expect(result.containers[0]?.health).toBe('unhealthy');
+  });
+
+  it('maps an absent, empty, or "none" health field to health null (no healthcheck defined)', () => {
+    const stdout =
+      `{"ID":"a","Names":"no-field","State":"running","Labels":""}\n` +
+      `{"ID":"b","Names":"empty","State":"running","Labels":"","Health":""}\n` +
+      `{"ID":"c","Names":"explicit-none","State":"running","Labels":"","Health":"none"}\n`;
+
+    expect(parseDockerPsJson(stdout)).toEqual({
+      kind: 'ok',
+      containers: [
+        { id: 'a', name: 'no-field', state: 'running', composeProject: null, health: null },
+        { id: 'b', name: 'empty', state: 'running', composeProject: null, health: null },
+        { id: 'c', name: 'explicit-none', state: 'running', composeProject: null, health: null },
+      ],
+    });
+  });
+
+  it('reads health from an object with a string Status (defensive engine-style shape)', () => {
+    const stdout =
+      `{"ID":"a","Names":"web","State":"running","Labels":"","Health":{"Status":"healthy","FailingStreak":0}}\n` +
+      `{"ID":"b","Names":"db","State":"running","Labels":"","Health":{"Status":"starting"}}\n`;
+
+    expect(parseDockerPsJson(stdout)).toEqual({
+      kind: 'ok',
+      containers: [
+        { id: 'a', name: 'web', state: 'running', composeProject: null, health: 'healthy' },
+        { id: 'b', name: 'db', state: 'running', composeProject: null, health: 'starting' },
+      ],
+    });
+  });
+
+  it('maps any OTHER health shape to health null and NEVER refuses the line (auxiliary metadata)', () => {
+    const stdout =
+      `{"ID":"a","Names":"weird-object","State":"running","Labels":"","Health":{"nope":true}}\n` +
+      `{"ID":"b","Names":"number","State":"running","Labels":"","Health":42}\n` +
+      `{"ID":"c","Names":"unknown-string","State":"running","Labels":"","Health":"degraded"}\n` +
+      `{"ID":"d","Names":"null","State":"running","Labels":"","Health":null}\n`;
+
+    expect(parseDockerPsJson(stdout)).toEqual({
+      kind: 'ok',
+      containers: [
+        { id: 'a', name: 'weird-object', state: 'running', composeProject: null, health: null },
+        { id: 'b', name: 'number', state: 'running', composeProject: null, health: null },
+        { id: 'c', name: 'unknown-string', state: 'running', composeProject: null, health: null },
+        { id: 'd', name: 'null', state: 'running', composeProject: null, health: null },
       ],
     });
   });

@@ -27,9 +27,9 @@ vi.mock('../../../../services/docker.js', async importOriginal => {
 });
 
 const CONTAINERS: ContainerSnapshot[] = [
-  { id: '1', name: 'grafana', state: 'running', composeProject: 'monitoring' },
-  { id: '2', name: 'prometheus', state: 'running', composeProject: 'monitoring' },
-  { id: '3', name: 'portainer', state: 'running', composeProject: null },
+  { id: '1', name: 'grafana', state: 'running', composeProject: 'monitoring', health: null },
+  { id: '2', name: 'prometheus', state: 'running', composeProject: 'monitoring', health: null },
+  { id: '3', name: 'portainer', state: 'running', composeProject: null, health: null },
 ];
 
 interface ProbeApi {

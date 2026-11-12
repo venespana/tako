@@ -110,8 +110,8 @@ describe('DetailPanel — command feedback (iteration 3)', () => {
 describe('DetailPanel — group mode (collapsed group row focused)', () => {
   it('renders a focused GROUP as name plus summary, without status row or ACTIONS', () => {
     const view = toRemoteHomeView([
-      { id: '1', name: 'grafana', state: 'exited', composeProject: 'monitoring' },
-      { id: '2', name: 'prometheus', state: 'running', composeProject: 'monitoring' },
+      { id: '1', name: 'grafana', state: 'exited', composeProject: 'monitoring', health: null },
+      { id: '2', name: 'prometheus', state: 'running', composeProject: 'monitoring', health: null },
     ]);
     const group = view.groups[0]!;
 
