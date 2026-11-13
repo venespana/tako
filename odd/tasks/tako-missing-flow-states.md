@@ -175,8 +175,9 @@ tako-design.figcraft` in the main checkout, never committed — its `.fig` and
 - One canvas left: `tako.figcraft` (36 screens, 17 components, 13 bands),
   edited in FigCraft. Nothing regenerates it — the script that used to rebuild
   it from `design.pen` is gone.
-- If Figma copies are wanted again, export from FigCraft (`.fig` + per-screen
-  SVG); the earlier attempt's exports were lost.
+- The Figma export pipeline is retired (`.fig` + per-screen SVG): those
+  artifacts are gone and will not be produced again. FigCraft is the only
+  surface.
 - Feed findings 1–3 and 6 back into the code as an ODD feature (stub routes,
   hub state pattern, footer hints on unusable states, health badge in the
   hub's mock data).

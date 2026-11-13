@@ -1,11 +1,13 @@
 # Migrate pen.dev design to FigCraft/Figma
 
-> **Superseded (2026-11-13).** This session's artifacts lived only in the main
-> checkout and were never committed; the `.fig` and the SVG exports are gone.
-> The canvas now lives in `tako.figcraft` (repo root) and FigCraft is the only
-> design tool — `design.pen` was deleted and the generator that mirrored it
-> (`scripts/pen-to-figcraft.ts`) went with it. The one screen that only existed
-> here, `Screen - Network / Error`, was recovered into the canvas — see
+> **Superseded and closed (2026-11-13).** This session's artifacts lived only
+> in the main checkout and were never committed; the `.fig` and the SVG exports
+> are gone. The canvas now lives in `tako.figcraft` (repo root) and FigCraft is
+> the only design tool — `design.pen` was deleted and the generator that
+> mirrored it (`scripts/pen-to-figcraft.ts`) went with it. The Figma export
+> pipeline (`.fig` + per-screen SVG) is retired: those artifacts will not be
+> produced again. The one screen that only existed here, `Screen - Network /
+Error`, was recovered into the canvas — see
 > `odd/tasks/tako-missing-flow-states.md`.
 
 ## Objective
