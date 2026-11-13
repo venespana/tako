@@ -33,7 +33,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \\
     && echo 'tako ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/tako \\
     && mkdir -p /run/sshd \\
     && systemctl disable ssh.socket \\
-    && systemctl enable ssh docker
+    && systemctl enable ssh docker \\
+    && printf '[Unit]\\nDescription=Enable linger for the e2e user (root: polkit denies self-linger in containers)\\n[Service]\\nType=oneshot\\nExecStart=/usr/bin/loginctl enable-linger tako\\n[Install]\\nWantedBy=multi-user.target\\n' > /etc/systemd/system/e2e-linger.service \\
+    && systemctl enable e2e-linger.service
 EXPOSE 22
 CMD ["/lib/systemd/systemd"]
 `;
