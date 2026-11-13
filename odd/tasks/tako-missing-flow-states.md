@@ -41,42 +41,43 @@ Gap = state the code renders with no screen in the Pencil canvas.
 
 ## Tasks
 
-| Task | Specs | Route | Status | Evidence |
-| --- | --- | --- | --- | --- |
-| T1 — audit existing pen screens vs implemented TUI states | S1 | inline | done | this document, "Audit" + "Gap inventory" |
-| T2 — FigCraft design system (tokens, 12 components) | S3 | inline | done | `tako.figcraft` → `Chrome / *` components |
-| T3 — 21 missing state screens | S2, S4 | inline | done | `tako.figcraft` → `Screen — *` frames |
-| T4 — reference map + `docs/design.md` section | S1, S3 | inline | done | `tako.figcraft` "STATE → SOURCE" frame; `docs/design.md` |
-| T5 — commit `tako.figcraft` + docs | S4 | — | pending user approval | — |
-| T6 — rebase `designs` onto `main` | S5 | inline | done | `git rebase main` → fast-forward `7cfab4e` → `398d17d` |
-| T7 — audit the Pencil canvas against the rebased code, regroup by flow | S6 | inline | done | findings 5–6 below; 13 bands in `design.pen` |
-| T8 — merge the FigCraft screens into the Pencil canvas | S7 | inline | done | `design.pen` holds 35 screens; text-parity + structural checks clean |
+| Task                                                                    | Specs  | Route  | Status                | Evidence                                                                                       |
+| ----------------------------------------------------------------------- | ------ | ------ | --------------------- | ---------------------------------------------------------------------------------------------- |
+| T1 — audit existing pen screens vs implemented TUI states               | S1     | inline | done                  | this document, "Audit" + "Gap inventory"                                                       |
+| T2 — FigCraft design system (tokens, 12 components)                     | S3     | inline | done                  | `tako.figcraft` → `Chrome / *` components                                                      |
+| T3 — 21 missing state screens                                           | S2, S4 | inline | done                  | `tako.figcraft` → `Screen — *` frames                                                          |
+| T4 — reference map + `docs/design.md` section                           | S1, S3 | inline | done                  | `tako.figcraft` "STATE → SOURCE" frame; `docs/design.md`                                       |
+| T5 — commit `tako.figcraft` + docs                                      | S4     | —      | pending user approval | —                                                                                              |
+| T6 — rebase `designs` onto `main`                                       | S5     | inline | done                  | `git rebase main` → fast-forward `7cfab4e` → `398d17d`                                         |
+| T7 — audit the Pencil canvas against the rebased code, regroup by flow  | S6     | inline | done                  | findings 5–6 below; 13 bands in `design.pen`                                                   |
+| T8 — merge the FigCraft screens into the Pencil canvas                  | S7     | inline | done                  | `design.pen` holds 35 screens; text-parity + structural checks clean                           |
+| T9 — recover the `.pen` screens into the FigCraft file, ordered by flow | S7     | inline | done                  | `scripts/pen-to-figcraft.ts` regenerates `tako.figcraft` (17 components, 35 screens, 13 bands) |
 
 ## Gap inventory (21 screens)
 
-| Group | Screen | Code source |
-| --- | --- | --- |
-| Remote hub | Home / Remote / Loading | `pages/remote-home/ui/RemoteHomeLoading.tsx` |
-| Remote hub | Home / Remote / Empty | `pages/remote-home/ui/RemoteHomeEmpty.tsx` |
-| Remote hub | Home / Remote / Error | `pages/remote-home/ui/RemoteHomeError.tsx` |
-| Logs | Logs / Connecting | `pages/logs/ui/LogsDashboard.tsx` (phase `connecting`) |
-| Logs | Logs / Ended | `pages/logs/ui/LogsDashboard.tsx` (phase `ended`) |
-| Logs | Logs / Error | `pages/logs/ui/LogsError.tsx` |
-| Remotes | Remotes / Loading | `pages/remotes-menu/ui/RemotesMenuPage.tsx` |
-| Remotes | Remotes / Error | `pages/remotes-menu/ui/RemotesMenuPage.tsx` |
-| Remotes | Remotes / Empty | `pages/remotes-menu/ui/RemotesMenuPage.tsx` |
-| Connect gate | Remote Connect / Validating | `pages/remotes-menu/ui/RemotesMenuPage.tsx` (gate) |
-| Connect gate | Remote Connect / Error | `pages/remotes-menu/ui/RemotesMenuPage.tsx` (gate) |
-| Doctor | Doctor / Checking | `features/doctor/ui/CheckingState.tsx` |
-| Doctor | Doctor / Error | `features/doctor/ui/ErrorState.tsx` |
-| Add Remote | Add Remote / Validating | `pages/remotes-add/model/use-add-remote-wizard.ts` |
-| Add Remote | Add Remote / Host Key | `pages/remotes-add/ui/AddRemoteWizard.tsx` |
-| Add Remote | Add Remote / Saved | `pages/remotes-add/ui/AddRemoteWizard.tsx` |
-| Add Remote | Add Remote / Error | `pages/remotes-add/ui/AddRemoteWizard.tsx` |
-| Tasks | Tasks / Agent Install | `pages/tasks/ui/AgentInstallPanel.tsx` |
-| Tasks | Tasks / Agent Install Failed | `pages/tasks/ui/AgentInstallPanel.tsx` |
-| Tasks | Tasks / No Dry-run | `pages/tasks/ui/DryRunPreviewPane.tsx` |
-| Global | Route Error | `shared/ui/RouteErrorScreen.tsx` |
+| Group        | Screen                       | Code source                                            |
+| ------------ | ---------------------------- | ------------------------------------------------------ |
+| Remote hub   | Home / Remote / Loading      | `pages/remote-home/ui/RemoteHomeLoading.tsx`           |
+| Remote hub   | Home / Remote / Empty        | `pages/remote-home/ui/RemoteHomeEmpty.tsx`             |
+| Remote hub   | Home / Remote / Error        | `pages/remote-home/ui/RemoteHomeError.tsx`             |
+| Logs         | Logs / Connecting            | `pages/logs/ui/LogsDashboard.tsx` (phase `connecting`) |
+| Logs         | Logs / Ended                 | `pages/logs/ui/LogsDashboard.tsx` (phase `ended`)      |
+| Logs         | Logs / Error                 | `pages/logs/ui/LogsError.tsx`                          |
+| Remotes      | Remotes / Loading            | `pages/remotes-menu/ui/RemotesMenuPage.tsx`            |
+| Remotes      | Remotes / Error              | `pages/remotes-menu/ui/RemotesMenuPage.tsx`            |
+| Remotes      | Remotes / Empty              | `pages/remotes-menu/ui/RemotesMenuPage.tsx`            |
+| Connect gate | Remote Connect / Validating  | `pages/remotes-menu/ui/RemotesMenuPage.tsx` (gate)     |
+| Connect gate | Remote Connect / Error       | `pages/remotes-menu/ui/RemotesMenuPage.tsx` (gate)     |
+| Doctor       | Doctor / Checking            | `features/doctor/ui/CheckingState.tsx`                 |
+| Doctor       | Doctor / Error               | `features/doctor/ui/ErrorState.tsx`                    |
+| Add Remote   | Add Remote / Validating      | `pages/remotes-add/model/use-add-remote-wizard.ts`     |
+| Add Remote   | Add Remote / Host Key        | `pages/remotes-add/ui/AddRemoteWizard.tsx`             |
+| Add Remote   | Add Remote / Saved           | `pages/remotes-add/ui/AddRemoteWizard.tsx`             |
+| Add Remote   | Add Remote / Error           | `pages/remotes-add/ui/AddRemoteWizard.tsx`             |
+| Tasks        | Tasks / Agent Install        | `pages/tasks/ui/AgentInstallPanel.tsx`                 |
+| Tasks        | Tasks / Agent Install Failed | `pages/tasks/ui/AgentInstallPanel.tsx`                 |
+| Tasks        | Tasks / No Dry-run           | `pages/tasks/ui/DryRunPreviewPane.tsx`                 |
+| Global       | Route Error                  | `shared/ui/RouteErrorScreen.tsx`                       |
 
 ## Findings (design-relevant, not fixed here)
 
@@ -115,7 +116,7 @@ Gap = state the code renders with no screen in the Pencil canvas.
   permissions, so the audit ran inline (CodeGraph + direct reads).
 - 2026-11-12: built `tako.figcraft` — page "Tako — Missing flows", 9 color
   variables + 1 font variable, 12 components (`Chrome / Logo`, 3 `Chrome / App
-  Header` variants, 8 `Chrome / Footer` variants), 21 screens, group captions
+Header` variants, 8 `Chrome / Footer` variants), 21 screens, group captions
   and a `STATE → SOURCE` reference map.
 - 2026-11-12: footer version corrected to `v0.4.1` (the Pencil canvas still
   says `v1.1.0`; the current repo version is `0.4.1`).
@@ -141,14 +142,25 @@ Gap = state the code renders with no screen in the Pencil canvas.
   `ref` resolves to a reusable component, every `$variable` exists, no
   overlapping screens, and a text-parity check against the FigCraft source
   reports zero differences on all 35 screens.
+- 2026-11-13: recovered the `.pen` screens into the FigCraft file (T9). The
+  migration is a generator, not a one-off: `scripts/pen-to-figcraft.ts`
+  (`bun run design:figcraft`) reads `design.pen` and rewrites `tako.figcraft`
+  — 17 components, 35 screens, the same 13 bands, the same strings. It maps
+  the Pencil `ref` + `descendants` mechanism onto FigCraft components (one
+  component per chrome variant), inlines the menu rows and doctor tool lines
+  with their overrides applied, and writes the `.figcraft` zip with a
+  dependency-free writer. Verified: the generated file opens in FigCraft and
+  every screen renders (Home, Doctor, Status, Home/Remote, Tasks, Cleanup,
+  Logs/Ended checked by screenshot).
 
 ## Next steps
 
-- Commit `design.pen` + `tako.figcraft` + the doc updates (awaiting approval).
+- Commit `design.pen` + `tako.figcraft` + `scripts/pen-to-figcraft.ts` + the
+  doc updates (awaiting approval).
 - The Pencil live document is cloud-side: import the local `design.pen` back
   into pen.dev, or a later cloud export will overwrite the 21 merged screens.
-- Decide whether FigCraft stays a second surface or the Pencil canvas becomes
-  the only one (`design.pen` now holds every screen).
+- The two surfaces now hold the same 35 screens; `design.pen` is the one to
+  edit and `tako.figcraft` is generated from it (`bun run design:figcraft`).
 - Feed findings 1–3 and 6 back into the code as an ODD feature (stub routes,
   hub state pattern, footer hints on unusable states, health badge in the
   hub's mock data).

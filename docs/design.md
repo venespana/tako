@@ -28,16 +28,19 @@ is committed, the Pencil document lives cloud-side.
 
 ### FigCraft canvas (missing flows)
 
-- File: `tako.figcraft` (repo root, committed). Page: `Tako — Missing flows`.
-- Holds the 21 intermediate states the Pencil canvas never covered — loading,
-  empty, error, in-progress and terminal wizard steps — plus the design-system
-  components they instance. Same recipe as the Pencil canvas, so both files
-  render identically.
+- File: `tako.figcraft` (repo root, committed). Page: `Tako — TUI screens`.
+- A full mirror of the Pencil canvas: all 35 screens, the same components and
+  the same flow bands, so both surfaces read the same.
+- **It is generated** — `bun run design:figcraft` reads `design.pen` and
+  rewrites `tako.figcraft` (script: `scripts/pen-to-figcraft.ts`). Edit the
+  Pencil canvas, then regenerate; never hand-edit the FigCraft file.
 - Tokens are document variables in the `Tako` collection: `bg`, `text-primary`,
   `muted`, `accent`, `success`, `error`, `warning`, `border`, `font-mono`.
-- Components: `Chrome / Logo`, `Chrome / App Header` (+ `/ No Agent`,
-  `/ No Remote`) and `Chrome / Footer` variants (`/ Menu`, `/ Command`,
-  `/ Form`, `/ Refresh`, `/ Retry`, `/ Reconnect`, `/ Browse`, `/ Tasks Form`).
+- Components (17): `Chrome / Logo`; `Chrome / App Header` plus its
+  `/ No Agent`, `/ No Remote` and `/ No Remote Selected` variants; and the
+  `Chrome / Footer` variants `/ Menu`, `/ Command`, `/ Form`, `/ Refresh`,
+  `/ Retry`, `/ Reconnect`, `/ Browse`, `/ Tasks Form`, `/ Follow`,
+  `/ Confirm`, `/ Refresh Browse`, `/ Global Actions`.
 - The `STATE → SOURCE` frame on the canvas maps each screen to the
   `src/tui` file that renders it.
 
@@ -46,21 +49,21 @@ is committed, the Pencil document lives cloud-side.
 Screens are grouped in labelled bands, each band with a caption above its
 first screen, six screens per row at 1120px spacing and 800px per row:
 
-| Band | Screens |
-| ---- | ------- |
-| ENTRY · LOCAL | Home, Doctor |
-| REMOTE SETUP | Remotes, Remote Connect, Add Remote |
-| REMOTE HUB · TABS | Home / Remote, Home / Remote / Global Actions |
-| DRILL-INS & ACTIONS | Logs, Status, Tasks, Cleanup |
-| STATUS FAMILY STATES | Status / Loading, Status / Empty, Status / Error |
-| HUB STATES | Home / Remote / Loading, / Empty, / Error |
-| LOGS STATES | Logs / Connecting, / Ended, / Error |
-| REMOTES STATES | Remotes / Loading, / Error, / Empty |
-| CONNECT GATE STATES | Remote Connect / Validating, / Error |
-| DOCTOR STATES | Doctor / Checking, / Error |
+| Band                     | Screens                                               |
+| ------------------------ | ----------------------------------------------------- |
+| ENTRY · LOCAL            | Home, Doctor                                          |
+| REMOTE SETUP             | Remotes, Remote Connect, Add Remote                   |
+| REMOTE HUB · TABS        | Home / Remote, Home / Remote / Global Actions         |
+| DRILL-INS & ACTIONS      | Logs, Status, Tasks, Cleanup                          |
+| STATUS FAMILY STATES     | Status / Loading, Status / Empty, Status / Error      |
+| HUB STATES               | Home / Remote / Loading, / Empty, / Error             |
+| LOGS STATES              | Logs / Connecting, / Ended, / Error                   |
+| REMOTES STATES           | Remotes / Loading, / Error, / Empty                   |
+| CONNECT GATE STATES      | Remote Connect / Validating, / Error                  |
+| DOCTOR STATES            | Doctor / Checking, / Error                            |
 | ADD REMOTE WIZARD STATES | Add Remote / Validating, / Host Key, / Saved, / Error |
-| TASKS STATES | Tasks / Agent Install, / Install Failed, / No Dry-run |
-| GLOBAL ERROR STATES | Route Error |
+| TASKS STATES             | Tasks / Agent Install, / Install Failed, / No Dry-run |
+| GLOBAL ERROR STATES      | Route Error                                           |
 
 The band order follows the user journey: enter locally → set a remote up →
 work on a host → drill into a screen → and the intermediate states each of
@@ -71,16 +74,16 @@ those screens can land in.
 Defined once as document variables; always reference them (`$name`) — never
 hardcode raw values in nodes.
 
-| Token           | Value       | Usage                                   | TUI source                  |
-| --------------- | ----------- | --------------------------------------- | --------------------------- |
-| `$bg`           | `#0D1117`   | Screen background (terminal viewport)   | terminal default background |
-| `$text-primary` | `#E6EDF3`   | Normal text                             | Ink default text color      |
-| `$muted`        | `#8B949E`   | Dim/secondary text: versions, hints     | `dimColor` / `gray`         |
-| `$accent`       | `#22D3EE`   | Wordmark, cursor `❯`, focus, "running"  | `cyan`                      |
-| `$success`      | `#3FB950`   | `✓` found / succeeded                   | `green`                     |
-| `$error`        | `#F85149`   | `✖` not found, errors                   | `red`                       |
-| `$warning`      | `#D29922`   | Warnings, unsupported                   | `yellow`                    |
-| `$font-mono`    | `JetBrains Mono` | Everything (terminal monospace)    | terminal monospace          |
+| Token           | Value            | Usage                                  | TUI source                  |
+| --------------- | ---------------- | -------------------------------------- | --------------------------- |
+| `$bg`           | `#0D1117`        | Screen background (terminal viewport)  | terminal default background |
+| `$text-primary` | `#E6EDF3`        | Normal text                            | Ink default text color      |
+| `$muted`        | `#8B949E`        | Dim/secondary text: versions, hints    | `dimColor` / `gray`         |
+| `$accent`       | `#22D3EE`        | Wordmark, cursor `❯`, focus, "running" | `cyan`                      |
+| `$success`      | `#3FB950`        | `✓` found / succeeded                  | `green`                     |
+| `$error`        | `#F85149`        | `✖` not found, errors                  | `red`                       |
+| `$warning`      | `#D29922`        | Warnings, unsupported                  | `yellow`                    |
+| `$font-mono`    | `JetBrains Mono` | Everything (terminal monospace)        | terminal monospace          |
 
 Emphasis rules: **bold** marks headers, group labels, key bindings, and the
 focused/current item; muted marks secondary info. Body text uses `$text-primary`
@@ -101,11 +104,11 @@ Used at the top of every screen.
 
 Shows the current location: `Local > Doctor`.
 
-| Part      | Node     | Style                          |
-| --------- | -------- | ------------------------------ |
-| Parent    | `JZHW3`  | `$muted`                       |
-| Separator | `dRQIQ`  | `" > "`, `$muted`              |
-| Current   | `LyU39`  | bold, `$text-primary`          |
+| Part      | Node    | Style                 |
+| --------- | ------- | --------------------- |
+| Parent    | `JZHW3` | `$muted`              |
+| Separator | `dRQIQ` | `" > "`, `$muted`     |
+| Current   | `LyU39` | bold, `$text-primary` |
 
 Instance it on every non-root screen and override `Parent`/`Current` content
 (e.g. `Remotes` / `Select`). The root menu (Home) renders no breadcrumb.
@@ -140,15 +143,15 @@ Key-hints line (`Qfnk1`) over the version bar (`Wu2nR`, `v0.2.0`). Hints follow
 `src/tui/widgets/app-shell/ui/KeyHints.tsx` exactly: bold key + `" label  "`,
 left to right.
 
-| Hint node      | Content       | Note                       |
-| -------------- | ------------- | -------------------------- |
-| `U9sSJ`        | `↑↓/j k  `    | menu pages only            |
-| `gn9j9`        | `Enter/l`     | bold, menu pages only      |
-| `zZPWs`        | ` select  `   | menu pages only            |
-| `wRRQv`        | `h/Esc`       | bold, always               |
-| `dG52I`        | ` back  `     |                            |
-| `K18gQt`       | `q`           | bold, always               |
-| `a21hd`        | ` quit`       |                            |
+| Hint node | Content    | Note                  |
+| --------- | ---------- | --------------------- |
+| `U9sSJ`   | `↑↓/j k  ` | menu pages only       |
+| `gn9j9`   | `Enter/l`  | bold, menu pages only |
+| `zZPWs`   | `select `  | menu pages only       |
+| `wRRQv`   | `h/Esc`    | bold, always          |
+| `dG52I`   | `back `    |                       |
+| `K18gQt`  | `q`        | bold, always          |
+| `a21hd`   | ` quit`    |                       |
 
 Page variants via instance overrides:
 
