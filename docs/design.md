@@ -8,6 +8,17 @@ Precedence: **TUI code > this document > canvas.** Tokens, strings, and behavior
 are extracted from `src/tui` — when the app changes, update the canvas and this
 document to match. Never invent UI on the canvas that the app does not have.
 
+## Workflow
+
+The **`designs` branch** is the source of truth for the design artifacts and the
+only place FigCraft work happens. It is kept rebased on `main`, and the
+approved designs land in `main` through a PR, so every development branch
+starts from the approved canvas.
+
+- `main` — the shipped canvas (`tako.figcraft` + this document).
+- `designs` — the ongoing design work; rebase it onto `main` before starting.
+- One PR per approved design batch, with the version bump CI asks for.
+
 ## Canvas
 
 One design surface: the FigCraft file at the repo root.
