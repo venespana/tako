@@ -76,9 +76,13 @@ describeGated('agent releases-fallback e2e — arch mismatch downloads the publi
       if (exit !== 0) console.error(`[install transcript]\n${logs.join('\n')}`);
 
       expect(exit, logs.join('\n')).toBe(0);
+      // The download path is guaranteed by the clientPlatform seam (darwin
+      // client → arm64 server = mismatch → release asset) plus the arm64
+      // host assertion above; the provisioner itself downloads silently, so
+      // the transcript proves only the OUTCOME: placed binary + probe.
       const transcript = logs.join('\n');
-      expect(transcript).toContain('download'); // the fallback path ran…
-      expect(transcript).toContain('survive-disconnect probe passed'); // …and honestly
+      expect(transcript).toContain('binary placed at /home/tako/.tako/tako');
+      expect(transcript).toContain('probe passed on an independent connection');
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }

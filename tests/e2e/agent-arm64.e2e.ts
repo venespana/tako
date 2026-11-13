@@ -97,7 +97,7 @@ describeGated('agent arm64 e2e — install, schedule, disconnect, fire, reconcil
     if (exit !== 0) console.error(`[install transcript]\n${logs.join('\n')}`);
 
     expect(exit, logs.join('\n')).toBe(0);
-    expect(logs.join('\n')).toContain('survive-disconnect probe passed');
+    expect(logs.join('\n')).toContain('probe passed on an independent connection');
   });
 
   it('schedules a prune job, disconnects, lets the agent fire alone, and reconciles the run', async () => {
