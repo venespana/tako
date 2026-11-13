@@ -10,6 +10,11 @@ document to match. Never invent UI on the canvas that the app does not have.
 
 ## Canvas
 
+Two design surfaces exist. Both follow the rules below; only the FigCraft file
+is committed, the Pencil document lives cloud-side.
+
+### Pencil canvas (existing screens)
+
 - Document: `~/.pencil/documents/6ae5f8c3-11e6-4bd2-8e18-eab8172db116/pencil-new.pen`
   (edit through the Pencil app / `tools.pencil.execute`).
 - Assets live next to the `.pen` file and are referenced relatively
@@ -18,6 +23,48 @@ document to match. Never invent UI on the canvas that the app does not have.
   growing to the right.
 - Node IDs referenced below are stable canvas identifiers, kept here so future
   sessions can instance components without re-discovering them.
+- Local snapshot: `design.pen` — the complete canvas (35 screens, 13 bands);
+  pen.dev keeps the live document cloud-side, so a cloud export overwrites it.
+
+### FigCraft canvas (missing flows)
+
+- File: `tako.figcraft` (repo root, committed). Page: `Tako — Missing flows`.
+- Holds the 21 intermediate states the Pencil canvas never covered — loading,
+  empty, error, in-progress and terminal wizard steps — plus the design-system
+  components they instance. Same recipe as the Pencil canvas, so both files
+  render identically.
+- Tokens are document variables in the `Tako` collection: `bg`, `text-primary`,
+  `muted`, `accent`, `success`, `error`, `warning`, `border`, `font-mono`.
+- Components: `Chrome / Logo`, `Chrome / App Header` (+ `/ No Agent`,
+  `/ No Remote`) and `Chrome / Footer` variants (`/ Menu`, `/ Command`,
+  `/ Form`, `/ Refresh`, `/ Retry`, `/ Reconnect`, `/ Browse`, `/ Tasks Form`).
+- The `STATE → SOURCE` frame on the canvas maps each screen to the
+  `src/tui` file that renders it.
+
+### Canvas organisation (both files)
+
+Screens are grouped in labelled bands, each band with a caption above its
+first screen, six screens per row at 1120px spacing and 800px per row:
+
+| Band | Screens |
+| ---- | ------- |
+| ENTRY · LOCAL | Home, Doctor |
+| REMOTE SETUP | Remotes, Remote Connect, Add Remote |
+| REMOTE HUB · TABS | Home / Remote, Home / Remote / Global Actions |
+| DRILL-INS & ACTIONS | Logs, Status, Tasks, Cleanup |
+| STATUS FAMILY STATES | Status / Loading, Status / Empty, Status / Error |
+| HUB STATES | Home / Remote / Loading, / Empty, / Error |
+| LOGS STATES | Logs / Connecting, / Ended, / Error |
+| REMOTES STATES | Remotes / Loading, / Error, / Empty |
+| CONNECT GATE STATES | Remote Connect / Validating, / Error |
+| DOCTOR STATES | Doctor / Checking, / Error |
+| ADD REMOTE WIZARD STATES | Add Remote / Validating, / Host Key, / Saved, / Error |
+| TASKS STATES | Tasks / Agent Install, / Install Failed, / No Dry-run |
+| GLOBAL ERROR STATES | Route Error |
+
+The band order follows the user journey: enter locally → set a remote up →
+work on a host → drill into a screen → and the intermediate states each of
+those screens can land in.
 
 ## Design tokens
 
