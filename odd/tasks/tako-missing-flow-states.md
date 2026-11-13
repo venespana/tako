@@ -154,6 +154,14 @@ Header` variants, 8 `Chrome / Footer` variants), 21 screens, group captions
   every screen renders (Home, Doctor, Status, Home/Remote, Tasks, Cleanup,
   Logs/Ended checked by screenshot).
 
+- 2026-11-13: design review of the exported screens found and fixed three
+  defects in the canvas: menu groups rendered horizontally instead of stacked
+  (Home ×3, Remotes ×1); 5 base screens showed the active-remote header where
+  the canvas says `no remote selected`; and 15 state screens had inherited the
+  active header from the old generator — swapped to the `No Remote` (14) and
+  `No Agent` (3) variants. The file was also reorganised into 7 pages by flow:
+  Components, 01 Entry & local, 02 Remote setup, 03 Add remote wizard,
+  04 Remote hub, 05 Drill-ins, 06 Global errors.
 - 2026-11-13: **the user closed the Pencil surface** — `design.pen` is deleted
   and FigCraft is the tool to use from now on. Consequences: the generator
   (`scripts/pen-to-figcraft.ts`) and the `design:figcraft` script went with it
