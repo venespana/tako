@@ -26,13 +26,14 @@ export async function startArm64SystemdContainer(password: string): Promise<Star
 FROM ubuntu:24.04
 RUN apt-get update && apt-get install -y --no-install-recommends \\
       systemd openssh-server sudo curl ca-certificates iproute2 \\
+      docker.io docker-compose-v2 \\
     && rm -rf /var/lib/apt/lists/* \\
     && useradd -m -s /bin/bash tako \\
     && echo 'tako:${password}' | chpasswd \\
     && echo 'tako ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/tako \\
     && mkdir -p /run/sshd \\
     && systemctl disable ssh.socket \\
-    && systemctl enable ssh
+    && systemctl enable ssh docker
 EXPOSE 22
 CMD ["/lib/systemd/systemd"]
 `;

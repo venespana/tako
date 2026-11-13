@@ -69,7 +69,8 @@ describeGated('agent releases-fallback e2e — arch mismatch downloads the publi
 
     try {
       const exit = await runAgentInstall(installDeps(endpoint, log));
-      expect(exit).toBe(0);
+      // The transcript rides the assertion: a failing pipeline must show WHY.
+      expect(exit, logs.join('\n')).toBe(0);
       const transcript = logs.join('\n');
       expect(transcript).toContain('download'); // the fallback path ran…
       expect(transcript).toContain('survive-disconnect probe passed'); // …and honestly

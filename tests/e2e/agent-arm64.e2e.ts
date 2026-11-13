@@ -92,7 +92,8 @@ describeGated('agent arm64 e2e — install, schedule, disconnect, fire, reconcil
 
   it('installs the agent from the arm64 binary (copy path, probe passes)', async () => {
     const exit = await runAgentInstall(installDeps(endpoint, log));
-    expect(exit).toBe(0);
+    // The transcript rides the assertion: a failing pipeline must show WHY.
+    expect(exit, logs.join('\n')).toBe(0);
     expect(logs.join('\n')).toContain('survive-disconnect probe passed');
   });
 
