@@ -25,7 +25,7 @@ export async function startArm64SystemdContainer(password: string): Promise<Star
   const dockerfile = `
 FROM ubuntu:24.04
 RUN apt-get update && apt-get install -y --no-install-recommends \\
-      systemd openssh-server sudo curl ca-certificates iproute2 \\
+      systemd libpam-systemd openssh-server sudo curl ca-certificates iproute2 \\
       docker.io docker-compose-v2 \\
     && rm -rf /var/lib/apt/lists/* \\
     && useradd -m -s /bin/bash tako \\
