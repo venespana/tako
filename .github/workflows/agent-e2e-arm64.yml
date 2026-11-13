@@ -1,0 +1,39 @@
+name: Agent e2e (arm64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Published release version the fallback e2e downloads (assets must exist)'
+        required: false
+        default: 'v0.7.0'
+
+permissions:
+  contents: read
+
+jobs:
+  agent-e2e:
+    name: Agent e2e on native arm64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build the arm64 agent binary (native arch)
+        run: bun build src/index.tsx --compile --target=bun-linux-arm64 --outfile dist/tako-linux-arm64
+
+      - name: Run the gated agent e2e suites (RA-002 + RA-003)
+        env:
+          TAKO_E2E_ARM64: '1'
+          TAKO_E2E_BINARY: dist/tako-linux-arm64
+          TAKO_E2E_RELEASES: '1'
+          TAKO_E2E_RELEASE_VERSION: ${{ inputs.release_version }}
+        run: bun run test:e2e
