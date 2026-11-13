@@ -41,17 +41,18 @@ Gap = state the code renders with no screen in the Pencil canvas.
 
 ## Tasks
 
-| Task                                                                    | Specs  | Route  | Status                | Evidence                                                                                       |
-| ----------------------------------------------------------------------- | ------ | ------ | --------------------- | ---------------------------------------------------------------------------------------------- |
-| T1 — audit existing pen screens vs implemented TUI states               | S1     | inline | done                  | this document, "Audit" + "Gap inventory"                                                       |
-| T2 — FigCraft design system (tokens, 12 components)                     | S3     | inline | done                  | `tako.figcraft` → `Chrome / *` components                                                      |
-| T3 — 21 missing state screens                                           | S2, S4 | inline | done                  | `tako.figcraft` → `Screen — *` frames                                                          |
-| T4 — reference map + `docs/design.md` section                           | S1, S3 | inline | done                  | `tako.figcraft` "STATE → SOURCE" frame; `docs/design.md`                                       |
-| T5 — commit `tako.figcraft` + docs                                      | S4     | —      | pending user approval | —                                                                                              |
-| T6 — rebase `designs` onto `main`                                       | S5     | inline | done                  | `git rebase main` → fast-forward `7cfab4e` → `398d17d`                                         |
-| T7 — audit the Pencil canvas against the rebased code, regroup by flow  | S6     | inline | done                  | findings 5–6 below; 13 bands in `design.pen`                                                   |
-| T8 — merge the FigCraft screens into the Pencil canvas                  | S7     | inline | done                  | `design.pen` holds 35 screens; text-parity + structural checks clean                           |
-| T9 — recover the `.pen` screens into the FigCraft file, ordered by flow | S7     | inline | done                  | `scripts/pen-to-figcraft.ts` regenerates `tako.figcraft` (17 components, 35 screens, 13 bands) |
+| Task                                                                    | Specs  | Route  | Status                | Evidence                                                                                             |
+| ----------------------------------------------------------------------- | ------ | ------ | --------------------- | ---------------------------------------------------------------------------------------------------- |
+| T1 — audit existing pen screens vs implemented TUI states               | S1     | inline | done                  | this document, "Audit" + "Gap inventory"                                                             |
+| T2 — FigCraft design system (tokens, 12 components)                     | S3     | inline | done                  | `tako.figcraft` → `Chrome / *` components                                                            |
+| T3 — 21 missing state screens                                           | S2, S4 | inline | done                  | `tako.figcraft` → `Screen — *` frames                                                                |
+| T4 — reference map + `docs/design.md` section                           | S1, S3 | inline | done                  | `tako.figcraft` "STATE → SOURCE" frame; `docs/design.md`                                             |
+| T5 — commit `tako.figcraft` + docs                                      | S4     | —      | pending user approval | —                                                                                                    |
+| T6 — rebase `designs` onto `main`                                       | S5     | inline | done                  | `git rebase main` → fast-forward `7cfab4e` → `398d17d`                                               |
+| T7 — audit the Pencil canvas against the rebased code, regroup by flow  | S6     | inline | done                  | findings 5–6 below; 13 bands in `design.pen`                                                         |
+| T8 — merge the FigCraft screens into the Pencil canvas                  | S7     | inline | done                  | `design.pen` holds 35 screens; text-parity + structural checks clean                                 |
+| T9 — recover the `.pen` screens into the FigCraft file, ordered by flow | S7     | inline | done                  | 36 screens / 17 components / 13 bands in `tako.figcraft` (the generator went away with `design.pen`) |
+| T10 — drop the Pencil surface: FigCraft becomes the only canvas         | S7     | inline | done                  | `design.pen` + `scripts/pen-to-figcraft.ts` deleted; `docs/design.md` rewritten                      |
 
 ## Gap inventory (21 screens)
 
@@ -153,6 +154,12 @@ Header` variants, 8 `Chrome / Footer` variants), 21 screens, group captions
   every screen renders (Home, Doctor, Status, Home/Remote, Tasks, Cleanup,
   Logs/Ended checked by screenshot).
 
+- 2026-11-13: **the user closed the Pencil surface** — `design.pen` is deleted
+  and FigCraft is the tool to use from now on. Consequences: the generator
+  (`scripts/pen-to-figcraft.ts`) and the `design:figcraft` script went with it
+  (nothing regenerates the canvas any more); `tako.figcraft` is hand-maintained
+  from the FigCraft app or its MCP; `docs/design.md` now documents the FigCraft
+  components and the band layout as the canonical surface.
 - 2026-11-13: recovered the earlier migration (2026-11-10, `design/
 tako-design.figcraft` in the main checkout, never committed — its `.fig` and
   SVG exports are gone). Its one screen that never reached the Pencil canvas,
@@ -163,12 +170,13 @@ tako-design.figcraft` in the main checkout, never committed — its `.fig` and
 
 ## Next steps
 
-- Commit `design.pen` + `tako.figcraft` + `scripts/pen-to-figcraft.ts` + the
-  doc updates (awaiting approval).
-- The Pencil live document is cloud-side: import the local `design.pen` back
-  into pen.dev, or a later cloud export will overwrite the 21 merged screens.
-- The two surfaces now hold the same 35 screens; `design.pen` is the one to
-  edit and `tako.figcraft` is generated from it (`bun run design:figcraft`).
+- Commit the removal of `design.pen` + the generator and the doc updates
+  (awaiting approval).
+- One canvas left: `tako.figcraft` (36 screens, 17 components, 13 bands),
+  edited in FigCraft. Nothing regenerates it — the script that used to rebuild
+  it from `design.pen` is gone.
+- If Figma copies are wanted again, export from FigCraft (`.fig` + per-screen
+  SVG); the earlier attempt's exports were lost.
 - Feed findings 1–3 and 6 back into the code as an ODD feature (stub routes,
   hub state pattern, footer hints on unusable states, health badge in the
   hub's mock data).
