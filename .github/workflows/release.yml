@@ -26,8 +26,8 @@ jobs:
           - target: bun-linux-arm64
             asset: tako-linux-arm64
     steps:
-      - name: Install git (checkout requirement)
-        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates
+      - name: Install git and unzip (checkout + setup-bun requirements)
+        run: apt-get update && apt-get install -y --no-install-recommends git ca-certificates unzip
 
       - uses: actions/checkout@v4
 
