@@ -153,6 +153,14 @@ Header` variants, 8 `Chrome / Footer` variants), 21 screens, group captions
   every screen renders (Home, Doctor, Status, Home/Remote, Tasks, Cleanup,
   Logs/Ended checked by screenshot).
 
+- 2026-11-13: recovered the earlier migration (2026-11-10, `design/
+tako-design.figcraft` in the main checkout, never committed — its `.fig` and
+  SVG exports are gone). Its one screen that never reached the Pencil canvas,
+  `Screen - Network / Error` (connection lost), went into `design.pen` and
+  into the `GLOBAL ERROR STATES` band: both files now hold 36 screens. The
+  earlier session's feature doc came along as
+  `odd/tasks/migrate-pen-design-to-figcraft.md`, marked superseded.
+
 ## Next steps
 
 - Commit `design.pen` + `tako.figcraft` + `scripts/pen-to-figcraft.ts` + the

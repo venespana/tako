@@ -742,7 +742,7 @@ const BANDS: [string, string[]][] = [
     'TASKS STATES',
     ['Screen - Tasks / Agent Install', 'Screen - Tasks / Agent Install Failed', 'Screen - Tasks / No Dry-run'],
   ],
-  ['GLOBAL ERROR STATES', ['Screen - Route Error']],
+  ['GLOBAL ERROR STATES', ['Screen - Route Error', 'Screen - Network / Error']],
 ];
 
 const MAX_COLS = 6;

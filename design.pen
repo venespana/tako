@@ -8761,6 +8761,217 @@
           "fontWeight": "700"
         }
       ]
+    },
+    {
+      "type": "frame",
+      "id": "myHWB",
+      "x": 5360,
+      "y": 5280,
+      "name": "Screen - Network / Error",
+      "width": 1040,
+      "height": 640,
+      "fill": "$bg",
+      "layout": "vertical",
+      "padding": [
+        28,
+        36
+      ],
+      "justifyContent": "space_between",
+      "children": [
+        {
+          "type": "frame",
+          "id": "M0wEY",
+          "name": "Header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 2,
+          "children": [
+            {
+              "type": "ref",
+              "id": "cdrh3",
+              "ref": "WRhSe",
+              "name": "App Header",
+              "descendants": {
+                "zl8QU": {
+                  "content": "homeserver · agent 0.2.0 (active)"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "KjCAV",
+          "name": "Body",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 12,
+          "children": [
+            {
+              "type": "frame",
+              "id": "ZJNa6",
+              "name": "Heading Row",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "xfzkX",
+                  "name": "Heading",
+                  "fill": "$text-primary",
+                  "content": "Connection lost",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 14,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "lPGTE",
+                  "name": "Meta",
+                  "fill": "$muted",
+                  "content": "homeserver · 192.168.1.50",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "id": "BVbJC",
+              "name": "Divider",
+              "fill": "$border",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "type": "frame",
+              "id": "KtT8B",
+              "name": "Error Line",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Ocn9Y",
+                  "name": "Glyph",
+                  "fill": "$error",
+                  "content": "✖",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "BGUcz",
+                  "name": "Text",
+                  "fill": "$error",
+                  "content": " Network connection lost",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "ZvI4M",
+              "name": "Reason",
+              "fill": "$muted",
+              "content": "read tcp 192.168.1.50:22: connection reset by peer",
+              "fontFamily": "$font-mono",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "text",
+              "id": "B8IFh",
+              "name": "Next",
+              "fill": "$muted",
+              "content": "Check the network, then press r to reconnect.",
+              "fontFamily": "$font-mono",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "ref",
+          "id": "qA27h",
+          "ref": "zBl6P",
+          "name": "Footer",
+          "width": "fill_container",
+          "descendants": {
+            "Qfnk1": {
+              "type": "frame",
+              "id": "EnhHS",
+              "name": "Key Hints",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "3sAsb",
+                  "name": "Keys r",
+                  "fill": "$muted",
+                  "content": "r",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 13,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "vusXf",
+                  "name": "Label r",
+                  "fill": "$muted",
+                  "content": " retry  ",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "XNYGf",
+                  "name": "Keys h/Esc",
+                  "fill": "$muted",
+                  "content": "h/Esc",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 13,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "ecv9J",
+                  "name": "Label h/Esc",
+                  "fill": "$muted",
+                  "content": " back  ",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "HSwY3",
+                  "name": "Keys q",
+                  "fill": "$muted",
+                  "content": "q",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 13,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "Fk9ni",
+                  "name": "Label q",
+                  "fill": "$muted",
+                  "content": " quit",
+                  "fontFamily": "$font-mono",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ],
   "variables": {
