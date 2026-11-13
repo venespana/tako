@@ -154,6 +154,12 @@ Header` variants, 8 `Chrome / Footer` variants), 21 screens, group captions
   every screen renders (Home, Doctor, Status, Home/Remote, Tasks, Cleanup,
   Logs/Ended checked by screenshot).
 
+- 2026-11-13: generated the missing **design system page** (`00 · Design
+system`) as the canvas' first page: token swatches, the JetBrains Mono type
+  scale, the status glyphs, the screen anatomy with its numbers, the 17
+  component index and the usage rules. Built after two FigCraft session resets
+  (the variables and four pages were lost once and recovered from commit
+  e5cf757) — the variables now load and the swatches bind to them.
 - 2026-11-13: design review of the exported screens found and fixed three
   defects in the canvas: menu groups rendered horizontally instead of stacked
   (Home ×3, Remotes ×1); 5 base screens showed the active-remote header where

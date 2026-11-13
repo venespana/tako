@@ -28,6 +28,10 @@ Error` (recovered from the earlier migration).
   `/ Confirm`, `/ Refresh Browse`, `/ Global Actions`.
 - The `STATE → SOURCE` frame on the canvas maps each screen to the
   `src/tui` file that renders it.
+- The **`00 · Design system` page** is the visual spec: token swatches, the
+  type scale, the status glyphs, the screen anatomy with its numbers, the
+  component index and the rules. When this document and that page disagree,
+  fix both.
 
 ### Canvas organisation
 
