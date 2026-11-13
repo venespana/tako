@@ -20,11 +20,11 @@ import type { StartedTestContainer } from 'testcontainers';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { startArm64SystemdContainer } from './helpers/arm64-systemd.js';
+import { buildInstallDeps } from './helpers/install-deps.js';
 import { runAgentInstall, type AgentInstallDeps } from '../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
 
 const GATED = process.env['TAKO_E2E_RELEASES'] === '1';
 const RELEASE_VERSION = process.env['TAKO_E2E_RELEASE_VERSION'] ?? '';
-const SSH_USER = 'tako';
 const SSH_PASSWORD = 'releases-e2e-pass';
 
 const describeGated = GATED && RELEASE_VERSION !== '' ? describe : describe.skip;
@@ -35,20 +35,15 @@ interface RemoteEndpoint {
 }
 
 function installDeps(endpoint: RemoteEndpoint, log: (line: string) => void): AgentInstallDeps {
-  return {
-    remoteName: 'releases-e2e',
-    config: {
-      host: endpoint.host,
-      port: endpoint.port,
-      username: SSH_USER,
-      auth: { type: 'password', password: SSH_PASSWORD },
-    },
-    clientVersion: RELEASE_VERSION,
-    // NO localBinaryPath on purpose: the arch mismatch forces the Releases
-    // download path on the server (curl + .sha256 verify + atomic mv).
+  // Pretend the installing client runs on macOS (darwin): the arch mismatch
+  // forces the Releases download path on the arm64 server, natively.
+  return buildInstallDeps({
+    endpoint,
+    password: SSH_PASSWORD,
     log,
-    error: line => log(`! ${line}`),
-  };
+    clientVersion: RELEASE_VERSION,
+    provisionOverrides: { clientPlatform: 'darwin' },
+  });
 }
 
 describeGated('agent releases-fallback e2e — arch mismatch downloads the published asset (8.16)', () => {

@@ -23,6 +23,7 @@ import type { StartedTestContainer } from 'testcontainers';
 import { afterAll, describe, expect, it } from 'vitest';
 
 import { startArm64SystemdContainer } from './helpers/arm64-systemd.js';
+import { buildInstallDeps } from './helpers/install-deps.js';
 import { runAgentInstall, type AgentInstallDeps } from '../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
 import { StreamLocalAgentTransport } from '../../src/domains/agent/infrastructure/StreamLocalAgentTransport.js';
 import { SshConnectionManager } from '../../src/domains/remotes/infrastructure/SshConnectionManager.js';
@@ -43,19 +44,15 @@ interface RemoteEndpoint {
 }
 
 function installDeps(endpoint: RemoteEndpoint, log: (line: string) => void): AgentInstallDeps {
-  return {
-    remoteName: 'arm64-e2e',
-    config: {
-      host: endpoint.host,
-      port: endpoint.port,
-      username: SSH_USER,
-      auth: { type: 'password', password: SSH_PASSWORD },
-    },
-    clientVersion: '0.0.0-e2e',
-    localBinaryPath: BINARY,
+  // The client pins its own arm64 binary: same arch (arm64 runner → arm64
+  // server) → the COPY path runs, over the REAL SFTP transfer.
+  return buildInstallDeps({
+    endpoint,
+    password: SSH_PASSWORD,
     log,
-    error: line => log(`! ${line}`),
-  };
+    clientVersion: '0.0.0-e2e',
+    provisionOverrides: { localBinaryPath: BINARY },
+  });
 }
 
 async function openAgentSession(endpoint: RemoteEndpoint) {
