@@ -19,14 +19,17 @@ import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import type { StartedTestContainer } from 'testcontainers';
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { startArm64SystemdContainer } from './helpers/arm64-systemd.js';
+import { buildInstallDeps } from './helpers/install-deps.js';
 import { runAgentInstall, type AgentInstallDeps } from '../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
 import { StreamLocalAgentTransport } from '../../src/domains/agent/infrastructure/StreamLocalAgentTransport.js';
 import { SshConnectionManager } from '../../src/domains/remotes/infrastructure/SshConnectionManager.js';
 import { SshRemoteCommandRunner } from '../../src/domains/remotes/infrastructure/SshRemoteCommandRunner.js';
 import { StreamLocalAgentChannel } from '../../src/domains/remotes/infrastructure/StreamLocalAgentChannel.js';
+import { VERSION } from '../../src/shared/lib/version.js';
 
 const GATED = process.env['TAKO_E2E_ARM64'] === '1';
 const BINARY = process.env['TAKO_E2E_BINARY'] ?? '';
@@ -42,19 +45,18 @@ interface RemoteEndpoint {
 }
 
 function installDeps(endpoint: RemoteEndpoint, log: (line: string) => void): AgentInstallDeps {
-  return {
-    remoteName: 'arm64-e2e',
-    config: {
-      host: endpoint.host,
-      port: endpoint.port,
-      username: SSH_USER,
-      auth: { type: 'password', password: SSH_PASSWORD },
-    },
-    clientVersion: '0.0.0-e2e',
-    localBinaryPath: BINARY,
+  // The client pins its own arm64 binary AND declares its real built
+  // version: the survive-disconnect probe's handshake compares the agent's
+  // reported version against clientVersion ('0.0.0-e2e' once failed the
+  // handshake against a 0.7.0 binary). Same arch (arm64 runner → arm64
+  // server) → the COPY path runs, over the REAL SFTP transfer.
+  return buildInstallDeps({
+    endpoint,
+    password: SSH_PASSWORD,
     log,
-    error: line => log(`! ${line}`),
-  };
+    clientVersion: VERSION,
+    provisionOverrides: { localBinaryPath: BINARY },
+  });
 }
 
 async function openAgentSession(endpoint: RemoteEndpoint) {
@@ -86,10 +88,7 @@ describeGated('agent arm64 e2e — install, schedule, disconnect, fire, reconcil
 
   it('boots a native arm64 systemd container', async () => {
     expect(statSync(BINARY).isFile()).toBe(true);
-    container = await new GenericContainer('jrei/systemd-ubuntu:latest')
-      .withPrivilegedMode()
-      .withExposedPorts(22)
-      .start();
+    container = await startArm64SystemdContainer(SSH_PASSWORD);
     const arch = (await container.exec(['uname', '-m'])).output.trim();
     expect(arch).toBe('aarch64'); // native arm64 runner — the whole point of the gate
     endpoint = { host: '127.0.0.1', port: container.getMappedPort(22) };
@@ -97,8 +96,12 @@ describeGated('agent arm64 e2e — install, schedule, disconnect, fire, reconcil
 
   it('installs the agent from the arm64 binary (copy path, probe passes)', async () => {
     const exit = await runAgentInstall(installDeps(endpoint, log));
-    expect(exit).toBe(0);
-    expect(logs.join('\n')).toContain('survive-disconnect probe passed');
+
+    // The transcript rides the assertion: a failing pipeline must show WHY.
+    if (exit !== 0) console.error(`[install transcript]\n${logs.join('\n')}`);
+
+    expect(exit, logs.join('\n')).toBe(0);
+    expect(logs.join('\n')).toContain('probe passed on an independent connection');
   });
 
   it('schedules a prune job, disconnects, lets the agent fire alone, and reconciles the run', async () => {

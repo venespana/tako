@@ -16,14 +16,15 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { arch, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import type { StartedTestContainer } from 'testcontainers';
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { startArm64SystemdContainer } from './helpers/arm64-systemd.js';
+import { buildInstallDeps } from './helpers/install-deps.js';
 import { runAgentInstall, type AgentInstallDeps } from '../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
 
 const GATED = process.env['TAKO_E2E_RELEASES'] === '1';
 const RELEASE_VERSION = process.env['TAKO_E2E_RELEASE_VERSION'] ?? '';
-const SSH_USER = 'tako';
 const SSH_PASSWORD = 'releases-e2e-pass';
 
 const describeGated = GATED && RELEASE_VERSION !== '' ? describe : describe.skip;
@@ -34,20 +35,17 @@ interface RemoteEndpoint {
 }
 
 function installDeps(endpoint: RemoteEndpoint, log: (line: string) => void): AgentInstallDeps {
-  return {
-    remoteName: 'releases-e2e',
-    config: {
-      host: endpoint.host,
-      port: endpoint.port,
-      username: SSH_USER,
-      auth: { type: 'password', password: SSH_PASSWORD },
-    },
-    clientVersion: RELEASE_VERSION,
-    // NO localBinaryPath on purpose: the arch mismatch forces the Releases
-    // download path on the server (curl + .sha256 verify + atomic mv).
+  // Pretend the installing client runs on macOS (darwin): the arch mismatch
+  // forces the Releases download path on the arm64 server, natively. The
+  // pipeline builds `v<version>` itself, so a leading 'v' is stripped
+  // (first real run downloaded from releases/download/vv0.7.0 → 404).
+  return buildInstallDeps({
+    endpoint,
+    password: SSH_PASSWORD,
     log,
-    error: line => log(`! ${line}`),
-  };
+    clientVersion: RELEASE_VERSION.replace(/^v/u, ''),
+    provisionOverrides: { clientPlatform: 'darwin' },
+  });
 }
 
 describeGated('agent releases-fallback e2e — arch mismatch downloads the published asset (8.16)', () => {
@@ -64,10 +62,7 @@ describeGated('agent releases-fallback e2e — arch mismatch downloads the publi
 
   it('boots an arm64 systemd container on an arm64 host (mismatch vs any x64 binary)', async () => {
     expect(arch()).toBe('arm64'); // copy path could otherwise still win
-    container = await new GenericContainer('jrei/systemd-ubuntu:latest')
-      .withPrivilegedMode()
-      .withExposedPorts(22)
-      .start();
+    container = await startArm64SystemdContainer(SSH_PASSWORD);
     endpoint = { host: '127.0.0.1', port: container.getMappedPort(22) };
   });
 
@@ -76,10 +71,18 @@ describeGated('agent releases-fallback e2e — arch mismatch downloads the publi
 
     try {
       const exit = await runAgentInstall(installDeps(endpoint, log));
-      expect(exit).toBe(0);
+
+      // The transcript rides the assertion: a failing pipeline must show WHY.
+      if (exit !== 0) console.error(`[install transcript]\n${logs.join('\n')}`);
+
+      expect(exit, logs.join('\n')).toBe(0);
+      // The download path is guaranteed by the clientPlatform seam (darwin
+      // client → arm64 server = mismatch → release asset) plus the arm64
+      // host assertion above; the provisioner itself downloads silently, so
+      // the transcript proves only the OUTCOME: placed binary + probe.
       const transcript = logs.join('\n');
-      expect(transcript).toContain('download'); // the fallback path ran…
-      expect(transcript).toContain('survive-disconnect probe passed'); // …and honestly
+      expect(transcript).toContain('binary placed at /home/tako/.tako/tako');
+      expect(transcript).toContain('probe passed on an independent connection');
     } finally {
       rmSync(scratch, { recursive: true, force: true });
     }

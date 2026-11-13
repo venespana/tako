@@ -36,12 +36,29 @@ the project workflow. ODD (`odd/tasks/*.md`) is the only planning/tracking mecha
            handshake ok.
         Residual (optional, out of MVP): re-validate on the homeServer once
         its SSD is replaced.
-- [ ] RA-002 — Native arm64 e2e validation (task 8.15, test already written:
+- [x] RA-002 — Native arm64 e2e validation (task 8.15, test already written:
       `tests/e2e/agent-arm64.e2e.ts`). Requires a native arm64 runner; gated by
       `TAKO_E2E_ARM64=1` + `TAKO_E2E_BINARY`.
-- [ ] RA-003 — Releases-fallback e2e (task 8.16, test already written:
+      - **2026-11-13 VALIDATED** on GitHub's free public-repo arm64 runner
+        (`ubuntu-24.04-arm`, run 43476601876, workflow
+        `.github/workflows/agent-e2e-arm64.yml`): build native arm64 binary →
+        install over real SSH on an arm64 systemd container (copy path over
+        real SFTP) → schedule a per-minute prune job → close the client →
+        the agent fired it ALONE → reconnect → reconcile delivered the run.
+        Enablers landed en route: the e2e rebuilt its own multi-arch
+        systemd+sshd image (jrei is amd64-only), installed
+        libpam-systemd/docker/compose in the container, pre-enabled linger
+        (polkit denies self-linger in containers), and added a
+        `clientPlatform` test seam + real-ssh readiness to the harness.
+- [x] RA-003 — Releases-fallback e2e (task 8.16, test already written:
       `tests/e2e/agent-releases-fallback.e2e.ts`). Blocked on the first published
       arm64 release (env-pinned version).
+      - **2026-11-13 VALIDATED** in the same run: `clientPlatform: 'darwin'`
+        seam forces the arch mismatch on the arm64 host → the installer
+        skipped the copy path, downloaded the published `v0.7.0`
+        `tako-linux-arm64` asset (sha256 sidecar verified), placed it, and
+        the survive-disconnect probe passed. Leading-'v' normalization added
+        (first run fetched `releases/download/vv0.7.0` → 404).
 - [ ] RA-004 — `tako agent proxy` exec-mode transport. Explicitly left open as a
       separate change (archived `tasks.md:163`, item 3).
 

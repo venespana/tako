@@ -54,6 +54,10 @@ export interface AgentInstallDeps {
   readonly provisionOverrides?: {
     readonly localBinaryPath?: string;
     readonly clientSha256?: string;
+    /** Test seam: pretend the installing client runs on this platform (e.g.
+     * 'darwin' on a linux/arm64 runner) so the arch-mismatch → Releases
+     * download path can be exercised natively (RA-003). */
+    readonly clientPlatform?: string;
   };
 }
 
@@ -99,7 +103,11 @@ export async function runAgentInstall(deps: AgentInstallDeps): Promise<number> {
     const priorInstallSha256 = await records.readInstalledSha256();
     const provisioner = new HybridBinaryProvisioner(deps.runner, deps.transfer);
     let provision = await provisioner.provision({
-      source: decideClientInstallSource(process.platform, process.arch, preflight.arch),
+      source: decideClientInstallSource(
+        deps.provisionOverrides?.clientPlatform ?? process.platform,
+        process.arch,
+        preflight.arch
+      ),
       version: deps.clientVersion,
       priorInstallSha256,
       ...(deps.provisionOverrides?.localBinaryPath !== undefined && {
