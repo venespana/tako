@@ -36,12 +36,14 @@ interface RemoteEndpoint {
 
 function installDeps(endpoint: RemoteEndpoint, log: (line: string) => void): AgentInstallDeps {
   // Pretend the installing client runs on macOS (darwin): the arch mismatch
-  // forces the Releases download path on the arm64 server, natively.
+  // forces the Releases download path on the arm64 server, natively. The
+  // pipeline builds `v<version>` itself, so a leading 'v' is stripped
+  // (first real run downloaded from releases/download/vv0.7.0 → 404).
   return buildInstallDeps({
     endpoint,
     password: SSH_PASSWORD,
     log,
-    clientVersion: RELEASE_VERSION,
+    clientVersion: RELEASE_VERSION.replace(/^v/u, ''),
     provisionOverrides: { clientPlatform: 'darwin' },
   });
 }

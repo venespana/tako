@@ -42,20 +42,49 @@ CMD ["/lib/systemd/systemd"]
   try {
     const image = await GenericContainer.fromDockerfile(contextDir).build('tako-arm64-systemd:e2e');
     const container = await image.withPrivilegedMode().withExposedPorts(22).start();
+    const mappedPort = container.getMappedPort(22);
 
     let waited = 0;
 
     while (waited < 60_000) {
       const state = (await container.exec(['systemctl', 'is-active', 'ssh'])).output.trim();
 
-      if (state === 'active') return container;
+      if (state === 'active' && (await realSshReady(mappedPort, password))) return container;
 
       await new Promise(resolve => setTimeout(resolve, 1_000));
       waited += 1_000;
     }
 
-    throw new Error('sshd did not report active within 60s');
+    throw new Error('sshd did not report active (or accept a real session) within 60s');
   } finally {
     rmSync(contextDir, { recursive: true, force: true });
   }
+}
+
+/** REAL session proof: systemd reporting active is not enough — this probes
+ * password auth + exec over an actual ssh2 connection, exactly what the
+ * install pipeline will do (VEN-1: waiting budgets, never assumptions). */
+async function realSshReady(mappedPort: number, password: string): Promise<boolean> {
+  const { Client } = await import('ssh2');
+
+  return new Promise(resolve => {
+    const connection = new Client()
+      .on('ready', () => {
+        connection.exec('true', error => {
+          connection.end();
+          resolve(error === undefined);
+        });
+      })
+      .on('error', () => {
+        connection.end();
+        resolve(false);
+      })
+      .connect({
+        host: '127.0.0.1',
+        port: mappedPort,
+        username: 'tako',
+        password,
+        readyTimeout: 5_000,
+      });
+  });
 }
