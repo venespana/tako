@@ -25,6 +25,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { startArm64SystemdContainer } from './helpers/arm64-systemd.js';
 import { buildInstallDeps } from './helpers/install-deps.js';
 import { runAgentInstall, type AgentInstallDeps } from '../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
+import { VERSION } from '../../../src/shared/lib/version.js';
 import { StreamLocalAgentTransport } from '../../src/domains/agent/infrastructure/StreamLocalAgentTransport.js';
 import { SshConnectionManager } from '../../src/domains/remotes/infrastructure/SshConnectionManager.js';
 import { SshRemoteCommandRunner } from '../../src/domains/remotes/infrastructure/SshRemoteCommandRunner.js';
@@ -44,13 +45,16 @@ interface RemoteEndpoint {
 }
 
 function installDeps(endpoint: RemoteEndpoint, log: (line: string) => void): AgentInstallDeps {
-  // The client pins its own arm64 binary: same arch (arm64 runner → arm64
+  // The client pins its own arm64 binary AND declares its real built
+  // version: the survive-disconnect probe's handshake compares the agent's
+  // reported version against clientVersion ('0.0.0-e2e' once failed the
+  // handshake against a 0.7.0 binary). Same arch (arm64 runner → arm64
   // server) → the COPY path runs, over the REAL SFTP transfer.
   return buildInstallDeps({
     endpoint,
     password: SSH_PASSWORD,
     log,
-    clientVersion: '0.0.0-e2e',
+    clientVersion: VERSION,
     provisionOverrides: { localBinaryPath: BINARY },
   });
 }
