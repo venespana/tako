@@ -25,11 +25,11 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { startArm64SystemdContainer } from './helpers/arm64-systemd.js';
 import { buildInstallDeps } from './helpers/install-deps.js';
 import { runAgentInstall, type AgentInstallDeps } from '../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
-import { VERSION } from '../../../src/shared/lib/version.js';
 import { StreamLocalAgentTransport } from '../../src/domains/agent/infrastructure/StreamLocalAgentTransport.js';
 import { SshConnectionManager } from '../../src/domains/remotes/infrastructure/SshConnectionManager.js';
 import { SshRemoteCommandRunner } from '../../src/domains/remotes/infrastructure/SshRemoteCommandRunner.js';
 import { StreamLocalAgentChannel } from '../../src/domains/remotes/infrastructure/StreamLocalAgentChannel.js';
+import { VERSION } from '../../src/shared/lib/version.js';
 
 const GATED = process.env['TAKO_E2E_ARM64'] === '1';
 const BINARY = process.env['TAKO_E2E_BINARY'] ?? '';
