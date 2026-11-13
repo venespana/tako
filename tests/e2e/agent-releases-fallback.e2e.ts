@@ -16,9 +16,10 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { arch, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import type { StartedTestContainer } from 'testcontainers';
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { startArm64SystemdContainer } from './helpers/arm64-systemd.js';
 import { runAgentInstall, type AgentInstallDeps } from '../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
 
 const GATED = process.env['TAKO_E2E_RELEASES'] === '1';
@@ -64,10 +65,7 @@ describeGated('agent releases-fallback e2e — arch mismatch downloads the publi
 
   it('boots an arm64 systemd container on an arm64 host (mismatch vs any x64 binary)', async () => {
     expect(arch()).toBe('arm64'); // copy path could otherwise still win
-    container = await new GenericContainer('jrei/systemd-ubuntu:latest')
-      .withPrivilegedMode()
-      .withExposedPorts(22)
-      .start();
+    container = await startArm64SystemdContainer(SSH_PASSWORD);
     endpoint = { host: '127.0.0.1', port: container.getMappedPort(22) };
   });
 

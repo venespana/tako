@@ -19,9 +19,10 @@ import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import type { StartedTestContainer } from 'testcontainers';
 import { afterAll, describe, expect, it } from 'vitest';
 
+import { startArm64SystemdContainer } from './helpers/arm64-systemd.js';
 import { runAgentInstall, type AgentInstallDeps } from '../../src/domains/agent/infrastructure/AgentInstallPipeline.js';
 import { StreamLocalAgentTransport } from '../../src/domains/agent/infrastructure/StreamLocalAgentTransport.js';
 import { SshConnectionManager } from '../../src/domains/remotes/infrastructure/SshConnectionManager.js';
@@ -86,10 +87,7 @@ describeGated('agent arm64 e2e — install, schedule, disconnect, fire, reconcil
 
   it('boots a native arm64 systemd container', async () => {
     expect(statSync(BINARY).isFile()).toBe(true);
-    container = await new GenericContainer('jrei/systemd-ubuntu:latest')
-      .withPrivilegedMode()
-      .withExposedPorts(22)
-      .start();
+    container = await startArm64SystemdContainer(SSH_PASSWORD);
     const arch = (await container.exec(['uname', '-m'])).output.trim();
     expect(arch).toBe('aarch64'); // native arm64 runner — the whole point of the gate
     endpoint = { host: '127.0.0.1', port: container.getMappedPort(22) };
